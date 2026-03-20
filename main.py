@@ -42,6 +42,12 @@ async def startup():
         except Exception:
             pass  # Tabel bestaat nog niet; create_all regelt dit
 
+        # Migreer uitgiftes tabel (aangemaakt via create_all, maar voor zekerheid)
+        try:
+            conn.execute(text("SELECT 1 FROM uitgiftes LIMIT 1"))
+        except Exception:
+            pass  # Wordt aangemaakt door create_all
+
     # Migreer hardcoded gebruikers uit config.py naar de database
     db = database.SessionLocal()
     try:
@@ -105,10 +111,12 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    # Totaaloverzicht per locatie + product
-    results = (
+    # Totaaloverzicht per locatie + product (oogst minus uitgifte)
+    harvest_results = (
         db.query(
+            models.Location.id.label("location_id"),
             models.Location.name.label("location_name"),
+            models.Product.id.label("product_id"),
             models.Product.name.label("product_name"),
             models.Product.unit.label("unit"),
             func.sum(models.HarvestEntry.quantity).label("total"),
@@ -127,12 +135,25 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
+    uitgifte_results = (
+        db.query(
+            models.Uitgifte.product_id,
+            models.Uitgifte.location_id,
+            func.sum(models.Uitgifte.quantity).label("total"),
+        )
+        .group_by(models.Uitgifte.product_id, models.Uitgifte.location_id)
+        .all()
+    )
+    uitgifte_map = {(r.product_id, r.location_id): r.total for r in uitgifte_results}
+
     inventory: dict[str, list] = {}
-    for row in results:
+    for row in harvest_results:
+        uitgegeven = uitgifte_map.get((row.product_id, row.location_id), 0)
+        net = row.total - uitgegeven
         if row.location_name not in inventory:
             inventory[row.location_name] = []
         inventory[row.location_name].append(
-            {"product": row.product_name, "unit": row.unit, "total": row.total}
+            {"product": row.product_name, "unit": row.unit, "total": net}
         )
 
     # Detailoverzicht per locatie: individuele entries met volgnummer en houdbaarheidsdatum
@@ -578,3 +599,253 @@ async def admin_activate_location(
         location.active = True
         db.commit()
     return RedirectResponse("/admin", status_code=302)
+
+
+# ── Uitgifte ───────────────────────────────────────────────────────────────────
+
+def _beschikbare_voorraad(db: Session, product_id: int, location_id: int) -> float:
+    harvest_total = (
+        db.query(func.sum(models.HarvestEntry.quantity))
+        .filter(
+            models.HarvestEntry.product_id == product_id,
+            models.HarvestEntry.location_id == location_id,
+        )
+        .scalar()
+    ) or 0.0
+    uitgifte_total = (
+        db.query(func.sum(models.Uitgifte.quantity))
+        .filter(
+            models.Uitgifte.product_id == product_id,
+            models.Uitgifte.location_id == location_id,
+        )
+        .scalar()
+    ) or 0.0
+    return harvest_total - uitgifte_total
+
+
+@app.get("/uitgifte/new")
+async def uitgifte_new(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    products = (
+        db.query(models.Product)
+        .filter(models.Product.active == True)
+        .order_by(models.Product.name)
+        .all()
+    )
+    locations = (
+        db.query(models.Location)
+        .filter(models.Location.active == True)
+        .order_by(models.Location.name)
+        .all()
+    )
+    ontvangers = [
+        r[0]
+        for r in db.query(models.Uitgifte.ontvanger).distinct().order_by(models.Uitgifte.ontvanger).all()
+    ]
+    today = datetime.date.today().isoformat()
+
+    return templates.TemplateResponse(
+        "uitgifte_new.html",
+        {
+            "request": request,
+            "user": user,
+            "products": products,
+            "locations": locations,
+            "ontvangers": ontvangers,
+            "today": today,
+            "error": None,
+            "form": {},
+        },
+    )
+
+
+@app.post("/uitgifte/new")
+async def uitgifte_new_post(
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = Form(...),
+    location_id: int = Form(...),
+    quantity: float = Form(...),
+    ontvanger: str = Form(...),
+    date: str = Form(...),
+    note: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    beschikbaar = _beschikbare_voorraad(db, product_id, location_id)
+
+    if quantity > beschikbaar:
+        product = db.query(models.Product).filter(models.Product.id == product_id).first()
+        unit = product.unit if product else ""
+        products = (
+            db.query(models.Product).filter(models.Product.active == True).order_by(models.Product.name).all()
+        )
+        locations = (
+            db.query(models.Location).filter(models.Location.active == True).order_by(models.Location.name).all()
+        )
+        ontvangers = [
+            r[0]
+            for r in db.query(models.Uitgifte.ontvanger).distinct().order_by(models.Uitgifte.ontvanger).all()
+        ]
+        return templates.TemplateResponse(
+            "uitgifte_new.html",
+            {
+                "request": request,
+                "user": user,
+                "products": products,
+                "locations": locations,
+                "ontvangers": ontvangers,
+                "today": date,
+                "error": f"Onvoldoende voorraad. Beschikbaar: {beschikbaar:g} {unit}",
+                "form": {
+                    "product_id": product_id,
+                    "location_id": location_id,
+                    "quantity": quantity,
+                    "ontvanger": ontvanger,
+                    "date": date,
+                    "note": note,
+                },
+            },
+        )
+
+    uitgifte = models.Uitgifte(
+        product_id=product_id,
+        location_id=location_id,
+        quantity=quantity,
+        ontvanger=ontvanger.strip(),
+        date=date,
+        entered_by=user,
+        note=note.strip() or None,
+        created_at=datetime.datetime.utcnow(),
+    )
+    db.add(uitgifte)
+    db.commit()
+    return RedirectResponse("/", status_code=302)
+
+
+@app.get("/uitgiftes")
+async def uitgiftes(
+    request: Request,
+    db: Session = Depends(get_db),
+    ontvanger: str = None,
+    date_from: str = None,
+    date_to: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    query = (
+        db.query(models.Uitgifte)
+        .join(models.Product, models.Uitgifte.product_id == models.Product.id)
+        .join(models.Location, models.Uitgifte.location_id == models.Location.id)
+    )
+    if ontvanger:
+        query = query.filter(models.Uitgifte.ontvanger == ontvanger)
+    if date_from:
+        query = query.filter(models.Uitgifte.date >= date_from)
+    if date_to:
+        query = query.filter(models.Uitgifte.date <= date_to)
+
+    entries = query.order_by(models.Uitgifte.date.desc(), models.Uitgifte.created_at.desc()).all()
+
+    # Totaal per ontvanger per product
+    totaal_query = (
+        db.query(
+            models.Uitgifte.ontvanger,
+            models.Product.name.label("product_name"),
+            models.Product.unit.label("unit"),
+            func.sum(models.Uitgifte.quantity).label("total"),
+        )
+        .join(models.Product, models.Uitgifte.product_id == models.Product.id)
+        .group_by(models.Uitgifte.ontvanger, models.Product.id, models.Product.name, models.Product.unit)
+        .order_by(models.Uitgifte.ontvanger, models.Product.name)
+    )
+    if ontvanger:
+        totaal_query = totaal_query.filter(models.Uitgifte.ontvanger == ontvanger)
+    if date_from:
+        totaal_query = totaal_query.filter(models.Uitgifte.date >= date_from)
+    if date_to:
+        totaal_query = totaal_query.filter(models.Uitgifte.date <= date_to)
+
+    totaal_rows = totaal_query.all()
+    totaal_per_ontvanger: dict[str, list] = {}
+    for r in totaal_rows:
+        if r.ontvanger not in totaal_per_ontvanger:
+            totaal_per_ontvanger[r.ontvanger] = []
+        totaal_per_ontvanger[r.ontvanger].append(
+            {"product": r.product_name, "unit": r.unit, "total": r.total}
+        )
+
+    alle_ontvangers = [
+        r[0]
+        for r in db.query(models.Uitgifte.ontvanger).distinct().order_by(models.Uitgifte.ontvanger).all()
+    ]
+
+    return templates.TemplateResponse(
+        "uitgiftes.html",
+        {
+            "request": request,
+            "user": user,
+            "entries": entries,
+            "totaal_per_ontvanger": totaal_per_ontvanger,
+            "alle_ontvangers": alle_ontvangers,
+            "filter_ontvanger": ontvanger or "",
+            "filter_date_from": date_from or "",
+            "filter_date_to": date_to or "",
+        },
+    )
+
+
+@app.get("/uitgiftes/export")
+async def uitgiftes_export(
+    request: Request,
+    db: Session = Depends(get_db),
+    ontvanger: str = None,
+    date_from: str = None,
+    date_to: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    query = (
+        db.query(models.Uitgifte)
+        .join(models.Product, models.Uitgifte.product_id == models.Product.id)
+        .join(models.Location, models.Uitgifte.location_id == models.Location.id)
+    )
+    if ontvanger:
+        query = query.filter(models.Uitgifte.ontvanger == ontvanger)
+    if date_from:
+        query = query.filter(models.Uitgifte.date >= date_from)
+    if date_to:
+        query = query.filter(models.Uitgifte.date <= date_to)
+
+    entries = query.order_by(models.Uitgifte.date.desc(), models.Uitgifte.created_at.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Datum", "Product", "Locatie", "Hoeveelheid", "Eenheid", "Ontvanger", "Ingevoerd door", "Notitie"])
+    for e in entries:
+        writer.writerow([
+            e.date,
+            e.product.name,
+            e.location.name,
+            e.quantity,
+            e.product.unit,
+            e.ontvanger,
+            e.entered_by,
+            e.note or "",
+        ])
+
+    filename = f"uitgifte_export_{datetime.date.today().isoformat()}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

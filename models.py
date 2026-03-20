@@ -21,6 +21,7 @@ class Product(Base):
     active = Column(Boolean, default=True, nullable=False)
 
     entries = relationship("HarvestEntry", back_populates="product")
+    uitgiftes = relationship("Uitgifte", back_populates="product")
 
 
 class Location(Base):
@@ -31,6 +32,7 @@ class Location(Base):
     active = Column(Boolean, default=True, nullable=False)
 
     entries = relationship("HarvestEntry", back_populates="location")
+    uitgiftes = relationship("Uitgifte", back_populates="location")
 
 
 class HarvestEntry(Base):
@@ -49,3 +51,21 @@ class HarvestEntry(Base):
 
     product = relationship("Product", back_populates="entries")
     location = relationship("Location", back_populates="entries")
+
+
+class Uitgifte(Base):
+    __tablename__ = "uitgiftes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    harvest_entry_id = Column(Integer, ForeignKey("harvest_entries.id"), nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    quantity = Column(Float, nullable=False)
+    ontvanger = Column(String, nullable=False)
+    date = Column(String, nullable=False)  # ISO formaat: YYYY-MM-DD
+    entered_by = Column(String, nullable=False)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    product = relationship("Product", back_populates="uitgiftes")
+    location = relationship("Location", back_populates="uitgiftes")

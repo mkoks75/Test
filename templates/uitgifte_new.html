@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Uitgifte Registreren - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Uitgifte Registreren</h1>
+
+  {% if error %}
+  <div class="melding melding-fout">{{ error }}</div>
+  {% endif %}
+
+  <div class="kaart">
+    {% if not products %}
+      <p class="melding melding-fout">Geen actieve producten beschikbaar. <a href="/admin">Voeg eerst een product toe.</a></p>
+    {% elif not locations %}
+      <p class="melding melding-fout">Geen actieve locaties beschikbaar. <a href="/admin">Voeg eerst een locatie toe.</a></p>
+    {% else %}
+    <form method="post" action="/uitgifte/new">
+      <datalist id="ontvangers-lijst">
+        {% for naam in ontvangers %}
+        <option value="{{ naam }}">
+        {% endfor %}
+      </datalist>
+
+      <div class="form-grid">
+        <div class="veld">
+          <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
+          <select id="product_id" name="product_id" required>
+            <option value="">-- Kies een product --</option>
+            {% for p in products %}
+            <option value="{{ p.id }}" {% if form.product_id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.unit }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="veld">
+          <label for="location_id">Locatie <span style="color:var(--rood)">*</span></label>
+          <select id="location_id" name="location_id" required>
+            <option value="">-- Kies een locatie --</option>
+            {% for l in locations %}
+            <option value="{{ l.id }}" {% if form.location_id == l.id %}selected{% endif %}>{{ l.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="veld">
+          <label for="quantity">Hoeveelheid <span style="color:var(--rood)">*</span></label>
+          <input type="number" id="quantity" name="quantity" step="0.01" min="0.01" required
+                 placeholder="bijv. 25.5" value="{{ form.quantity if form.quantity is defined and form.quantity != None else '' }}">
+        </div>
+
+        <div class="veld">
+          <label for="ontvanger">Ontvanger <span style="color:var(--rood)">*</span></label>
+          <input type="text" id="ontvanger" name="ontvanger" required
+                 list="ontvangers-lijst" placeholder="bijv. boer1, Jan de Vries"
+                 value="{{ form.ontvanger if form.ontvanger else '' }}">
+        </div>
+
+        <div class="veld">
+          <label for="date">Datum <span style="color:var(--rood)">*</span></label>
+          <input type="date" id="date" name="date" value="{{ form.date if form.date else today }}" required>
+        </div>
+
+        <div class="veld volledig">
+          <label for="note">Notitie (optioneel)</label>
+          <textarea id="note" name="note" placeholder="Eventuele opmerkingen...">{{ form.note if form.note else '' }}</textarea>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; display:flex; gap:12px; align-items:center;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/" class="btn btn-secundair">Annuleren</a>
+        <span style="font-size:.82rem; color:#6c757d; margin-left:4px;">Ingevoerd als: <strong>{{ user }}</strong></span>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

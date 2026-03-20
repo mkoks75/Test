@@ -15,6 +15,8 @@
   <a href="/harvest/new" {% if request.url.path == '/harvest/new' %}class="actief"{% endif %}>Nieuwe Oogst</a>
   <a href="/history" {% if request.url.path == '/history' %}class="actief"{% endif %}>Geschiedenis</a>
   <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>Bijna verlopen</a>
+  <a href="/uitgifte/new" {% if request.url.path == '/uitgifte/new' %}class="actief"{% endif %}>Uitgifte registreren</a>
+  <a href="/uitgiftes" {% if request.url.path == '/uitgiftes' %}class="actief"{% endif %}>Uitgifte overzicht</a>
   <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Beheer</a>
   <span class="spacer"></span>
   <span class="gebruiker">Ingelogd als {{ user }}</span>
