@@ -1,7 +1,15 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Date
 from sqlalchemy.orm import relationship
 from database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, nullable=False, unique=True, index=True)
+    hashed_password = Column(String, nullable=False)
 
 
 class Product(Base):
@@ -36,6 +44,8 @@ class HarvestEntry(Base):
     entered_by = Column(String, nullable=False)
     note = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    houdbaar_tot = Column(Date, nullable=True)
+    volgnummer = Column(Integer, nullable=True)
 
     product = relationship("Product", back_populates="entries")
     location = relationship("Location", back_populates="entries")

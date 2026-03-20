@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Bijna verlopen - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Bijna verlopen</h1>
+  <p style="color:#6c757d; margin-bottom:20px; font-size:.9rem;">
+    Alle producten waarvan de houdbaarheidsdatum binnen 30 dagen valt (of al verstreken is).
+  </p>
+
+  {% if entries %}
+  <div class="kaart" style="padding: 0; overflow: hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Product</th>
+          <th>Locatie</th>
+          <th style="text-align:right;">Hoeveelheid</th>
+          <th>Eenheid</th>
+          <th>Houdbaar tot</th>
+          <th>Ingevoerd door</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+        <tr {% if entry.houdbaar_tot <= today %}style="background:#fde8e8;"{% endif %}>
+          <td style="color:#6c757d; font-size:.85rem;">{{ entry.volgnummer if entry.volgnummer else '—' }}</td>
+          <td>{{ entry.product.name }}</td>
+          <td>{{ entry.location.name }}</td>
+          <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(entry.quantity) }}</td>
+          <td>{{ entry.product.unit }}</td>
+          <td>
+            <span {% if entry.houdbaar_tot <= today %}style="color:var(--rood); font-weight:700;"{% else %}style="color:var(--oranje); font-weight:600;"{% endif %}>
+              {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
+              {% if entry.houdbaar_tot <= today %} &mdash; verlopen{% endif %}
+            </span>
+          </td>
+          <td style="color:#6c757d;">{{ entry.entered_by }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="kaart">
+    <p class="geen-data">Geen producten die binnen 30 dagen verlopen.</p>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

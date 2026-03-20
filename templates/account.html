@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Account - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Account beheer</h1>
+
+  {% if success == 'wachtwoord_gewijzigd' %}
+  <div class="melding melding-succes">Wachtwoord succesvol gewijzigd.</div>
+  {% endif %}
+
+  {% if error == 'gebruikersnaam_leeg' %}
+  <div class="melding melding-fout">Gebruikersnaam mag niet leeg zijn.</div>
+  {% elif error == 'zelfde_gebruikersnaam' %}
+  <div class="melding melding-fout">De nieuwe gebruikersnaam is gelijk aan de huidige.</div>
+  {% elif error == 'gebruikersnaam_bezet' %}
+  <div class="melding melding-fout">Deze gebruikersnaam is al in gebruik.</div>
+  {% elif error == 'huidig_wachtwoord_fout' %}
+  <div class="melding melding-fout">Het huidige wachtwoord klopt niet.</div>
+  {% elif error == 'wachtwoorden_komen_niet_overeen' %}
+  <div class="melding melding-fout">De nieuwe wachtwoorden komen niet overeen.</div>
+  {% elif error == 'wachtwoord_te_kort' %}
+  <div class="melding melding-fout">Het nieuwe wachtwoord moet minimaal 6 tekens bevatten.</div>
+  {% endif %}
+
+  <div class="admin-grid">
+
+    <div class="kaart">
+      <h2 style="margin-top:0;">Gebruikersnaam wijzigen</h2>
+      <p style="font-size:.88rem; color:#6c757d; margin-bottom:16px;">
+        Huidige gebruikersnaam: <strong>{{ user }}</strong><br>
+        Na het wijzigen word je uitgelogd en moet je opnieuw inloggen.
+      </p>
+      <form method="post" action="/account/username">
+        <div class="form-grid breed">
+          <div class="veld">
+            <label for="new_username">Nieuwe gebruikersnaam <span style="color:var(--rood)">*</span></label>
+            <input type="text" id="new_username" name="new_username" required autocomplete="username">
+          </div>
+        </div>
+        <div style="margin-top:16px;">
+          <button type="submit" class="btn btn-primair">Gebruikersnaam opslaan</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="kaart">
+      <h2 style="margin-top:0;">Wachtwoord wijzigen</h2>
+      <form method="post" action="/account/password">
+        <div class="form-grid breed">
+          <div class="veld">
+            <label for="current_password">Huidig wachtwoord <span style="color:var(--rood)">*</span></label>
+            <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+          </div>
+          <div class="veld">
+            <label for="new_password">Nieuw wachtwoord <span style="color:var(--rood)">*</span></label>
+            <input type="password" id="new_password" name="new_password" required autocomplete="new-password" minlength="6">
+          </div>
+          <div class="veld">
+            <label for="new_password2">Nieuw wachtwoord (herhaal) <span style="color:var(--rood)">*</span></label>
+            <input type="password" id="new_password2" name="new_password2" required autocomplete="new-password" minlength="6">
+          </div>
+        </div>
+        <div style="margin-top:16px;">
+          <button type="submit" class="btn btn-primair">Wachtwoord opslaan</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</main>
+{% endblock %}

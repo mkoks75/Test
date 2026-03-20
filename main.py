@@ -3,6 +3,7 @@ import csv
 import datetime
 from datetime import timedelta
 
+import bcrypt
 from fastapi import FastAPI, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,7 +15,7 @@ import models
 import database
 from database import get_db
 from auth import get_current_user, authenticate_user, create_access_token
-from config import ACCESS_TOKEN_EXPIRE_MINUTES
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, USERS
 
 # Maak database tabellen aan
 models.Base.metadata.create_all(bind=database.engine)
@@ -22,6 +23,39 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+
+@app.on_event("startup")
+async def startup():
+    """Migreer schema-wijzigingen en hardcoded gebruikers naar de database."""
+    # Voeg nieuwe kolommen toe aan bestaande databases (SQLite ondersteunt geen automatische migratie)
+    from sqlalchemy import text
+    with database.engine.connect() as conn:
+        try:
+            pragma = conn.execute(text("PRAGMA table_info(harvest_entries)")).fetchall()
+            col_names = [row[1] for row in pragma]
+            if "houdbaar_tot" not in col_names:
+                conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN houdbaar_tot DATE"))
+            if "volgnummer" not in col_names:
+                conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN volgnummer INTEGER"))
+            conn.commit()
+        except Exception:
+            pass  # Tabel bestaat nog niet; create_all regelt dit
+
+    # Migreer hardcoded gebruikers uit config.py naar de database
+    db = database.SessionLocal()
+    try:
+        for username, user_data in USERS.items():
+            existing = db.query(models.User).filter(models.User.username == username).first()
+            if not existing:
+                db_user = models.User(
+                    username=username,
+                    hashed_password=user_data["hashed_password"],
+                )
+                db.add(db_user)
+        db.commit()
+    finally:
+        db.close()
 
 
 # ── Authenticatie ──────────────────────────────────────────────────────────────
@@ -71,6 +105,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=302)
 
+    # Totaaloverzicht per locatie + product
     results = (
         db.query(
             models.Location.name.label("location_name"),
@@ -100,9 +135,33 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             {"product": row.product_name, "unit": row.unit, "total": row.total}
         )
 
+    # Detailoverzicht per locatie: individuele entries met volgnummer en houdbaarheidsdatum
+    entries = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+        .order_by(models.Location.name, models.Product.name, models.HarvestEntry.volgnummer)
+        .all()
+    )
+
+    location_entries: dict[str, list] = {}
+    for entry in entries:
+        loc = entry.location.name
+        if loc not in location_entries:
+            location_entries[loc] = []
+        location_entries[loc].append(entry)
+
+    today = datetime.date.today()
     return templates.TemplateResponse(
         "dashboard.html",
-        {"request": request, "user": user, "inventory": inventory},
+        {
+            "request": request,
+            "user": user,
+            "inventory": inventory,
+            "location_entries": location_entries,
+            "today_date": today,
+            "bijna_verlopen_date": today + datetime.timedelta(days=30),
+        },
     )
 
 
@@ -154,10 +213,26 @@ async def harvest_new_post(
     quantity: float = Form(...),
     date: str = Form(...),
     note: str = Form(default=""),
+    houdbaar_tot: str = Form(default=""),
 ):
     user = get_current_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
+
+    # Volgnummer: laatste volgnummer voor dit product + 1
+    max_volgnummer = (
+        db.query(func.max(models.HarvestEntry.volgnummer))
+        .filter(models.HarvestEntry.product_id == product_id)
+        .scalar()
+    )
+    volgnummer = (max_volgnummer or 0) + 1
+
+    houdbaar_tot_date = None
+    if houdbaar_tot.strip():
+        try:
+            houdbaar_tot_date = datetime.date.fromisoformat(houdbaar_tot.strip())
+        except ValueError:
+            pass
 
     entry = models.HarvestEntry(
         product_id=product_id,
@@ -167,6 +242,8 @@ async def harvest_new_post(
         entered_by=user,
         note=note.strip() or None,
         created_at=datetime.datetime.utcnow(),
+        houdbaar_tot=houdbaar_tot_date,
+        volgnummer=volgnummer,
     )
     db.add(entry)
     db.commit()
@@ -269,6 +346,110 @@ async def history_export(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+# ── Bijna verlopen ─────────────────────────────────────────────────────────────
+
+@app.get("/verlopen")
+async def verlopen(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    today = datetime.date.today()
+    cutoff = today + datetime.timedelta(days=30)
+
+    entries = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+        .filter(models.HarvestEntry.houdbaar_tot != None)
+        .filter(models.HarvestEntry.houdbaar_tot <= cutoff)
+        .order_by(models.HarvestEntry.houdbaar_tot.asc())
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "verlopen.html",
+        {
+            "request": request,
+            "user": user,
+            "entries": entries,
+            "today": today,
+        },
+    )
+
+
+# ── Account beheer ─────────────────────────────────────────────────────────────
+
+@app.get("/account")
+async def account(request: Request, success: str = None, error: str = None):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    return templates.TemplateResponse(
+        "account.html",
+        {"request": request, "user": user, "success": success, "error": error},
+    )
+
+
+@app.post("/account/username")
+async def account_username(
+    request: Request,
+    db: Session = Depends(get_db),
+    new_username: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    new_username = new_username.strip()
+    if not new_username:
+        return RedirectResponse("/account?error=gebruikersnaam_leeg", status_code=302)
+
+    if new_username == user:
+        return RedirectResponse("/account?error=zelfde_gebruikersnaam", status_code=302)
+
+    existing = db.query(models.User).filter(models.User.username == new_username).first()
+    if existing:
+        return RedirectResponse("/account?error=gebruikersnaam_bezet", status_code=302)
+
+    db_user = db.query(models.User).filter(models.User.username == user).first()
+    db_user.username = new_username
+    db.commit()
+
+    # Token ongeldig maken: uitloggen zodat gebruiker opnieuw inlogt
+    response = RedirectResponse("/login", status_code=302)
+    response.delete_cookie("access_token")
+    return response
+
+
+@app.post("/account/password")
+async def account_password(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    new_password2: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    db_user = db.query(models.User).filter(models.User.username == user).first()
+
+    if not bcrypt.checkpw(current_password.encode(), db_user.hashed_password.encode()):
+        return RedirectResponse("/account?error=huidig_wachtwoord_fout", status_code=302)
+
+    if new_password != new_password2:
+        return RedirectResponse("/account?error=wachtwoorden_komen_niet_overeen", status_code=302)
+
+    if len(new_password) < 6:
+        return RedirectResponse("/account?error=wachtwoord_te_kort", status_code=302)
+
+    db_user.hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    db.commit()
+    return RedirectResponse("/account?success=wachtwoord_gewijzigd", status_code=302)
 
 
 # ── Admin ──────────────────────────────────────────────────────────────────────

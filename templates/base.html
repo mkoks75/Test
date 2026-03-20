@@ -14,9 +14,11 @@
   <a href="/" {% if request.url.path == '/' %}class="actief"{% endif %}>Dashboard</a>
   <a href="/harvest/new" {% if request.url.path == '/harvest/new' %}class="actief"{% endif %}>Nieuwe Oogst</a>
   <a href="/history" {% if request.url.path == '/history' %}class="actief"{% endif %}>Geschiedenis</a>
+  <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>Bijna verlopen</a>
   <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Beheer</a>
   <span class="spacer"></span>
   <span class="gebruiker">Ingelogd als {{ user }}</span>
+  <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
   <a href="/logout">Uitloggen</a>
 </nav>
 {% endif %}

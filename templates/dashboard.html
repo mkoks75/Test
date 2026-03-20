@@ -36,5 +36,44 @@
       <p class="geen-data">Nog geen oogst ingevoerd. <a href="/harvest/new">Voeg de eerste oogst toe.</a></p>
     </div>
   {% endif %}
+
+  {% if location_entries %}
+  <h1 style="margin-top: 36px;">Detail per locatie</h1>
+    {% for locatie, entries in location_entries.items() %}
+    <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
+      <table>
+        <thead>
+          <tr>
+            <th colspan="4" style="font-size:1rem;">{{ locatie }}</th>
+          </tr>
+          <tr style="background: #e9ecef;">
+            <th style="background:#e9ecef; color:#495057;">#</th>
+            <th style="background:#e9ecef; color:#495057;">Product</th>
+            <th style="background:#e9ecef; color:#495057; text-align:right;">Hoeveelheid</th>
+            <th style="background:#e9ecef; color:#495057;">Houdbaar tot</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+          <tr {% if entry.houdbaar_tot and entry.houdbaar_tot <= today_date %}style="background:#fde8e8;"{% elif entry.houdbaar_tot and entry.houdbaar_tot <= bijna_verlopen_date %}style="background:#fff8e1;"{% endif %}>
+            <td style="color:#6c757d; font-size:.85rem;">{{ entry.volgnummer if entry.volgnummer else '—' }}</td>
+            <td>{{ entry.product.name }} <span style="color:#6c757d; font-size:.82rem;">({{ entry.product.unit }})</span></td>
+            <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(entry.quantity) }}</td>
+            <td>
+              {% if entry.houdbaar_tot %}
+                <span {% if entry.houdbaar_tot <= today_date %}style="color:var(--rood); font-weight:600;"{% elif entry.houdbaar_tot <= bijna_verlopen_date %}style="color:var(--oranje); font-weight:600;"{% endif %}>
+                  {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
+                </span>
+              {% else %}
+                <span style="color:#adb5bd;">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  {% endif %}
 </main>
 {% endblock %}
