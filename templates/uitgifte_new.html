@@ -16,12 +16,6 @@
       <p class="melding melding-fout">Geen actieve locaties beschikbaar. <a href="/admin">Voeg eerst een locatie toe.</a></p>
     {% else %}
     <form method="post" action="/uitgifte/new">
-      <datalist id="ontvangers-lijst">
-        {% for naam in ontvangers %}
-        <option value="{{ naam }}">
-        {% endfor %}
-      </datalist>
-
       <div class="form-grid">
         <div class="veld">
           <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
@@ -50,10 +44,21 @@
         </div>
 
         <div class="veld">
-          <label for="ontvanger">Ontvanger <span style="color:var(--rood)">*</span></label>
-          <input type="text" id="ontvanger" name="ontvanger" required
-                 list="ontvangers-lijst" placeholder="bijv. boer1, Jan de Vries"
-                 value="{{ form.ontvanger if form.ontvanger else '' }}">
+          <label for="ontvanger_keuze">Ontvanger <span style="color:var(--rood)">*</span></label>
+          <select id="ontvanger_keuze" name="ontvanger_keuze" required>
+            <option value="">-- Kies een ontvanger --</option>
+            {% for o in ontvangers %}
+            <option value="{{ o.id }}" {% if form.ontvanger_keuze == o.id|string %}selected{% endif %}>{{ o.naam }}</option>
+            {% endfor %}
+            <option value="overig" {% if form.ontvanger_keuze == 'overig' %}selected{% endif %}>Overig (vrije invoer)</option>
+          </select>
+        </div>
+
+        <div class="veld volledig" id="vrij-veld" style="display:{% if form.ontvanger_keuze == 'overig' %}block{% else %}none{% endif %};">
+          <label for="ontvanger_vrij">Naam ontvanger <span style="color:var(--rood)">*</span></label>
+          <input type="text" id="ontvanger_vrij" name="ontvanger_vrij"
+                 placeholder="Voer naam in"
+                 value="{{ form.ontvanger_vrij if form.ontvanger_vrij else '' }}">
         </div>
 
         <div class="veld">
@@ -76,4 +81,23 @@
     {% endif %}
   </div>
 </main>
+
+<script>
+  (function() {
+    var keuze = document.getElementById('ontvanger_keuze');
+    var vrijVeld = document.getElementById('vrij-veld');
+    var vrijInput = document.getElementById('ontvanger_vrij');
+
+    function updateVrij() {
+      var isOverig = keuze && keuze.value === 'overig';
+      if (vrijVeld) vrijVeld.style.display = isOverig ? 'block' : 'none';
+      if (vrijInput) vrijInput.required = isOverig;
+    }
+
+    if (keuze) {
+      keuze.addEventListener('change', updateVrij);
+      updateVrij();
+    }
+  })();
+</script>
 {% endblock %}

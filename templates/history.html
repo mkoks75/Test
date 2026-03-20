@@ -3,7 +3,7 @@
 
 {% block content %}
 <main>
-  <h1>Oogstgeschiedenis</h1>
+  <h1>Voorraad geschiedenis</h1>
 
   <div class="kaart">
     <form method="get" action="/history">
@@ -56,6 +56,7 @@
           <th>Ingevoerd door</th>
           <th>Notitie</th>
           <th></th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -69,10 +70,16 @@
           <td>{{ e.entered_by }}</td>
           <td style="color:#6c757d; font-size:.85rem;">{{ e.note or "" }}</td>
           <td><a href="/harvest/edit/{{ e.id }}" class="btn btn-secundair btn-klein">Bewerken</a></td>
+          <td>
+            <form method="post" action="/harvest/delete/{{ e.id }}" style="margin:0;"
+                  onsubmit="return confirm('Weet je zeker dat je deze entry wilt verwijderen?')">
+              <button type="submit" class="btn btn-gevaar btn-klein">Verwijderen</button>
+            </form>
+          </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="8" class="geen-data">Geen oogst gevonden voor de geselecteerde filters.</td>
+          <td colspan="9" class="geen-data">Geen voorraad gevonden voor de geselecteerde filters.</td>
         </tr>
         {% endfor %}
       </tbody>

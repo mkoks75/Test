@@ -9,6 +9,8 @@
   <div class="melding melding-succes">Product succesvol toegevoegd.</div>
   {% elif success == 'location_added' %}
   <div class="melding melding-succes">Locatie succesvol toegevoegd.</div>
+  {% elif success == 'ontvanger_added' %}
+  <div class="melding melding-succes">Ontvanger succesvol toegevoegd.</div>
   {% endif %}
 
   <div class="admin-grid">
@@ -130,5 +132,61 @@
     </div>
 
   </div>
+
+  <!-- ── Ontvangers ── -->
+  <div style="margin-top:32px;">
+    <h2>Ontvangers</h2>
+
+    <div class="kaart">
+      <form method="post" action="/admin/ontvanger/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px;">
+        <div class="veld" style="flex:1; min-width:180px;">
+          <label for="naam_ontvanger">Naam</label>
+          <input type="text" id="naam_ontvanger" name="naam" required placeholder="bijv. Jan de Vries">
+        </div>
+        <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
+      </form>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Naam</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in ontvangers %}
+          <tr>
+            <td>{{ o.naam }}</td>
+            <td>
+              {% if o.actief %}
+                <span class="badge badge-actief">Actief</span>
+              {% else %}
+                <span class="badge badge-inactief">Inactief</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if o.actief %}
+              <form method="post" action="/admin/ontvanger/{{ o.id }}/deactivate" style="display:inline;">
+                <button type="submit" class="btn btn-gevaar"
+                  onclick="return confirm('Ontvanger \'{{ o.naam }}\' deactiveren?')">Deactiveren</button>
+              </form>
+              {% else %}
+              <form method="post" action="/admin/ontvanger/{{ o.id }}/activate" style="display:inline;">
+                <button type="submit" class="btn btn-waarschuw">Activeren</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="3" class="geen-data">Nog geen ontvangers aangemaakt.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </main>
 {% endblock %}

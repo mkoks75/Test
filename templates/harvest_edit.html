@@ -1,9 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Oogst bewerken - Boerderij Voorraad{% endblock %}
+{% block title %}Voorraad bewerken - Boerderij Voorraad{% endblock %}
 
 {% block content %}
 <main>
-  <h1>Oogst bewerken</h1>
+  <h1>Voorraad bewerken</h1>
+
+  {% set error = request.query_params.get('error') %}
+  {% if error == 'heeft_uitgiftes' %}
+  <div class="melding melding-fout">Entry kan niet verwijderd worden: er zijn uitgiftes aan gekoppeld.</div>
+  {% endif %}
 
   <div class="kaart" style="max-width:560px;">
     <form method="post" action="/harvest/edit/{{ entry.id }}">
@@ -62,9 +67,13 @@
       </p>
       {% endif %}
 
-      <div style="display:flex; gap:8px;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button type="submit" class="btn btn-primair">Opslaan</button>
         <a href="/history" class="btn btn-secundair">Annuleren</a>
+        <form method="post" action="/harvest/delete/{{ entry.id }}" style="margin:0;"
+              onsubmit="return confirm('Weet je zeker dat je deze entry wilt verwijderen?')">
+          <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+        </form>
       </div>
     </form>
   </div>

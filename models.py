@@ -55,6 +55,14 @@ class HarvestEntry(Base):
     location = relationship("Location", back_populates="entries")
 
 
+class Ontvanger(Base):
+    __tablename__ = "ontvangers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    naam = Column(String, nullable=False)
+    actief = Column(Boolean, default=True, nullable=False)
+
+
 class Uitgifte(Base):
     __tablename__ = "uitgiftes"
 

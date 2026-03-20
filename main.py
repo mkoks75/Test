@@ -52,6 +52,8 @@ async def startup():
         except Exception:
             pass  # Wordt aangemaakt door create_all
 
+        # Ontvangers tabel wordt aangemaakt door create_all; geen extra migratie nodig
+
     # Migreer hardcoded gebruikers uit config.py naar de database
     db = database.SessionLocal()
     try:
@@ -367,6 +369,28 @@ async def harvest_edit_post(
     return RedirectResponse("/history", status_code=302)
 
 
+@app.post("/harvest/delete/{entry_id}")
+async def harvest_delete(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
+    if not entry:
+        return RedirectResponse("/history", status_code=302)
+
+    # Blokkeer verwijderen als er uitgiftes aan gekoppeld zijn
+    gekoppeld = db.query(models.Uitgifte).filter(models.Uitgifte.harvest_entry_id == entry_id).first()
+    if gekoppeld:
+        return RedirectResponse(
+            f"/harvest/edit/{entry_id}?error=heeft_uitgiftes", status_code=302
+        )
+
+    db.delete(entry)
+    db.commit()
+    return RedirectResponse("/history", status_code=302)
+
+
 # ── Geschiedenis ───────────────────────────────────────────────────────────────
 
 @app.get("/history")
@@ -583,6 +607,7 @@ async def admin(
 
     products = db.query(models.Product).order_by(models.Product.active.desc(), models.Product.name).all()
     locations = db.query(models.Location).order_by(models.Location.active.desc(), models.Location.name).all()
+    ontvangers = db.query(models.Ontvanger).order_by(models.Ontvanger.actief.desc(), models.Ontvanger.naam).all()
 
     return templates.TemplateResponse(
         "admin.html",
@@ -591,6 +616,7 @@ async def admin(
             "user": user,
             "products": products,
             "locations": locations,
+            "ontvangers": ontvangers,
             "success": success,
         },
     )
@@ -697,6 +723,56 @@ async def admin_activate_location(
     return RedirectResponse("/admin", status_code=302)
 
 
+@app.post("/admin/ontvanger/add")
+async def admin_add_ontvanger(
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    ontvanger = models.Ontvanger(naam=naam.strip(), actief=True)
+    db.add(ontvanger)
+    db.commit()
+    return RedirectResponse("/admin?success=ontvanger_added", status_code=302)
+
+
+@app.post("/admin/ontvanger/{ontvanger_id}/deactivate")
+async def admin_deactivate_ontvanger(
+    ontvanger_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == ontvanger_id).first()
+    if ontvanger:
+        ontvanger.actief = False
+        db.commit()
+    return RedirectResponse("/admin", status_code=302)
+
+
+@app.post("/admin/ontvanger/{ontvanger_id}/activate")
+async def admin_activate_ontvanger(
+    ontvanger_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == ontvanger_id).first()
+    if ontvanger:
+        ontvanger.actief = True
+        db.commit()
+    return RedirectResponse("/admin", status_code=302)
+
+
 # ── Uitgifte ───────────────────────────────────────────────────────────────────
 
 def _beschikbare_voorraad(db: Session, product_id: int, location_id: int) -> float:
@@ -737,10 +813,12 @@ async def uitgifte_new(request: Request, db: Session = Depends(get_db)):
         .order_by(models.Location.name)
         .all()
     )
-    ontvangers = [
-        r[0]
-        for r in db.query(models.Uitgifte.ontvanger).distinct().order_by(models.Uitgifte.ontvanger).all()
-    ]
+    ontvangers = (
+        db.query(models.Ontvanger)
+        .filter(models.Ontvanger.actief == True)
+        .order_by(models.Ontvanger.naam)
+        .all()
+    )
     today = datetime.date.today().isoformat()
 
     return templates.TemplateResponse(
@@ -765,13 +843,21 @@ async def uitgifte_new_post(
     product_id: int = Form(...),
     location_id: int = Form(...),
     quantity: float = Form(...),
-    ontvanger: str = Form(...),
+    ontvanger_keuze: str = Form(...),
+    ontvanger_vrij: str = Form(default=""),
     date: str = Form(...),
     note: str = Form(default=""),
 ):
     user = get_current_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
+
+    # Bepaal de ontvangernaam
+    if ontvanger_keuze == "overig":
+        ontvanger = ontvanger_vrij.strip()
+    else:
+        db_ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == int(ontvanger_keuze)).first()
+        ontvanger = db_ontvanger.naam if db_ontvanger else ontvanger_keuze
 
     beschikbaar = _beschikbare_voorraad(db, product_id, location_id)
 
@@ -784,10 +870,12 @@ async def uitgifte_new_post(
         locations = (
             db.query(models.Location).filter(models.Location.active == True).order_by(models.Location.name).all()
         )
-        ontvangers = [
-            r[0]
-            for r in db.query(models.Uitgifte.ontvanger).distinct().order_by(models.Uitgifte.ontvanger).all()
-        ]
+        ontvangers = (
+            db.query(models.Ontvanger)
+            .filter(models.Ontvanger.actief == True)
+            .order_by(models.Ontvanger.naam)
+            .all()
+        )
         return templates.TemplateResponse(
             "uitgifte_new.html",
             {
@@ -802,7 +890,8 @@ async def uitgifte_new_post(
                     "product_id": product_id,
                     "location_id": location_id,
                     "quantity": quantity,
-                    "ontvanger": ontvanger,
+                    "ontvanger_keuze": ontvanger_keuze,
+                    "ontvanger_vrij": ontvanger_vrij,
                     "date": date,
                     "note": note,
                 },
