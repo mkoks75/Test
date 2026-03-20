@@ -18,4 +18,5 @@ jobs:
           script: |
             cd ~/project-maarten
             git pull origin main
-            docker compose up --build --detach
+            docker compose build
+            docker compose up -d
