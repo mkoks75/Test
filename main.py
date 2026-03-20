@@ -38,6 +38,10 @@ async def startup():
                 conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN houdbaar_tot DATE"))
             if "volgnummer" not in col_names:
                 conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN volgnummer INTEGER"))
+            if "gewijzigd_door" not in col_names:
+                conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN gewijzigd_door TEXT"))
+            if "gewijzigd_op" not in col_names:
+                conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN gewijzigd_op DATETIME"))
             conn.commit()
         except Exception:
             pass  # Tabel bestaat nog niet; create_all regelt dit
@@ -268,7 +272,99 @@ async def harvest_new_post(
     )
     db.add(entry)
     db.commit()
-    return RedirectResponse("/harvest/new?success=1", status_code=302)
+    db.refresh(entry)
+    return RedirectResponse(f"/harvest/confirm/{entry.id}", status_code=302)
+
+
+# ── Bevestiging na opslaan oogst ───────────────────────────────────────────────
+
+@app.get("/harvest/confirm/{entry_id}")
+async def harvest_confirm(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
+    if not entry:
+        return RedirectResponse("/", status_code=302)
+
+    today = datetime.date.today()
+    return templates.TemplateResponse(
+        "harvest_confirm.html",
+        {
+            "request": request,
+            "user": user,
+            "entry": entry,
+            "today": today,
+        },
+    )
+
+
+# ── Oogst bewerken ─────────────────────────────────────────────────────────────
+
+@app.get("/harvest/edit/{entry_id}")
+async def harvest_edit(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
+    if not entry:
+        return RedirectResponse("/history", status_code=302)
+
+    products = db.query(models.Product).order_by(models.Product.name).all()
+    locations = db.query(models.Location).order_by(models.Location.name).all()
+
+    return templates.TemplateResponse(
+        "harvest_edit.html",
+        {
+            "request": request,
+            "user": user,
+            "entry": entry,
+            "products": products,
+            "locations": locations,
+        },
+    )
+
+
+@app.post("/harvest/edit/{entry_id}")
+async def harvest_edit_post(
+    entry_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = Form(...),
+    location_id: int = Form(...),
+    quantity: float = Form(...),
+    date: str = Form(...),
+    houdbaar_tot: str = Form(default=""),
+    note: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
+    if not entry:
+        return RedirectResponse("/history", status_code=302)
+
+    houdbaar_tot_date = None
+    if houdbaar_tot.strip():
+        try:
+            houdbaar_tot_date = datetime.date.fromisoformat(houdbaar_tot.strip())
+        except ValueError:
+            pass
+
+    entry.product_id = product_id
+    entry.location_id = location_id
+    entry.quantity = quantity
+    entry.date = date
+    entry.houdbaar_tot = houdbaar_tot_date
+    entry.note = note.strip() or None
+    entry.gewijzigd_door = user
+    entry.gewijzigd_op = datetime.datetime.utcnow()
+
+    db.commit()
+    return RedirectResponse("/history", status_code=302)
 
 
 # ── Geschiedenis ───────────────────────────────────────────────────────────────

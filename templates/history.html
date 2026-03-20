@@ -55,6 +55,7 @@
           <th>Eenheid</th>
           <th>Ingevoerd door</th>
           <th>Notitie</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -67,10 +68,11 @@
           <td>{{ e.product.unit }}</td>
           <td>{{ e.entered_by }}</td>
           <td style="color:#6c757d; font-size:.85rem;">{{ e.note or "" }}</td>
+          <td><a href="/harvest/edit/{{ e.id }}" class="btn btn-secundair btn-klein">Bewerken</a></td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="7" class="geen-data">Geen oogst gevonden voor de geselecteerde filters.</td>
+          <td colspan="8" class="geen-data">Geen oogst gevonden voor de geselecteerde filters.</td>
         </tr>
         {% endfor %}
       </tbody>

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Oogst opgeslagen - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Oogst opgeslagen</h1>
+
+  <div class="kaart" style="max-width:640px;">
+    <h2 style="margin-top:0;">Samenvatting</h2>
+    <table>
+      <tbody>
+        <tr><th style="text-align:left; width:160px;">Product</th><td>{{ entry.product.name }}</td></tr>
+        <tr><th style="text-align:left;">Volgnummer</th><td>{{ entry.volgnummer }}</td></tr>
+        <tr><th style="text-align:left;">Locatie</th><td>{{ entry.location.name }}</td></tr>
+        <tr><th style="text-align:left;">Hoeveelheid</th><td>{{ "%.2f"|format(entry.quantity) }} {{ entry.product.unit }}</td></tr>
+        <tr><th style="text-align:left;">Datum oogst</th><td>{{ entry.date }}</td></tr>
+        <tr><th style="text-align:left;">Houdbaar tot</th>
+          <td {% if entry.houdbaar_tot and (entry.houdbaar_tot - today).days <= 30 %}style="color:#dc3545; font-weight:600;"{% endif %}>
+            {% if entry.houdbaar_tot %}{{ entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
+          </td>
+        </tr>
+        {% if entry.note %}
+        <tr><th style="text-align:left;">Notitie</th><td>{{ entry.note }}</td></tr>
+        {% endif %}
+        <tr><th style="text-align:left;">Ingevoerd door</th><td>{{ entry.entered_by }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="kaart" style="max-width:640px; margin-top:16px;" id="etiket-kaart">
+    <h2 style="margin-top:0;">Etiket</h2>
+    <div id="etiket">
+      <p class="etiket-product">{{ entry.product.name }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Volgnummer:</span> {{ entry.volgnummer }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Locatie:</span> {{ entry.location.name }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Hoeveelheid:</span> {{ "%.2f"|format(entry.quantity) }} {{ entry.product.unit }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Datum oogst:</span> {{ entry.date }}</p>
+      <p class="etiket-regel">
+        <span class="etiket-label">Houdbaar tot:</span>
+        <span class="etiket-houdbaar {% if entry.houdbaar_tot and (entry.houdbaar_tot - today).days <= 30 %}houdbaar-verlopen{% endif %}">
+          {% if entry.houdbaar_tot %}{{ entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
+        </span>
+      </p>
+      <div id="qrcode" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="etiket-knoppen" style="margin-top:16px; display:flex; gap:8px;">
+      <button onclick="printEtiket()" class="btn btn-primair">Print etiket</button>
+      <a href="/" class="btn btn-secundair">Terug naar dashboard</a>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  var qrData = [
+    "Product: {{ entry.product.name }}",
+    "Volgnummer: {{ entry.volgnummer }}",
+    "Locatie: {{ entry.location.name }}",
+    "Hoeveelheid: {{ '%.2f'|format(entry.quantity) }} {{ entry.product.unit }}",
+    "Datum: {{ entry.date }}",
+    "Houdbaar tot: {% if entry.houdbaar_tot %}{{ entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}"
+  ].join("\n");
+
+  new QRCode(document.getElementById("qrcode"), {
+    text: qrData,
+    width: 160,
+    height: 160,
+    correctLevel: QRCode.CorrectLevel.M
+  });
+
+  function printEtiket() {
+    window.print();
+  }
+</script>
+
+<style>
+  @media print {
+    nav, .etiket-knoppen, h1, .kaart:not(#etiket-kaart), #etiket-kaart > h2 {
+      display: none !important;
+    }
+    #etiket-kaart {
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      max-width: 62mm !important;
+      margin: 0 !important;
+    }
+    body {
+      margin: 0;
+      padding: 4mm;
+    }
+    main {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+  }
+
+  .etiket-product {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+  }
+  .etiket-regel {
+    margin: 4px 0;
+    font-size: 0.9rem;
+  }
+  .etiket-label {
+    font-weight: 600;
+  }
+  .houdbaar-verlopen {
+    color: #dc3545;
+    font-weight: 700;
+  }
+</style>
+{% endblock %}

@@ -48,6 +48,8 @@ class HarvestEntry(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     houdbaar_tot = Column(Date, nullable=True)
     volgnummer = Column(Integer, nullable=True)
+    gewijzigd_door = Column(String, nullable=True)
+    gewijzigd_op = Column(DateTime, nullable=True)
 
     product = relationship("Product", back_populates="entries")
     location = relationship("Location", back_populates="entries")
