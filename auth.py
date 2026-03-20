@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta
+import bcrypt
 from jose import JWTError, jwt
 from fastapi import Request
-from config import SECRET_KEY, ALGORITHM, USERS, pwd_context
+from config import SECRET_KEY, ALGORITHM, USERS
 
 
 def authenticate_user(username: str, password: str):
     user = USERS.get(username)
     if not user:
         return None
-    if not pwd_context.verify(password, user["hashed_password"]):
+    if not bcrypt.checkpw(password.encode(), user["hashed_password"].encode()):
         return None
     return user
 
