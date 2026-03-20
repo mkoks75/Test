@@ -1,0 +1,282 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --groen: #2d6a4f;
+  --groen-licht: #40916c;
+  --groen-bg: #d8f3dc;
+  --grijs-licht: #f8f9fa;
+  --grijs: #dee2e6;
+  --tekst: #212529;
+  --rood: #c0392b;
+  --oranje: #e67e22;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  color: var(--tekst);
+  background: #f0f4f0;
+  margin: 0;
+}
+
+/* ── Navigatie ── */
+nav {
+  background: var(--groen);
+  color: #fff;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 54px;
+}
+
+nav .brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: .5px;
+  margin-right: 32px;
+  color: #fff;
+  text-decoration: none;
+}
+
+nav a {
+  color: rgba(255,255,255,.85);
+  text-decoration: none;
+  padding: 0 14px;
+  height: 54px;
+  display: inline-flex;
+  align-items: center;
+  font-size: .9rem;
+  transition: background .15s;
+}
+
+nav a:hover, nav a.actief {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+}
+
+nav .spacer { flex: 1; }
+
+nav .gebruiker {
+  font-size: .85rem;
+  color: rgba(255,255,255,.7);
+  margin-right: 12px;
+}
+
+/* ── Hoofd layout ── */
+main {
+  max-width: 1100px;
+  margin: 32px auto;
+  padding: 0 20px;
+}
+
+h1 { font-size: 1.4rem; margin: 0 0 20px; color: var(--groen); }
+h2 { font-size: 1.1rem; margin: 24px 0 12px; color: var(--groen); }
+
+/* ── Kaarten ── */
+.kaart {
+  background: #fff;
+  border: 1px solid var(--grijs);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+/* ── Tabellen ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+
+th {
+  background: var(--groen);
+  color: #fff;
+  text-align: left;
+  padding: 9px 12px;
+  font-weight: 600;
+}
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grijs);
+}
+
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--grijs-licht); }
+
+.locatie-kop td {
+  background: var(--groen-bg);
+  font-weight: 600;
+  color: var(--groen);
+  padding: 6px 12px;
+  border-top: 2px solid var(--groen);
+}
+
+.geen-data {
+  text-align: center;
+  color: #6c757d;
+  padding: 32px !important;
+  font-style: italic;
+}
+
+/* ── Formulieren ── */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-grid.breed { grid-template-columns: 1fr; }
+
+.veld { display: flex; flex-direction: column; gap: 5px; }
+.veld.volledig { grid-column: 1 / -1; }
+
+label {
+  font-size: .85rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+input, select, textarea {
+  border: 1px solid var(--grijs);
+  border-radius: 5px;
+  padding: 8px 10px;
+  font-size: .95rem;
+  font-family: inherit;
+  color: var(--tekst);
+  background: #fff;
+  transition: border-color .15s;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--groen-licht);
+  box-shadow: 0 0 0 3px rgba(64,145,108,.15);
+}
+
+textarea { resize: vertical; min-height: 80px; }
+
+/* ── Knoppen ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 5px;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity .15s, background .15s;
+}
+
+.btn:hover { opacity: .88; }
+
+.btn-primair  { background: var(--groen); color: #fff; }
+.btn-secundair { background: #6c757d; color: #fff; }
+.btn-gevaar   { background: var(--rood); color: #fff; padding: 5px 12px; font-size: .82rem; }
+.btn-waarschuw { background: var(--oranje); color: #fff; padding: 5px 12px; font-size: .82rem; }
+.btn-klein    { padding: 5px 12px; font-size: .82rem; }
+
+/* ── Meldingen ── */
+.melding {
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: .9rem;
+}
+
+.melding-succes { background: var(--groen-bg); color: var(--groen); border-left: 4px solid var(--groen); }
+.melding-fout   { background: #fde8e8; color: var(--rood); border-left: 4px solid var(--rood); }
+
+/* ── Badge ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.badge-actief    { background: var(--groen-bg); color: var(--groen); }
+.badge-inactief  { background: #f8d7da; color: #721c24; }
+
+/* ── Filters ── */
+.filter-balk {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.filter-balk .veld { min-width: 180px; }
+
+/* ── Login pagina ── */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f4f0;
+}
+
+.login-kaart {
+  background: #fff;
+  border: 1px solid var(--grijs);
+  border-radius: 10px;
+  padding: 40px 36px;
+  width: 360px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.08);
+}
+
+.login-kaart h1 {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.login-subtitel {
+  text-align: center;
+  color: #6c757d;
+  font-size: .85rem;
+  margin-bottom: 28px;
+}
+
+.login-kaart .veld { margin-bottom: 16px; }
+
+.login-kaart .btn { width: 100%; justify-content: center; margin-top: 8px; padding: 10px; }
+
+/* ── Stats rij op dashboard ── */
+.stats-rij {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-kaart {
+  background: #fff;
+  border: 1px solid var(--grijs);
+  border-radius: 8px;
+  padding: 16px 20px;
+  border-top: 3px solid var(--groen);
+}
+
+.stat-kaart .getal { font-size: 1.8rem; font-weight: 700; color: var(--groen); }
+.stat-kaart .label { font-size: .8rem; color: #6c757d; margin-top: 2px; }
+
+/* ── Admin secties naast elkaar ── */
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .admin-grid { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+  .filter-balk { flex-direction: column; }
+}

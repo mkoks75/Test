@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inloggen - Boerderij Voorraad</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="login-kaart">
+    <h1>Boerderij Voorraad</h1>
+    <p class="login-subtitel">Log in om verder te gaan</p>
+
+    {% if error %}
+    <div class="melding melding-fout">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/login">
+      <div class="veld">
+        <label for="username">Gebruikersnaam</label>
+        <input type="text" id="username" name="username" required autofocus placeholder="boer1">
+      </div>
+      <div class="veld">
+        <label for="password">Wachtwoord</label>
+        <input type="password" id="password" name="password" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn-primair">Inloggen</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

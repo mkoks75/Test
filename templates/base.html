@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Boerderij Voorraad{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+{% if user is defined and user %}
+<nav>
+  <a class="brand" href="/">Boerderij Voorraad</a>
+  <a href="/" {% if request.url.path == '/' %}class="actief"{% endif %}>Dashboard</a>
+  <a href="/harvest/new" {% if request.url.path == '/harvest/new' %}class="actief"{% endif %}>Nieuwe Oogst</a>
+  <a href="/history" {% if request.url.path == '/history' %}class="actief"{% endif %}>Geschiedenis</a>
+  <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Beheer</a>
+  <span class="spacer"></span>
+  <span class="gebruiker">Ingelogd als {{ user }}</span>
+  <a href="/logout">Uitloggen</a>
+</nav>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+</body>
+</html>

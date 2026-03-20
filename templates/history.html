@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Geschiedenis - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Oogstgeschiedenis</h1>
+
+  <div class="kaart">
+    <form method="get" action="/history">
+      <div class="filter-balk">
+        <div class="veld">
+          <label for="product_id">Product</label>
+          <select id="product_id" name="product_id">
+            <option value="">Alle producten</option>
+            {% for p in products %}
+            <option value="{{ p.id }}" {% if filter_product_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="veld">
+          <label for="date_from">Van datum</label>
+          <input type="date" id="date_from" name="date_from" value="{{ filter_date_from }}">
+        </div>
+
+        <div class="veld">
+          <label for="date_to">Tot datum</label>
+          <input type="date" id="date_to" name="date_to" value="{{ filter_date_to }}">
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:flex-end;">
+          <button type="submit" class="btn btn-primair btn-klein">Filteren</button>
+          <a href="/history" class="btn btn-secundair btn-klein">Reset</a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <span style="font-size:.9rem; color:#6c757d;">{{ entries|length }} record(s) gevonden</span>
+    <a href="/history/export?{% if filter_product_id %}product_id={{ filter_product_id }}&{% endif %}{% if filter_date_from %}date_from={{ filter_date_from }}&{% endif %}{% if filter_date_to %}date_to={{ filter_date_to }}{% endif %}"
+       class="btn btn-secundair btn-klein">
+      Exporteer CSV
+    </a>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Product</th>
+          <th>Locatie</th>
+          <th style="text-align:right;">Hoeveelheid</th>
+          <th>Eenheid</th>
+          <th>Ingevoerd door</th>
+          <th>Notitie</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td>{{ e.date }}</td>
+          <td>{{ e.product.name }}</td>
+          <td>{{ e.location.name }}</td>
+          <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(e.quantity) }}</td>
+          <td>{{ e.product.unit }}</td>
+          <td>{{ e.entered_by }}</td>
+          <td style="color:#6c757d; font-size:.85rem;">{{ e.note or "" }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="geen-data">Geen oogst gevonden voor de geselecteerde filters.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}

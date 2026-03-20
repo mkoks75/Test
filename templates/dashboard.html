@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Huidige Voorraad</h1>
+
+  {% if inventory %}
+    {% for locatie, producten in inventory.items() %}
+    <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
+      <table>
+        <thead>
+          <tr>
+            <th colspan="3" style="font-size:1rem;">{{ locatie }}</th>
+          </tr>
+          <tr style="background: #e9ecef;">
+            <th style="background:#e9ecef; color:#495057;">Product</th>
+            <th style="background:#e9ecef; color:#495057;">Eenheid</th>
+            <th style="background:#e9ecef; color:#495057; text-align:right;">Totale hoeveelheid</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rij in producten %}
+          <tr>
+            <td>{{ rij.product }}</td>
+            <td>{{ rij.unit }}</td>
+            <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(rij.total) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="kaart">
+      <p class="geen-data">Nog geen oogst ingevoerd. <a href="/harvest/new">Voeg de eerste oogst toe.</a></p>
+    </div>
+  {% endif %}
+</main>
+{% endblock %}

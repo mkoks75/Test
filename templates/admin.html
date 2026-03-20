@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Beheer - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Beheer</h1>
+
+  {% if success == 'product_added' %}
+  <div class="melding melding-succes">Product succesvol toegevoegd.</div>
+  {% elif success == 'location_added' %}
+  <div class="melding melding-succes">Locatie succesvol toegevoegd.</div>
+  {% endif %}
+
+  <div class="admin-grid">
+
+    <!-- ── Producten ── -->
+    <div>
+      <h2>Producten</h2>
+
+      <div class="kaart">
+        <form method="post" action="/admin/product/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px;">
+          <div class="veld" style="flex:1; min-width:140px;">
+            <label for="naam_product">Naam</label>
+            <input type="text" id="naam_product" name="name" required placeholder="bijv. Aardappelen">
+          </div>
+          <div class="veld" style="flex:1; min-width:100px;">
+            <label for="eenheid">Eenheid</label>
+            <input type="text" id="eenheid" name="unit" required placeholder="bijv. kg">
+          </div>
+          <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Naam</th>
+              <th>Eenheid</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+            <tr>
+              <td>{{ p.name }}</td>
+              <td>{{ p.unit }}</td>
+              <td>
+                {% if p.active %}
+                  <span class="badge badge-actief">Actief</span>
+                {% else %}
+                  <span class="badge badge-inactief">Inactief</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if p.active %}
+                <form method="post" action="/admin/product/{{ p.id }}/deactivate" style="display:inline;">
+                  <button type="submit" class="btn btn-gevaar"
+                    onclick="return confirm('Product \'{{ p.name }}\' deactiveren?')">Deactiveren</button>
+                </form>
+                {% else %}
+                <form method="post" action="/admin/product/{{ p.id }}/activate" style="display:inline;">
+                  <button type="submit" class="btn btn-waarschuw">Activeren</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="geen-data">Nog geen producten aangemaakt.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Locaties ── -->
+    <div>
+      <h2>Locaties</h2>
+
+      <div class="kaart">
+        <form method="post" action="/admin/location/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px;">
+          <div class="veld" style="flex:1; min-width:160px;">
+            <label for="naam_locatie">Naam</label>
+            <input type="text" id="naam_locatie" name="name" required placeholder="bijv. Schuur Noord">
+          </div>
+          <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Naam</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in locations %}
+            <tr>
+              <td>{{ l.name }}</td>
+              <td>
+                {% if l.active %}
+                  <span class="badge badge-actief">Actief</span>
+                {% else %}
+                  <span class="badge badge-inactief">Inactief</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if l.active %}
+                <form method="post" action="/admin/location/{{ l.id }}/deactivate" style="display:inline;">
+                  <button type="submit" class="btn btn-gevaar"
+                    onclick="return confirm('Locatie \'{{ l.name }}\' deactiveren?')">Deactiveren</button>
+                </form>
+                {% else %}
+                <form method="post" action="/admin/location/{{ l.id }}/activate" style="display:inline;">
+                  <button type="submit" class="btn btn-waarschuw">Activeren</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="3" class="geen-data">Nog geen locaties aangemaakt.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+{% endblock %}

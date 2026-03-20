@@ -1,8 +1,399 @@
-from fastapi import FastAPI
+import io
+import csv
+import datetime
+from datetime import timedelta
+
+from fastapi import FastAPI, Request, Depends, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+import models
+import database
+from database import get_db
+from auth import get_current_user, authenticate_user, create_access_token
+from config import ACCESS_TOKEN_EXPIRE_MINUTES
+
+# Maak database tabellen aan
+models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
+
+# ── Authenticatie ──────────────────────────────────────────────────────────────
+
+@app.get("/login")
+async def login_page(request: Request):
+    user = get_current_user(request)
+    if user:
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+
+
+@app.post("/login")
+async def login_post(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
+    user = authenticate_user(username, password)
+    if not user:
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": "Ongeldige gebruikersnaam of wachtwoord"},
+        )
+    token = create_access_token(
+        {"sub": username}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    response = RedirectResponse("/", status_code=302)
+    response.set_cookie(
+        "access_token", token, httponly=True, max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+    return response
+
+
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse("/login", status_code=302)
+    response.delete_cookie("access_token")
+    return response
+
+
+# ── Dashboard ──────────────────────────────────────────────────────────────────
 
 @app.get("/")
-def root():
-    return {"status": "ok", "message": "Hallo vanaf de VPS!"}
+async def dashboard(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    results = (
+        db.query(
+            models.Location.name.label("location_name"),
+            models.Product.name.label("product_name"),
+            models.Product.unit.label("unit"),
+            func.sum(models.HarvestEntry.quantity).label("total"),
+        )
+        .select_from(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+        .group_by(
+            models.Location.id,
+            models.Location.name,
+            models.Product.id,
+            models.Product.name,
+            models.Product.unit,
+        )
+        .order_by(models.Location.name, models.Product.name)
+        .all()
+    )
+
+    inventory: dict[str, list] = {}
+    for row in results:
+        if row.location_name not in inventory:
+            inventory[row.location_name] = []
+        inventory[row.location_name].append(
+            {"product": row.product_name, "unit": row.unit, "total": row.total}
+        )
+
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {"request": request, "user": user, "inventory": inventory},
+    )
+
+
+# ── Nieuwe oogst ───────────────────────────────────────────────────────────────
+
+@app.get("/harvest/new")
+async def harvest_new(
+    request: Request,
+    db: Session = Depends(get_db),
+    success: int = 0,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    products = (
+        db.query(models.Product)
+        .filter(models.Product.active == True)
+        .order_by(models.Product.name)
+        .all()
+    )
+    locations = (
+        db.query(models.Location)
+        .filter(models.Location.active == True)
+        .order_by(models.Location.name)
+        .all()
+    )
+    today = datetime.date.today().isoformat()
+
+    return templates.TemplateResponse(
+        "harvest_new.html",
+        {
+            "request": request,
+            "user": user,
+            "products": products,
+            "locations": locations,
+            "today": today,
+            "success": success == 1,
+        },
+    )
+
+
+@app.post("/harvest/new")
+async def harvest_new_post(
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = Form(...),
+    location_id: int = Form(...),
+    quantity: float = Form(...),
+    date: str = Form(...),
+    note: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    entry = models.HarvestEntry(
+        product_id=product_id,
+        location_id=location_id,
+        quantity=quantity,
+        date=date,
+        entered_by=user,
+        note=note.strip() or None,
+        created_at=datetime.datetime.utcnow(),
+    )
+    db.add(entry)
+    db.commit()
+    return RedirectResponse("/harvest/new?success=1", status_code=302)
+
+
+# ── Geschiedenis ───────────────────────────────────────────────────────────────
+
+@app.get("/history")
+async def history(
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    query = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+    )
+    if product_id:
+        query = query.filter(models.HarvestEntry.product_id == product_id)
+    if date_from:
+        query = query.filter(models.HarvestEntry.date >= date_from)
+    if date_to:
+        query = query.filter(models.HarvestEntry.date <= date_to)
+
+    entries = query.order_by(
+        models.HarvestEntry.date.desc(), models.HarvestEntry.created_at.desc()
+    ).all()
+    products = db.query(models.Product).order_by(models.Product.name).all()
+
+    return templates.TemplateResponse(
+        "history.html",
+        {
+            "request": request,
+            "user": user,
+            "entries": entries,
+            "products": products,
+            "filter_product_id": product_id,
+            "filter_date_from": date_from or "",
+            "filter_date_to": date_to or "",
+        },
+    )
+
+
+@app.get("/history/export")
+async def history_export(
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    query = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+    )
+    if product_id:
+        query = query.filter(models.HarvestEntry.product_id == product_id)
+    if date_from:
+        query = query.filter(models.HarvestEntry.date >= date_from)
+    if date_to:
+        query = query.filter(models.HarvestEntry.date <= date_to)
+
+    entries = query.order_by(
+        models.HarvestEntry.date.desc(), models.HarvestEntry.created_at.desc()
+    ).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(
+        ["Datum", "Product", "Locatie", "Hoeveelheid", "Eenheid", "Ingevoerd door", "Notitie", "Aangemaakt op"]
+    )
+    for e in entries:
+        writer.writerow([
+            e.date,
+            e.product.name,
+            e.location.name,
+            e.quantity,
+            e.product.unit,
+            e.entered_by,
+            e.note or "",
+            e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else "",
+        ])
+
+    filename = f"oogst_export_{datetime.date.today().isoformat()}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),  # utf-8-sig voor Excel-compatibiliteit
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ── Admin ──────────────────────────────────────────────────────────────────────
+
+@app.get("/admin")
+async def admin(
+    request: Request,
+    db: Session = Depends(get_db),
+    success: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    products = db.query(models.Product).order_by(models.Product.active.desc(), models.Product.name).all()
+    locations = db.query(models.Location).order_by(models.Location.active.desc(), models.Location.name).all()
+
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "user": user,
+            "products": products,
+            "locations": locations,
+            "success": success,
+        },
+    )
+
+
+@app.post("/admin/product/add")
+async def admin_add_product(
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+    unit: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = models.Product(name=name.strip(), unit=unit.strip(), active=True)
+    db.add(product)
+    db.commit()
+    return RedirectResponse("/admin?success=product_added", status_code=302)
+
+
+@app.post("/admin/product/{product_id}/deactivate")
+async def admin_deactivate_product(
+    product_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        product.active = False
+        db.commit()
+    return RedirectResponse("/admin", status_code=302)
+
+
+@app.post("/admin/product/{product_id}/activate")
+async def admin_activate_product(
+    product_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        product.active = True
+        db.commit()
+    return RedirectResponse("/admin", status_code=302)
+
+
+@app.post("/admin/location/add")
+async def admin_add_location(
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = models.Location(name=name.strip(), active=True)
+    db.add(location)
+    db.commit()
+    return RedirectResponse("/admin?success=location_added", status_code=302)
+
+
+@app.post("/admin/location/{location_id}/deactivate")
+async def admin_deactivate_location(
+    location_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if location:
+        location.active = False
+        db.commit()
+    return RedirectResponse("/admin", status_code=302)
+
+
+@app.post("/admin/location/{location_id}/activate")
+async def admin_activate_location(
+    location_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if location:
+        location.active = True
+        db.commit()
+    return RedirectResponse("/admin", status_code=302)
