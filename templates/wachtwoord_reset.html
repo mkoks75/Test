@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wachtwoord resetten - Boerderij Voorraad</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="login-kaart">
+    <h1>Boerderij Voorraad</h1>
+    <p class="login-subtitel">Nieuw wachtwoord instellen</p>
+
+    {% if ongeldig %}
+    <div class="melding melding-fout">
+      Deze reset link is ongeldig of verlopen. Vraag een nieuwe link aan via
+      <a href="/wachtwoord-vergeten">wachtwoord vergeten</a>.
+    </div>
+    {% else %}
+
+    {% if error == 'wachtwoorden_komen_niet_overeen' %}
+    <div class="melding melding-fout">De wachtwoorden komen niet overeen.</div>
+    {% elif error == 'wachtwoord_te_kort' %}
+    <div class="melding melding-fout">Het wachtwoord moet minimaal 6 tekens bevatten.</div>
+    {% endif %}
+
+    <form method="post" action="/wachtwoord-reset/{{ token }}">
+      <div class="veld">
+        <label for="nieuw_wachtwoord">Nieuw wachtwoord</label>
+        <input type="password" id="nieuw_wachtwoord" name="nieuw_wachtwoord" required autofocus autocomplete="new-password" minlength="6" placeholder="••••••••">
+      </div>
+      <div class="veld">
+        <label for="nieuw_wachtwoord2">Wachtwoord bevestigen</label>
+        <input type="password" id="nieuw_wachtwoord2" name="nieuw_wachtwoord2" required autocomplete="new-password" minlength="6" placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn-primair" style="width:100%; margin-top:8px;">Wachtwoord opslaan</button>
+    </form>
+    {% endif %}
+
+    <p style="margin-top:16px; text-align:center; font-size:.9rem;">
+      <a href="/login" style="color:var(--groen, #4a7c59);">Terug naar inloggen</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>

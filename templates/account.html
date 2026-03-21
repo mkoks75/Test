@@ -7,6 +7,8 @@
 
   {% if success == 'wachtwoord_gewijzigd' %}
   <div class="melding melding-succes">Wachtwoord succesvol gewijzigd.</div>
+  {% elif success == 'email_gewijzigd' %}
+  <div class="melding melding-succes">E-mailadres succesvol opgeslagen.</div>
   {% endif %}
 
   {% if error == 'gebruikersnaam_leeg' %}
@@ -21,6 +23,10 @@
   <div class="melding melding-fout">De nieuwe wachtwoorden komen niet overeen.</div>
   {% elif error == 'wachtwoord_te_kort' %}
   <div class="melding melding-fout">Het nieuwe wachtwoord moet minimaal 6 tekens bevatten.</div>
+  {% elif error == 'email_ongeldig' %}
+  <div class="melding melding-fout">Voer een geldig e-mailadres in.</div>
+  {% elif error == 'email_bezet' %}
+  <div class="melding melding-fout">Dit e-mailadres is al in gebruik door een ander account.</div>
   {% endif %}
 
   <div class="admin-grid">
@@ -63,6 +69,24 @@
         </div>
         <div style="margin-top:16px;">
           <button type="submit" class="btn btn-primair">Wachtwoord opslaan</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="kaart">
+      <h2 style="margin-top:0;">E-mailadres</h2>
+      <p style="font-size:.88rem; color:#6c757d; margin-bottom:16px;">
+        Je e-mailadres wordt gebruikt voor het resetten van je wachtwoord.
+      </p>
+      <form method="post" action="/account/email">
+        <div class="form-grid breed">
+          <div class="veld">
+            <label for="email">E-mailadres</label>
+            <input type="email" id="email" name="email" value="{{ current_user_email or '' }}" autocomplete="email" placeholder="jou@voorbeeld.nl">
+          </div>
+        </div>
+        <div style="margin-top:16px;">
+          <button type="submit" class="btn btn-primair">E-mailadres opslaan</button>
         </div>
       </form>
     </div>

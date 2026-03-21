@@ -16,6 +16,10 @@
     <div class="melding melding-fout">{{ error }}</div>
     {% endif %}
 
+    {% if request.query_params.get('success') == 'wachtwoord_gereset' %}
+    <div class="melding melding-succes">Je wachtwoord is succesvol gewijzigd. Je kunt nu inloggen.</div>
+    {% endif %}
+
     <form method="post" action="/login">
       <div class="veld">
         <label for="username">Gebruikersnaam</label>
@@ -27,6 +31,9 @@
       </div>
       <button type="submit" class="btn btn-primair">Inloggen</button>
     </form>
+    <p style="margin-top:16px; text-align:center; font-size:.9rem;">
+      <a href="/wachtwoord-vergeten" style="color:var(--groen, #4a7c59);">Wachtwoord vergeten?</a>
+    </p>
   </div>
 </div>
 </body>

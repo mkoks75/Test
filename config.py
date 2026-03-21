@@ -5,6 +5,14 @@ SECRET_KEY = os.getenv("SECRET_KEY", "verander-dit-in-productie-gebruik-een-lang
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 uur
 
+# SMTP instellingen voor wachtwoord-reset emails
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "")
+APP_URL = os.getenv("APP_URL", "http://localhost:8000")
+
 # Hardcoded gebruikers: gebruikersnaam -> gehashte wachtwoorden
 # boer1 / welkom123
 # boer2 / welkom456

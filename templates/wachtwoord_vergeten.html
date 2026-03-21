@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wachtwoord vergeten - Boerderij Voorraad</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="login-kaart">
+    <h1>Boerderij Voorraad</h1>
+    <p class="login-subtitel">Wachtwoord vergeten</p>
+
+    {% if verzonden %}
+    <div class="melding melding-succes">
+      Als dit e-mailadres bekend is, ontvang je een link om je wachtwoord te resetten.
+    </div>
+    <p style="margin-top:20px; text-align:center; font-size:.9rem;">
+      <a href="/login" style="color:var(--groen, #4a7c59);">Terug naar inloggen</a>
+    </p>
+    {% else %}
+    <p style="font-size:.9rem; color:#6c757d; margin-bottom:20px;">
+      Vul je e-mailadres in. Als het bekend is, ontvang je een link om een nieuw wachtwoord in te stellen.
+    </p>
+    <form method="post" action="/wachtwoord-vergeten">
+      <div class="veld">
+        <label for="email">E-mailadres</label>
+        <input type="email" id="email" name="email" required autofocus placeholder="jou@voorbeeld.nl">
+      </div>
+      <button type="submit" class="btn btn-primair" style="width:100%; margin-top:8px;">Verstuur reset link</button>
+    </form>
+    <p style="margin-top:16px; text-align:center; font-size:.9rem;">
+      <a href="/login" style="color:var(--groen, #4a7c59);">Terug naar inloggen</a>
+    </p>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

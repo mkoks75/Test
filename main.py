@@ -1,7 +1,11 @@
 import io
 import csv
 import datetime
+import secrets
+import smtplib
 from datetime import timedelta
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 import bcrypt
 from fastapi import FastAPI, Request, Depends, Form
@@ -15,7 +19,7 @@ import models
 import database
 from database import get_db
 from auth import get_current_user, authenticate_user, create_access_token
-from config import ACCESS_TOKEN_EXPIRE_MINUTES, USERS
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, USERS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, APP_URL
 
 # Maak database tabellen aan
 models.Base.metadata.create_all(bind=database.engine)
@@ -46,6 +50,16 @@ async def startup():
         except Exception:
             pass  # Tabel bestaat nog niet; create_all regelt dit
 
+        # Migreer users tabel: voeg email kolom toe indien nog niet aanwezig
+        try:
+            pragma_users = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+            user_col_names = [row[1] for row in pragma_users]
+            if "email" not in user_col_names:
+                conn.execute(text("ALTER TABLE users ADD COLUMN email TEXT"))
+            conn.commit()
+        except Exception:
+            pass
+
         # Migreer uitgiftes tabel (aangemaakt via create_all, maar voor zekerheid)
         try:
             conn.execute(text("SELECT 1 FROM uitgiftes LIMIT 1"))
@@ -65,6 +79,22 @@ async def startup():
                     hashed_password=user_data["hashed_password"],
                 )
                 db.add(db_user)
+        db.commit()
+    finally:
+        db.close()
+
+    # Reset boer1 en boer2 naar beginwachtwoorden indien ze al bestaan
+    # (eenmalige reset-functie — kan worden verwijderd nadat de reset is uitgevoerd)
+    reset_users = {
+        "boer1": "welkom123",
+        "boer2": "welkom456",
+    }
+    db = database.SessionLocal()
+    try:
+        for username, password in reset_users.items():
+            db_user = db.query(models.User).filter(models.User.username == username).first()
+            if db_user:
+                db_user.hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
         db.commit()
     finally:
         db.close()
@@ -524,13 +554,20 @@ async def verlopen(request: Request, db: Session = Depends(get_db)):
 # ── Account beheer ─────────────────────────────────────────────────────────────
 
 @app.get("/account")
-async def account(request: Request, success: str = None, error: str = None):
+async def account(request: Request, db: Session = Depends(get_db), success: str = None, error: str = None):
     user = get_current_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
+    db_user = db.query(models.User).filter(models.User.username == user).first()
     return templates.TemplateResponse(
         "account.html",
-        {"request": request, "user": user, "success": success, "error": error},
+        {
+            "request": request,
+            "user": user,
+            "success": success,
+            "error": error,
+            "current_user_email": db_user.email if db_user else None,
+        },
     )
 
 
@@ -591,6 +628,175 @@ async def account_password(
     db_user.hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
     db.commit()
     return RedirectResponse("/account?success=wachtwoord_gewijzigd", status_code=302)
+
+
+@app.post("/account/email")
+async def account_email(
+    request: Request,
+    db: Session = Depends(get_db),
+    email: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    email = email.strip().lower()
+
+    if email:
+        import re
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            return RedirectResponse("/account?error=email_ongeldig", status_code=302)
+        bestaand = db.query(models.User).filter(
+            models.User.email == email,
+            models.User.username != user,
+        ).first()
+        if bestaand:
+            return RedirectResponse("/account?error=email_bezet", status_code=302)
+
+    db_user = db.query(models.User).filter(models.User.username == user).first()
+    db_user.email = email if email else None
+    db.commit()
+    return RedirectResponse("/account?success=email_gewijzigd", status_code=302)
+
+
+# ── Wachtwoord vergeten ────────────────────────────────────────────────────────
+
+def _stuur_reset_email(to_email: str, reset_url: str):
+    """Stuur wachtwoord-reset email via SMTP."""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Wachtwoord resetten - Boerderij Voorraad"
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+
+    tekst = f"""Hallo,
+
+Je hebt een verzoek ingediend om je wachtwoord te resetten voor Boerderij Voorraad.
+
+Klik op de onderstaande link om een nieuw wachtwoord in te stellen:
+{reset_url}
+
+Deze link is 1 uur geldig.
+
+Als je dit verzoek niet hebt ingediend, kun je deze e-mail negeren.
+
+Met vriendelijke groet,
+Boerderij Voorraad
+"""
+    msg.attach(MIMEText(tekst, "plain", "utf-8"))
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        if SMTP_USER and SMTP_PASSWORD:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_FROM, to_email, msg.as_string())
+
+
+@app.get("/wachtwoord-vergeten")
+async def wachtwoord_vergeten(request: Request):
+    user = get_current_user(request)
+    if user:
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse(
+        "wachtwoord_vergeten.html",
+        {"request": request, "verzonden": False},
+    )
+
+
+@app.post("/wachtwoord-vergeten")
+async def wachtwoord_vergeten_post(
+    request: Request,
+    db: Session = Depends(get_db),
+    email: str = Form(...),
+):
+    # Toon altijd neutrale melding (ook als email niet bestaat)
+    email = email.strip().lower()
+    db_user = db.query(models.User).filter(models.User.email == email).first()
+    if db_user and SMTP_HOST:
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+        reset_token = models.PasswordResetToken(
+            user_id=db_user.id,
+            token=token,
+            expires_at=expires_at,
+            used=False,
+        )
+        db.add(reset_token)
+        db.commit()
+        reset_url = f"{APP_URL}/wachtwoord-reset/{token}"
+        try:
+            _stuur_reset_email(email, reset_url)
+        except Exception:
+            pass  # Stille fout: neutrale melding blijft getoond
+
+    return templates.TemplateResponse(
+        "wachtwoord_vergeten.html",
+        {"request": request, "verzonden": True},
+    )
+
+
+@app.get("/wachtwoord-reset/{token}")
+async def wachtwoord_reset(token: str, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if user:
+        return RedirectResponse("/", status_code=302)
+
+    reset_token = db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.token == token,
+        models.PasswordResetToken.used == False,
+        models.PasswordResetToken.expires_at > datetime.datetime.utcnow(),
+    ).first()
+
+    if not reset_token:
+        return templates.TemplateResponse(
+            "wachtwoord_reset.html",
+            {"request": request, "token": token, "ongeldig": True, "error": None},
+        )
+
+    return templates.TemplateResponse(
+        "wachtwoord_reset.html",
+        {"request": request, "token": token, "ongeldig": False, "error": None},
+    )
+
+
+@app.post("/wachtwoord-reset/{token}")
+async def wachtwoord_reset_post(
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    nieuw_wachtwoord: str = Form(...),
+    nieuw_wachtwoord2: str = Form(...),
+):
+    reset_token = db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.token == token,
+        models.PasswordResetToken.used == False,
+        models.PasswordResetToken.expires_at > datetime.datetime.utcnow(),
+    ).first()
+
+    if not reset_token:
+        return templates.TemplateResponse(
+            "wachtwoord_reset.html",
+            {"request": request, "token": token, "ongeldig": True, "error": None},
+        )
+
+    if nieuw_wachtwoord != nieuw_wachtwoord2:
+        return templates.TemplateResponse(
+            "wachtwoord_reset.html",
+            {"request": request, "token": token, "ongeldig": False, "error": "wachtwoorden_komen_niet_overeen"},
+        )
+
+    if len(nieuw_wachtwoord) < 6:
+        return templates.TemplateResponse(
+            "wachtwoord_reset.html",
+            {"request": request, "token": token, "ongeldig": False, "error": "wachtwoord_te_kort"},
+        )
+
+    db_user = db.query(models.User).filter(models.User.id == reset_token.user_id).first()
+    db_user.hashed_password = bcrypt.hashpw(nieuw_wachtwoord.encode(), bcrypt.gensalt()).decode()
+    reset_token.used = True
+    db.commit()
+
+    response = RedirectResponse("/login?success=wachtwoord_gereset", status_code=302)
+    return response
 
 
 # ── Admin ──────────────────────────────────────────────────────────────────────
