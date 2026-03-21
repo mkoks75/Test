@@ -84,22 +84,6 @@ async def startup():
     finally:
         db.close()
 
-    # Reset boer1 en boer2 naar beginwachtwoorden indien ze al bestaan
-    # (eenmalige reset-functie — kan worden verwijderd nadat de reset is uitgevoerd)
-    reset_users = {
-        "boer1": "welkom123",
-        "boer2": "welkom456",
-    }
-    db = database.SessionLocal()
-    try:
-        for username, password in reset_users.items():
-            db_user = db.query(models.User).filter(models.User.username == username).first()
-            if db_user:
-                db_user.hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-        db.commit()
-    finally:
-        db.close()
-
 
 # ── Authenticatie ──────────────────────────────────────────────────────────────
 
