@@ -70,6 +70,50 @@ async def startup():
 
         # Ontvangers tabel wordt aangemaakt door create_all; geen extra migratie nodig
 
+        # Migreer products tabel: voeg eenheid_id kolom toe indien nog niet aanwezig
+        try:
+            pragma_products = conn.execute(text("PRAGMA table_info(products)")).fetchall()
+            product_col_names = [row[1] for row in pragma_products]
+            if "eenheid_id" not in product_col_names:
+                conn.execute(text("ALTER TABLE products ADD COLUMN eenheid_id INTEGER REFERENCES eenheden(id)"))
+            conn.commit()
+        except Exception:
+            pass
+
+    # Standaard eenheden aanmaken als de tabel leeg is
+    db = database.SessionLocal()
+    try:
+        if db.query(models.Eenheid).count() == 0:
+            standaard_eenheden = [
+                models.Eenheid(naam="kg", etiket_per_stuk=False, actief=True),
+                models.Eenheid(naam="gram", etiket_per_stuk=False, actief=True),
+                models.Eenheid(naam="liter", etiket_per_stuk=False, actief=True),
+                models.Eenheid(naam="stuks", etiket_per_stuk=True, actief=True),
+                models.Eenheid(naam="pot", etiket_per_stuk=True, actief=True),
+                models.Eenheid(naam="krat", etiket_per_stuk=True, actief=True),
+                models.Eenheid(naam="bundel", etiket_per_stuk=True, actief=True),
+            ]
+            for e in standaard_eenheden:
+                db.add(e)
+            db.commit()
+
+        # Migreer bestaande producten: koppel unit string aan eenheid
+        producten_zonder_eenheid = db.query(models.Product).filter(models.Product.eenheid_id == None).all()
+        for product in producten_zonder_eenheid:
+            if product.unit:
+                eenheid = db.query(models.Eenheid).filter(
+                    models.Eenheid.naam == product.unit
+                ).first()
+                if not eenheid:
+                    # Maak een nieuwe eenheid aan voor onbekende unit strings
+                    eenheid = models.Eenheid(naam=product.unit, etiket_per_stuk=False, actief=True)
+                    db.add(eenheid)
+                    db.flush()
+                product.eenheid_id = eenheid.id
+        db.commit()
+    finally:
+        db.close()
+
     # Migreer hardcoded gebruikers uit config.py naar de database
     db = database.SessionLocal()
     try:
@@ -252,6 +296,13 @@ async def harvest_new(
     )
     today = datetime.date.today().isoformat()
 
+    # Bouw een dict product_id -> eenheid naam voor JavaScript
+    import json
+    product_eenheden = {
+        str(p.id): (p.eenheid.naam if p.eenheid else p.unit or "")
+        for p in products
+    }
+
     return templates.TemplateResponse(
         "harvest_new.html",
         {
@@ -261,6 +312,7 @@ async def harvest_new(
             "locations": locations,
             "today": today,
             "success": success == 1,
+            "product_eenheden_json": json.dumps(product_eenheden),
         },
     )
 
@@ -325,6 +377,15 @@ async def harvest_confirm(entry_id: int, request: Request, db: Session = Depends
         return RedirectResponse("/", status_code=302)
 
     today = datetime.date.today()
+
+    # Bepaal aantal te printen etiketten
+    import math
+    eenheid = entry.product.eenheid if entry.product.eenheid_id else None
+    if eenheid and eenheid.etiket_per_stuk:
+        aantal_etiketten = max(1, math.ceil(entry.quantity))
+    else:
+        aantal_etiketten = 1
+
     return templates.TemplateResponse(
         "harvest_confirm.html",
         {
@@ -332,6 +393,7 @@ async def harvest_confirm(entry_id: int, request: Request, db: Session = Depends
             "user": user,
             "entry": entry,
             "today": today,
+            "aantal_etiketten": aantal_etiketten,
         },
     )
 
@@ -828,6 +890,8 @@ async def admin(
     products = db.query(models.Product).order_by(models.Product.active.desc(), models.Product.name).all()
     locations = db.query(models.Location).order_by(models.Location.active.desc(), models.Location.name).all()
     ontvangers = db.query(models.Ontvanger).order_by(models.Ontvanger.actief.desc(), models.Ontvanger.naam).all()
+    eenheden = db.query(models.Eenheid).order_by(models.Eenheid.actief.desc(), models.Eenheid.naam).all()
+    actieve_eenheden = [e for e in eenheden if e.actief]
 
     return templates.TemplateResponse(
         "admin.html",
@@ -837,6 +901,8 @@ async def admin(
             "products": products,
             "locations": locations,
             "ontvangers": ontvangers,
+            "eenheden": eenheden,
+            "actieve_eenheden": actieve_eenheden,
             "success": success,
         },
     )
@@ -847,13 +913,15 @@ async def admin_add_product(
     request: Request,
     db: Session = Depends(get_db),
     name: str = Form(...),
-    unit: str = Form(...),
+    eenheid_id: int = Form(...),
 ):
     user = get_current_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    product = models.Product(name=name.strip(), unit=unit.strip(), active=True)
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    unit_naam = eenheid.naam if eenheid else ""
+    product = models.Product(name=name.strip(), unit=unit_naam, eenheid_id=eenheid_id, active=True)
     db.add(product)
     db.commit()
     return RedirectResponse("/admin?success=product_added", status_code=302)
@@ -989,6 +1057,63 @@ async def admin_activate_ontvanger(
     ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == ontvanger_id).first()
     if ontvanger:
         ontvanger.actief = True
+        db.commit()
+    return RedirectResponse("/admin", status_code=302)
+
+
+# ── Eenheden beheer ────────────────────────────────────────────────────────────
+
+@app.post("/admin/eenheid/add")
+async def admin_add_eenheid(
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+    etiket_per_stuk: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = models.Eenheid(
+        naam=naam.strip(),
+        etiket_per_stuk=bool(etiket_per_stuk),
+        actief=True,
+    )
+    db.add(eenheid)
+    db.commit()
+    return RedirectResponse("/admin?success=eenheid_added", status_code=302)
+
+
+@app.post("/admin/eenheid/{eenheid_id}/deactivate")
+async def admin_deactivate_eenheid(
+    eenheid_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if eenheid:
+        eenheid.actief = False
+        db.commit()
+    return RedirectResponse("/admin", status_code=302)
+
+
+@app.post("/admin/eenheid/{eenheid_id}/activate")
+async def admin_activate_eenheid(
+    eenheid_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if eenheid:
+        eenheid.actief = True
         db.commit()
     return RedirectResponse("/admin", status_code=302)
 

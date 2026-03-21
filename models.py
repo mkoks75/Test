@@ -25,14 +25,27 @@ class PasswordResetToken(Base):
     user = relationship("User")
 
 
+class Eenheid(Base):
+    __tablename__ = "eenheden"
+
+    id = Column(Integer, primary_key=True, index=True)
+    naam = Column(String, nullable=False)
+    etiket_per_stuk = Column(Boolean, nullable=False, default=False)
+    actief = Column(Boolean, default=True, nullable=False)
+
+    producten = relationship("Product", back_populates="eenheid")
+
+
 class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    unit = Column(String, nullable=False)
+    unit = Column(String, nullable=True)  # legacy veld, blijft voor backward compat
+    eenheid_id = Column(Integer, ForeignKey("eenheden.id"), nullable=True)
     active = Column(Boolean, default=True, nullable=False)
 
+    eenheid = relationship("Eenheid", back_populates="producten")
     entries = relationship("HarvestEntry", back_populates="product")
     uitgiftes = relationship("Uitgifte", back_populates="product")
 

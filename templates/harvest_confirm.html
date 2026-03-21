@@ -34,11 +34,17 @@
 
   <div class="kaart" style="max-width:640px; margin-top:16px;" id="etiket-kaart">
     <h2 style="margin-top:0;">Etiket</h2>
-    <div id="etiket">
+
+    <p style="margin-bottom:16px;">
+      <strong>Aantal te printen etiketten: {{ aantal_etiketten }}</strong>
+    </p>
+
+    <!-- Voorbeeld van één etiket (zichtbaar op scherm) -->
+    <div id="etiket-preview">
       <p class="etiket-product">{{ entry.product.name }}</p>
       <p class="etiket-regel"><span class="etiket-label">Volgnummer:</span> {{ entry.volgnummer }}</p>
       <p class="etiket-regel"><span class="etiket-label">Locatie:</span> {{ entry.location.name }}</p>
-      <p class="etiket-regel"><span class="etiket-label">Hoeveelheid:</span> {{ "%.2f"|format(entry.quantity) }} {{ entry.product.unit }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Hoeveelheid:</span> {{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</p>
       <p class="etiket-regel"><span class="etiket-label">Datum oogst:</span> {{ entry.date }}</p>
       <p class="etiket-regel">
         <span class="etiket-label">Houdbaar tot:</span>
@@ -46,53 +52,122 @@
           {% if entry.houdbaar_tot %}{{ entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
         </span>
       </p>
-      <div id="qrcode" style="margin-top:12px;"></div>
+      {% if aantal_etiketten > 1 %}
+      <p class="etiket-regel" style="color:#6c757d; font-style:italic;">Etiket 1 van {{ aantal_etiketten }}</p>
+      {% endif %}
+      <div id="qrcode-preview" style="margin-top:12px;"></div>
     </div>
 
     <div class="etiket-knoppen" style="margin-top:16px; display:flex; gap:8px;">
-      <button onclick="printEtiket()" class="btn btn-primair">Print etiket</button>
+      <button onclick="printEtiketten()" class="btn btn-primair">Print {{ aantal_etiketten }} etiket{% if aantal_etiketten > 1 %}ten{% endif %}</button>
       <a href="/" class="btn btn-secundair">Terug naar dashboard</a>
     </div>
   </div>
+
+  <!-- Verborgen printcontainer voor meerdere etiketten -->
+  <div id="print-container" style="display:none;"></div>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+  var aantalEtiketten = {{ aantal_etiketten }};
+
   var qrData = [
     "Product: {{ entry.product.name }}",
     "Volgnummer: {{ entry.volgnummer }}",
     "Locatie: {{ entry.location.name }}",
-    "Hoeveelheid: {{ '%.2f'|format(entry.quantity) }} {{ entry.product.unit }}",
+    "Hoeveelheid: {{ '%.2f'|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}",
     "Datum: {{ entry.date }}",
     "Houdbaar tot: {% if entry.houdbaar_tot %}{{ entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}"
   ].join("\n");
 
-  new QRCode(document.getElementById("qrcode"), {
+  // QR code voor het preview etiket
+  new QRCode(document.getElementById("qrcode-preview"), {
     text: qrData,
     width: 160,
     height: 160,
     correctLevel: QRCode.CorrectLevel.M
   });
 
-  function printEtiket() {
-    window.print();
+  function printEtiketten() {
+    if (aantalEtiketten <= 1) {
+      window.print();
+      return;
+    }
+
+    // Bouw printpagina met X identieke etiketten
+    var houdbaar = "{% if entry.houdbaar_tot %}{{ entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}";
+    var houdbaarKlasse = {% if entry.houdbaar_tot and (entry.houdbaar_tot - today).days <= 30 %}true{% else %}false{% endif %};
+
+    var container = document.getElementById("print-container");
+    container.innerHTML = "";
+
+    var etiketten = [];
+    for (var i = 1; i <= aantalEtiketten; i++) {
+      var div = document.createElement("div");
+      div.className = "print-etiket";
+      div.innerHTML =
+        '<p class="etiket-product">{{ entry.product.name }}</p>' +
+        '<p class="etiket-regel"><span class="etiket-label">Volgnummer:</span> {{ entry.volgnummer }}</p>' +
+        '<p class="etiket-regel"><span class="etiket-label">Locatie:</span> {{ entry.location.name }}</p>' +
+        '<p class="etiket-regel"><span class="etiket-label">Hoeveelheid:</span> {{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</p>' +
+        '<p class="etiket-regel"><span class="etiket-label">Datum oogst:</span> {{ entry.date }}</p>' +
+        '<p class="etiket-regel"><span class="etiket-label">Houdbaar tot:</span> <span class="etiket-houdbaar' + (houdbaarKlasse ? ' houdbaar-verlopen' : '') + '">' + houdbaar + '</span></p>' +
+        '<p class="etiket-regel"><em>Etiket ' + i + ' van ' + aantalEtiketten + '</em></p>' +
+        '<div class="qr-placeholder-' + i + '" style="margin-top:8px;"></div>';
+      container.appendChild(div);
+      etiketten.push({index: i, el: div.querySelector('.qr-placeholder-' + i)});
+    }
+
+    // Genereer QR codes voor elk etiket, dan print
+    var gegenereerd = 0;
+    etiketten.forEach(function(item) {
+      new QRCode(item.el, {
+        text: qrData,
+        width: 140,
+        height: 140,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      gegenereerd++;
+      if (gegenereerd === aantalEtiketten) {
+        setTimeout(function() { window.print(); }, 300);
+      }
+    });
   }
 </script>
 
 <style>
+  @media screen {
+    #print-container { display: none !important; }
+  }
+
   @media print {
-    .topnav, footer, .etiket-knoppen, .page-header, .kaart:not(#etiket-kaart), #etiket-kaart > h2 {
+    .topnav, footer, .etiket-knoppen, .page-header, #etiket-preview,
+    .kaart:not(#etiket-kaart), #etiket-kaart > h2, #etiket-kaart > p {
       display: none !important;
     }
     #etiket-kaart {
       border: none !important;
       box-shadow: none !important;
       padding: 0 !important;
-      max-width: 62mm !important;
+      max-width: none !important;
       margin: 0 !important;
     }
     body { margin: 0; padding: 4mm; }
     main { padding: 0 !important; margin: 0 !important; }
+
+    /* Meerdere etiketten: elk op eigen pagina */
+    #print-container {
+      display: block !important;
+    }
+    .print-etiket {
+      max-width: 62mm;
+      page-break-after: always;
+      padding: 4mm;
+    }
+    .print-etiket:last-child {
+      page-break-after: avoid;
+    }
   }
 
   .etiket-product { font-size: 1.4rem; font-weight: 700; margin: 0 0 8px 0; }

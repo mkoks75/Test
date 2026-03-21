@@ -16,6 +16,8 @@
   <div class="melding melding-succes">Locatie succesvol toegevoegd.</div>
   {% elif success == 'ontvanger_added' %}
   <div class="melding melding-succes">Ontvanger succesvol toegevoegd.</div>
+  {% elif success == 'eenheid_added' %}
+  <div class="melding melding-succes">Eenheid succesvol toegevoegd.</div>
   {% endif %}
 
   <div class="admin-grid">
@@ -30,9 +32,14 @@
             <label for="naam_product">Naam</label>
             <input type="text" id="naam_product" name="name" required placeholder="bijv. Aardappelen">
           </div>
-          <div class="veld" style="flex:1; min-width:100px;">
-            <label for="eenheid">Eenheid</label>
-            <input type="text" id="eenheid" name="unit" required placeholder="bijv. kg">
+          <div class="veld" style="flex:1; min-width:120px;">
+            <label for="eenheid_id">Eenheid</label>
+            <select id="eenheid_id" name="eenheid_id" required>
+              <option value="">-- Kies --</option>
+              {% for e in actieve_eenheden %}
+              <option value="{{ e.id }}">{{ e.naam }}</option>
+              {% endfor %}
+            </select>
           </div>
           <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
         </form>
@@ -50,7 +57,7 @@
             {% for p in products %}
             <tr>
               <td>{{ p.name }}</td>
-              <td>{{ p.unit }}</td>
+              <td>{{ p.eenheid.naam if p.eenheid else p.unit }}</td>
               <td>
                 {% if p.active %}
                   <span class="badge badge-actief">Actief</span>
@@ -186,6 +193,69 @@
           {% else %}
           <tr>
             <td colspan="3" class="geen-data">Nog geen ontvangers aangemaakt.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Eenheden ── -->
+  <div id="eenheden" style="margin-top:32px;">
+    <h2>Eenheden</h2>
+
+    <div class="kaart">
+      <form method="post" action="/admin/eenheid/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px;">
+        <div class="veld" style="flex:1; min-width:140px;">
+          <label for="naam_eenheid">Naam</label>
+          <input type="text" id="naam_eenheid" name="naam" required placeholder="bijv. doos">
+        </div>
+        <div class="veld" style="min-width:160px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding-top:6px;">
+            <input type="checkbox" name="etiket_per_stuk" value="1" style="width:18px; height:18px;">
+            Etiket per stuk
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
+      </form>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Naam</th>
+            <th>Etiket per stuk</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in eenheden %}
+          <tr>
+            <td>{{ e.naam }}</td>
+            <td>{{ "Ja" if e.etiket_per_stuk else "Nee" }}</td>
+            <td>
+              {% if e.actief %}
+                <span class="badge badge-actief">Actief</span>
+              {% else %}
+                <span class="badge badge-inactief">Inactief</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if e.actief %}
+              <form method="post" action="/admin/eenheid/{{ e.id }}/deactivate" style="display:inline;">
+                <button type="submit" class="btn btn-gevaar"
+                  onclick="return confirm('Eenheid \'{{ e.naam }}\' deactiveren?')">Deactiveren</button>
+              </form>
+              {% else %}
+              <form method="post" action="/admin/eenheid/{{ e.id }}/activate" style="display:inline;">
+                <button type="submit" class="btn btn-waarschuw">Activeren</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="geen-data">Nog geen eenheden aangemaakt.</td>
           </tr>
           {% endfor %}
         </tbody>
