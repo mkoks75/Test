@@ -1,6 +1,7 @@
 import io
 import csv
 import datetime
+import logging
 import secrets
 import smtplib
 from datetime import timedelta
@@ -725,8 +726,8 @@ async def wachtwoord_vergeten_post(
         reset_url = f"{APP_URL}/wachtwoord-reset/{token}"
         try:
             _stuur_reset_email(email, reset_url)
-        except Exception:
-            pass  # Stille fout: neutrale melding blijft getoond
+        except Exception as e:
+            logging.error(f"SMTP fout: {e}")
 
     return templates.TemplateResponse(
         "wachtwoord_vergeten.html",
