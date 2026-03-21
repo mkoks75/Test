@@ -1,79 +1,144 @@
 {% extends "base.html" %}
-{% block title %}Dashboard - Boerderij Voorraad{% endblock %}
+{% block title %}Dashboard - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Huidige Voorraad</h1>
 
-  {% if inventory %}
-    {% for locatie, producten in inventory.items() %}
-    <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
-      <table>
-        <thead>
-          <tr>
-            <th colspan="3" style="font-size:1rem;">{{ locatie }}</th>
-          </tr>
-          <tr style="background: #e9ecef;">
-            <th style="background:#e9ecef; color:#495057;">Product</th>
-            <th style="background:#e9ecef; color:#495057;">Eenheid</th>
-            <th style="background:#e9ecef; color:#495057; text-align:right;">Totale hoeveelheid</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for rij in producten %}
-          <tr>
-            <td>{{ rij.product }}</td>
-            <td>{{ rij.unit }}</td>
-            <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(rij.total) }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<!-- Hero sectie -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-text">
+      <h1>MountainSense Farm</h1>
+      <p>Voorraad overzicht</p>
     </div>
-    {% endfor %}
-  {% else %}
-    <div class="kaart">
-      <p class="geen-data">Nog geen oogst ingevoerd. <a href="/harvest/new">Voeg de eerste oogst toe.</a></p>
+    <div class="hero-datum">
+      <strong>{{ today_date.strftime('%d %B %Y') }}</strong>
+      {{ today_date.strftime('%A') }}
     </div>
-  {% endif %}
+  </div>
+</div>
 
-  {% if location_entries %}
-  <h1 style="margin-top: 36px;">Detail per locatie</h1>
-    {% for locatie, entries in location_entries.items() %}
-    <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
-      <table>
-        <thead>
-          <tr>
-            <th colspan="4" style="font-size:1rem;">{{ locatie }}</th>
-          </tr>
-          <tr style="background: #e9ecef;">
-            <th style="background:#e9ecef; color:#495057;">#</th>
-            <th style="background:#e9ecef; color:#495057;">Product</th>
-            <th style="background:#e9ecef; color:#495057; text-align:right;">Hoeveelheid</th>
-            <th style="background:#e9ecef; color:#495057;">Houdbaar tot</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for entry in entries %}
-          <tr {% if entry.houdbaar_tot and entry.houdbaar_tot <= today_date %}style="background:#fde8e8;"{% elif entry.houdbaar_tot and entry.houdbaar_tot <= bijna_verlopen_date %}style="background:#fff8e1;"{% endif %}>
-            <td style="color:#6c757d; font-size:.85rem;">{{ entry.volgnummer if entry.volgnummer else '—' }}</td>
-            <td>{{ entry.product.name }} <span style="color:#6c757d; font-size:.82rem;">({{ entry.product.unit }})</span></td>
-            <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(entry.quantity) }}</td>
-            <td>
-              {% if entry.houdbaar_tot %}
-                <span {% if entry.houdbaar_tot <= today_date %}style="color:var(--rood); font-weight:600;"{% elif entry.houdbaar_tot <= bijna_verlopen_date %}style="color:var(--oranje); font-weight:600;"{% endif %}>
-                  {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
-                </span>
-              {% else %}
-                <span style="color:#adb5bd;">—</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<div class="dashboard-wrap">
+
+  <!-- Stats kaartjes -->
+  <div class="stats-rij">
+    <div class="stat-kaart">
+      <span class="stat-icon">&#128200;</span>
+      <div class="getal">{{ stats.total_producten }}</div>
+      <div class="label">Producten in voorraad</div>
     </div>
-    {% endfor %}
-  {% endif %}
-</main>
+    <div class="stat-kaart">
+      <span class="stat-icon">&#127968;</span>
+      <div class="getal">{{ stats.total_locaties }}</div>
+      <div class="label">Actieve locaties</div>
+    </div>
+    <div class="stat-kaart">
+      <span class="stat-icon">&#128203;</span>
+      <div class="getal">{{ stats.registraties_week }}</div>
+      <div class="label">Registraties deze week</div>
+    </div>
+    <div class="stat-kaart">
+      <span class="stat-icon">&#128666;</span>
+      <div class="getal">{{ stats.uitgiftes_week }}</div>
+      <div class="label">Uitgiftes deze week</div>
+    </div>
+  </div>
+
+  <!-- Twee-kolom layout: hoofdinhoud + sidebar -->
+  <div class="dashboard-layout">
+
+    <!-- Hoofdinhoud -->
+    <div class="dashboard-main">
+
+      {% if inventory %}
+        <h2 style="margin-top:0;">Huidige voorraad per locatie</h2>
+        {% for locatie, producten in inventory.items() %}
+        <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 20px;">
+          <table>
+            <thead>
+              <tr>
+                <th colspan="3" style="font-size:0.95rem; text-transform:none; letter-spacing:0;">{{ locatie }}</th>
+              </tr>
+              <tr>
+                <th>Product</th>
+                <th>Eenheid</th>
+                <th style="text-align:right;">Totale hoeveelheid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rij in producten %}
+              <tr>
+                <td>{{ rij.product }}</td>
+                <td>{{ rij.unit }}</td>
+                <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(rij.total) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="kaart">
+          <p class="geen-data">Nog geen oogst ingevoerd. <a href="/harvest/new">Voeg de eerste oogst toe.</a></p>
+        </div>
+      {% endif %}
+
+      {% if location_entries %}
+      <h2 style="margin-top: 32px;">Detail per locatie</h2>
+        {% for locatie, entries in location_entries.items() %}
+        <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 20px;">
+          <table>
+            <thead>
+              <tr>
+                <th colspan="4" style="font-size:0.95rem; text-transform:none; letter-spacing:0;">{{ locatie }}</th>
+              </tr>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th style="text-align:right;">Hoeveelheid</th>
+                <th>Houdbaar tot</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in entries %}
+              <tr {% if entry.houdbaar_tot and entry.houdbaar_tot <= today_date %}style="background:#fde8e8;"{% elif entry.houdbaar_tot and entry.houdbaar_tot <= bijna_verlopen_date %}style="background:#fff8e1;"{% endif %}>
+                <td style="color:#6c757d; font-size:.85rem;">{{ entry.volgnummer if entry.volgnummer else '—' }}</td>
+                <td>{{ entry.product.name }} <span style="color:#6c757d; font-size:.82rem;">({{ entry.product.unit }})</span></td>
+                <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(entry.quantity) }}</td>
+                <td>
+                  {% if entry.houdbaar_tot %}
+                    <span {% if entry.houdbaar_tot <= today_date %}style="color:var(--rood); font-weight:600;"{% elif entry.houdbaar_tot <= bijna_verlopen_date %}style="color:var(--oranje); font-weight:600;"{% endif %}>
+                      {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
+                    </span>
+                  {% else %}
+                    <span style="color:#adb5bd;">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endfor %}
+      {% endif %}
+
+    </div>
+
+    <!-- Sidebar: fotogalerij -->
+    <div class="dashboard-sidebar">
+      <div class="foto-widget">
+        <h3>Van het veld</h3>
+        <div class="foto-grid">
+          <img src="/static/images/witlof.jpeg" alt="Witlof">
+          <img src="/static/images/zaaien.jpeg" alt="Zaaien">
+          <img src="/static/images/tractor1.jpeg" alt="Tractor">
+          <img src="/static/images/tractor2.jpeg" alt="Tractor op het veld">
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.dashboard-layout -->
+</div><!-- /.dashboard-wrap -->
+
 {% endblock %}

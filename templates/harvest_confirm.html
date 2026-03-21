@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Oogst opgeslagen - Boerderij Voorraad{% endblock %}
+{% block title %}Oogst opgeslagen - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Oogst opgeslagen</h1>
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Oogst opgeslagen</h1>
+    <p>De voorraadregistratie is succesvol bewaard</p>
+  </div>
+</div>
 
+<main>
   <div class="kaart" style="max-width:640px;">
     <h2 style="margin-top:0;">Samenvatting</h2>
     <table>
@@ -15,7 +20,7 @@
         <tr><th style="text-align:left;">Hoeveelheid</th><td>{{ "%.2f"|format(entry.quantity) }} {{ entry.product.unit }}</td></tr>
         <tr><th style="text-align:left;">Datum oogst</th><td>{{ entry.date }}</td></tr>
         <tr><th style="text-align:left;">Houdbaar tot</th>
-          <td {% if entry.houdbaar_tot and (entry.houdbaar_tot - today).days <= 30 %}style="color:#dc3545; font-weight:600;"{% endif %}>
+          <td {% if entry.houdbaar_tot and (entry.houdbaar_tot - today).days <= 30 %}style="color:var(--rood); font-weight:600;"{% endif %}>
             {% if entry.houdbaar_tot %}{{ entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
           </td>
         </tr>
@@ -76,7 +81,7 @@
 
 <style>
   @media print {
-    nav, .etiket-knoppen, h1, .kaart:not(#etiket-kaart), #etiket-kaart > h2 {
+    .topnav, footer, .etiket-knoppen, .page-header, .kaart:not(#etiket-kaart), #etiket-kaart > h2 {
       display: none !important;
     }
     #etiket-kaart {
@@ -86,31 +91,13 @@
       max-width: 62mm !important;
       margin: 0 !important;
     }
-    body {
-      margin: 0;
-      padding: 4mm;
-    }
-    main {
-      padding: 0 !important;
-      margin: 0 !important;
-    }
+    body { margin: 0; padding: 4mm; }
+    main { padding: 0 !important; margin: 0 !important; }
   }
 
-  .etiket-product {
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin: 0 0 8px 0;
-  }
-  .etiket-regel {
-    margin: 4px 0;
-    font-size: 0.9rem;
-  }
-  .etiket-label {
-    font-weight: 600;
-  }
-  .houdbaar-verlopen {
-    color: #dc3545;
-    font-weight: 700;
-  }
+  .etiket-product { font-size: 1.4rem; font-weight: 700; margin: 0 0 8px 0; }
+  .etiket-regel { margin: 4px 0; font-size: 0.9rem; }
+  .etiket-label { font-weight: 600; }
+  .houdbaar-verlopen { color: var(--rood); font-weight: 700; }
 </style>
 {% endblock %}

@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Geschiedenis & Uitgiftes - Boerderij Voorraad{% endblock %}
+{% block title %}Geschiedenis & Uitgiftes - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Geschiedenis &amp; Uitgiftes</h1>
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Geschiedenis &amp; Uitgiftes</h1>
+    <p>Bekijk, bewerk en exporteer registraties en uitgiftes</p>
+  </div>
+</div>
 
+<main>
   <!-- Tabs -->
   <div class="tabs-nav">
     <a href="/beheer/geschiedenis?tab=registraties"
@@ -216,12 +221,12 @@
     <table>
       <thead>
         <tr>
-          <th colspan="3" style="font-size:1rem;">{{ naam }}</th>
+          <th colspan="3" style="font-size:0.95rem; text-transform:none; letter-spacing:0;">{{ naam }}</th>
         </tr>
-        <tr style="background:#e9ecef;">
-          <th style="background:#e9ecef; color:#495057;">Product</th>
-          <th style="background:#e9ecef; color:#495057;">Eenheid</th>
-          <th style="background:#e9ecef; color:#495057; text-align:right;">Totaal uitgegeven</th>
+        <tr>
+          <th>Product</th>
+          <th>Eenheid</th>
+          <th style="text-align:right;">Totaal uitgegeven</th>
         </tr>
       </thead>
       <tbody>

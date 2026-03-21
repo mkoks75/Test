@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Uitgifte Registreren - Boerderij Voorraad{% endblock %}
+{% block title %}Uitgifte Registreren - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Uitgifte Registreren</h1>
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Uitgifte registreren</h1>
+    <p>Registreer het uitgeven van producten uit de voorraad</p>
+  </div>
+</div>
 
+<main>
   {% if error %}
   <div class="melding melding-fout">{{ error }}</div>
   {% endif %}

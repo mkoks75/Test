@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Boerderij Voorraad{% endblock %}</title>
+  <title>{% block title %}MountainSense Farm{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
 {% if user is defined and user %}
-<nav>
-  <a class="brand" href="/">Boerderij Voorraad</a>
+<nav class="topnav">
+  <a class="brand" href="/">&#127807; MountainSense Farm</a>
   <input type="checkbox" id="nav-toggle" class="nav-toggle">
   <label for="nav-toggle" class="nav-hamburger" aria-label="Open navigatiemenu">
     <span></span><span></span><span></span>
@@ -25,19 +26,26 @@
       <span class="nav-dropdown-toggle">Beheer &#9660;</span>
       <div class="nav-dropdown-menu">
         <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Producten &amp; Locaties</a>
-        <a href="/admin#ontvangers" {% if request.url.path == '/admin' %}{% endif %}>Ontvangers</a>
+        <a href="/admin#ontvangers">Ontvangers</a>
         <a href="/beheer/geschiedenis" {% if request.url.path == '/beheer/geschiedenis' and request.query_params.get('tab') != 'uitgiftes' %}class="actief"{% elif request.url.path.startswith('/beheer/uitgifte') %}class="actief"{% endif %}>Geschiedenis &amp; Uitgiftes</a>
         <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
       </div>
     </div>
-    <span class="spacer"></span>
-    <span class="gebruiker">Ingelogd als {{ user }}</span>
-    <a href="/logout">Uitloggen</a>
+    <div class="nav-right">
+      <span class="gebruiker-naam">{{ user }}</span>
+      <a href="/logout" class="btn-uitloggen">Uitloggen</a>
+    </div>
   </div>
 </nav>
 {% endif %}
 
 {% block content %}{% endblock %}
+
+{% if user is defined and user %}
+<footer>
+  <p>MountainSense Farm &copy; 2025</p>
+</footer>
+{% endif %}
 
 </body>
 </html>

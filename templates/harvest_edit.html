@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Voorraad bewerken - Boerderij Voorraad{% endblock %}
+{% block title %}Voorraad bewerken - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Voorraad bewerken</h1>
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Voorraad bewerken</h1>
+    <p>Wijzig de gegevens van deze voorraadregistratie</p>
+  </div>
+</div>
 
+<main>
   {% set error = request.query_params.get('error') %}
   {% if error == 'heeft_uitgiftes' %}
   <div class="melding melding-fout">Entry kan niet verwijderd worden: er zijn uitgiftes aan gekoppeld.</div>
@@ -15,16 +20,16 @@
 
       <div class="veld">
         <label>Volgnummer</label>
-        <input type="text" value="{{ entry.volgnummer }}" disabled style="background:#f8f9fa; color:#6c757d;">
+        <input type="text" value="{{ entry.volgnummer }}" disabled>
       </div>
 
       <div class="veld">
         <label>Ingevoerd door</label>
-        <input type="text" value="{{ entry.entered_by }}" disabled style="background:#f8f9fa; color:#6c757d;">
+        <input type="text" value="{{ entry.entered_by }}" disabled>
       </div>
 
       <div class="veld">
-        <label for="product_id">Product <span style="color:#dc3545;">*</span></label>
+        <label for="product_id">Product <span style="color:var(--rood);">*</span></label>
         <select id="product_id" name="product_id" required>
           {% for p in products %}
           <option value="{{ p.id }}" {% if p.id == entry.product_id %}selected{% endif %}>{{ p.name }}</option>
@@ -33,7 +38,7 @@
       </div>
 
       <div class="veld">
-        <label for="location_id">Locatie <span style="color:#dc3545;">*</span></label>
+        <label for="location_id">Locatie <span style="color:var(--rood);">*</span></label>
         <select id="location_id" name="location_id" required>
           {% for l in locations %}
           <option value="{{ l.id }}" {% if l.id == entry.location_id %}selected{% endif %}>{{ l.name }}</option>
@@ -42,12 +47,12 @@
       </div>
 
       <div class="veld">
-        <label for="quantity">Hoeveelheid <span style="color:#dc3545;">*</span></label>
+        <label for="quantity">Hoeveelheid <span style="color:var(--rood);">*</span></label>
         <input type="number" id="quantity" name="quantity" step="0.01" min="0.01" value="{{ entry.quantity }}" required>
       </div>
 
       <div class="veld">
-        <label for="date">Datum oogst <span style="color:#dc3545;">*</span></label>
+        <label for="date">Datum oogst <span style="color:var(--rood);">*</span></label>
         <input type="date" id="date" name="date" value="{{ entry.date }}" required>
       </div>
 

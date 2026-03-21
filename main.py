@@ -195,6 +195,18 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         location_entries[loc].append(entry)
 
     today = datetime.date.today()
+
+    # Stats voor dashboard kaartjes
+    week_start = str(today - datetime.timedelta(days=today.weekday()))
+    registraties_week = db.query(func.count(models.HarvestEntry.id)).filter(
+        models.HarvestEntry.date >= week_start
+    ).scalar() or 0
+    uitgiftes_week = db.query(func.count(models.Uitgifte.id)).filter(
+        models.Uitgifte.date >= week_start
+    ).scalar() or 0
+    total_producten = sum(1 for items in inventory.values() for item in items if item["total"] > 0)
+    total_locaties = len([loc for loc, items in inventory.items() if any(item["total"] > 0 for item in items)])
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -204,6 +216,12 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "location_entries": location_entries,
             "today_date": today,
             "bijna_verlopen_date": today + datetime.timedelta(days=30),
+            "stats": {
+                "total_producten": total_producten,
+                "total_locaties": total_locaties,
+                "registraties_week": registraties_week,
+                "uitgiftes_week": uitgiftes_week,
+            },
         },
     )
 

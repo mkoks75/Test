@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Uitgifte bewerken - Boerderij Voorraad{% endblock %}
+{% block title %}Uitgifte bewerken - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Uitgifte bewerken</h1>
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Uitgifte bewerken</h1>
+    <p>Wijzig de gegevens van deze uitgifte</p>
+  </div>
+</div>
 
+<main>
   {% set err = request.query_params.get('error') %}
   {% if err == 'voorraad' %}
   <div class="melding melding-fout">
@@ -17,11 +22,11 @@
 
       <div class="veld">
         <label>Ingevoerd door</label>
-        <input type="text" value="{{ uitgifte.entered_by }}" disabled style="background:#f8f9fa; color:#6c757d;">
+        <input type="text" value="{{ uitgifte.entered_by }}" disabled>
       </div>
 
       <div class="veld">
-        <label for="product_id">Product <span style="color:#dc3545;">*</span></label>
+        <label for="product_id">Product <span style="color:var(--rood);">*</span></label>
         <select id="product_id" name="product_id" required>
           {% for p in products %}
           <option value="{{ p.id }}" {% if p.id == uitgifte.product_id %}selected{% endif %}>{{ p.name }}</option>
@@ -30,7 +35,7 @@
       </div>
 
       <div class="veld">
-        <label for="location_id">Locatie <span style="color:#dc3545;">*</span></label>
+        <label for="location_id">Locatie <span style="color:var(--rood);">*</span></label>
         <select id="location_id" name="location_id" required>
           {% for l in locations %}
           <option value="{{ l.id }}" {% if l.id == uitgifte.location_id %}selected{% endif %}>{{ l.name }}</option>
@@ -39,25 +44,25 @@
       </div>
 
       <div class="veld">
-        <label for="quantity">Hoeveelheid <span style="color:#dc3545;">*</span></label>
+        <label for="quantity">Hoeveelheid <span style="color:var(--rood);">*</span></label>
         <input type="number" id="quantity" name="quantity" step="0.01" min="0.01"
                value="{{ uitgifte.quantity }}" required>
       </div>
 
       <div class="veld">
-        <label for="ontvanger">Ontvanger <span style="color:#dc3545;">*</span></label>
+        <label for="ontvanger">Ontvanger <span style="color:var(--rood);">*</span></label>
         <select id="ontvanger" name="ontvanger" required>
           {% for o in ontvangers %}
           <option value="{{ o.naam }}" {% if o.naam == uitgifte.ontvanger %}selected{% endif %}>{{ o.naam }}</option>
           {% endfor %}
-              {% if uitgifte.ontvanger not in ontvangers|map(attribute='naam')|list %}
+          {% if uitgifte.ontvanger not in ontvangers|map(attribute='naam')|list %}
           <option value="{{ uitgifte.ontvanger }}" selected>{{ uitgifte.ontvanger }}</option>
           {% endif %}
         </select>
       </div>
 
       <div class="veld">
-        <label for="date">Datum <span style="color:#dc3545;">*</span></label>
+        <label for="date">Datum <span style="color:var(--rood);">*</span></label>
         <input type="date" id="date" name="date" value="{{ uitgifte.date }}" required>
       </div>
 

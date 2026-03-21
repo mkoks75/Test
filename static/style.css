@@ -1,101 +1,126 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 :root {
-  --groen: #2d6a4f;
-  --groen-licht: #40916c;
-  --groen-bg: #d8f3dc;
-  --grijs-licht: #f8f9fa;
-  --grijs: #dee2e6;
+  --groen: #2D6A4F;
+  --groen-accent: #52B788;
+  --groen-licht-bg: #d8f3dc;
+  --blauw-licht: #90E0EF;
+  --achtergrond: #F8F9FA;
+  --card: #FFFFFF;
   --tekst: #212529;
+  --subtekst: #6C757D;
+  --grijs: #dee2e6;
+  --grijs-licht: #f1f3f5;
   --rood: #c0392b;
   --oranje: #e67e22;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 15px;
+  font-weight: 400;
   color: var(--tekst);
-  background: #f0f4f0;
+  background: var(--achtergrond);
   margin: 0;
+  line-height: 1.6;
 }
 
-/* ── Navigatie ── */
-nav {
-  background: var(--groen);
-  color: #fff;
-  padding: 0 24px;
+/* ── Navigatie (wit, schaduw) ── */
+.topnav {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 0 32px;
   display: flex;
   align-items: center;
-  gap: 0;
-  height: 54px;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-nav .brand {
-  font-size: 1.1rem;
+.topnav .brand {
+  font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: .5px;
-  margin-right: 32px;
-  color: #fff;
+  color: var(--groen);
   text-decoration: none;
+  margin-right: 36px;
+  white-space: nowrap;
+  letter-spacing: -.2px;
 }
 
-nav a {
-  color: rgba(255,255,255,.85);
+.nav-toggle { display: none; }
+.nav-hamburger { display: none; }
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.nav-links > a {
+  color: #495057;
   text-decoration: none;
   padding: 0 14px;
-  height: 54px;
+  height: 64px;
   display: inline-flex;
   align-items: center;
-  font-size: .9rem;
-  transition: background .15s;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
 
-nav a:hover, nav a.actief {
-  background: rgba(255,255,255,.15);
-  color: #fff;
+.nav-links > a:hover {
+  color: var(--groen);
 }
 
-nav .spacer { flex: 1; }
-
-nav .gebruiker {
-  font-size: .85rem;
-  color: rgba(255,255,255,.7);
-  margin-right: 12px;
+.nav-links > a.actief {
+  color: var(--groen);
+  border-bottom-color: var(--groen);
+  font-weight: 600;
 }
 
 /* ── Nav dropdown ── */
 .nav-dropdown {
   position: relative;
+  height: 64px;
+  display: flex;
+  align-items: center;
 }
 
 .nav-dropdown-toggle {
-  color: rgba(255,255,255,.85);
-  text-decoration: none;
+  color: #495057;
   padding: 0 14px;
-  height: 54px;
+  height: 64px;
   display: inline-flex;
   align-items: center;
-  font-size: .9rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
   cursor: pointer;
-  transition: background .15s;
   user-select: none;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
 
 .nav-dropdown:hover .nav-dropdown-toggle,
 .nav-dropdown.actief .nav-dropdown-toggle {
-  background: rgba(255,255,255,.15);
-  color: #fff;
+  color: var(--groen);
+  border-bottom-color: var(--groen);
 }
 
 .nav-dropdown-menu {
   display: none;
   position: absolute;
-  top: 54px;
+  top: 64px;
   left: 0;
-  min-width: 210px;
-  background: #1e4d38;
-  border-radius: 0 0 6px 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
   z-index: 100;
 }
 
@@ -105,21 +130,290 @@ nav .gebruiker {
 
 .nav-dropdown-menu a {
   display: block;
-  padding: 11px 16px;
+  padding: 11px 18px;
+  color: #495057;
+  font-size: 0.88rem;
+  text-decoration: none;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.1s, color 0.1s;
   height: auto;
-  color: rgba(255,255,255,.85);
-  font-size: .9rem;
-  border-bottom: 1px solid rgba(255,255,255,.08);
 }
 
-.nav-dropdown-menu a:last-child {
-  border-bottom: none;
-}
+.nav-dropdown-menu a:last-child { border-bottom: none; }
 
 .nav-dropdown-menu a:hover,
 .nav-dropdown-menu a.actief {
-  background: rgba(255,255,255,.15);
+  background: #f0faf5;
+  color: var(--groen);
+}
+
+/* ── Nav rechts: gebruiker + uitloggen ── */
+.nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gebruiker-naam {
+  font-size: 0.85rem;
+  color: var(--subtekst);
+  font-weight: 500;
+}
+
+.btn-uitloggen {
+  background: transparent;
+  border: 1.5px solid var(--groen);
+  color: var(--groen);
+  border-radius: 20px;
+  padding: 5px 16px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-uitloggen:hover {
+  background: var(--groen);
   color: #fff;
+}
+
+/* ── Hero (dashboard) ── */
+.hero {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  overflow: hidden;
+  background: #1e4d38;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('/static/images/hero.jpeg');
+  background-size: cover;
+  background-position: center;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hero-text h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 8px;
+  letter-spacing: -.5px;
+}
+
+.hero-text p {
+  font-size: 1.05rem;
+  color: rgba(255,255,255,0.85);
+  margin: 0;
+}
+
+.hero-datum {
+  text-align: right;
+  color: rgba(255,255,255,0.80);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.hero-datum strong {
+  display: block;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+/* ── Dashboard layout ── */
+.dashboard-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 1fr 268px;
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboard-main {}
+.dashboard-sidebar {}
+
+/* ── Stats kaartjes ── */
+.stats-rij {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.stat-kaart {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 20px 20px 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid #eef0f2;
+}
+
+.stat-icon {
+  font-size: 1.4rem;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.stat-kaart .getal {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--groen);
+  line-height: 1;
+}
+
+.stat-kaart .label {
+  font-size: 0.78rem;
+  color: var(--subtekst);
+  margin-top: 5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+/* ── Foto galerij (sidebar) ── */
+.foto-widget {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 18px 18px 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid #eef0f2;
+  margin-bottom: 24px;
+}
+
+.foto-widget h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--groen);
+  margin: 0 0 12px;
+}
+
+.foto-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.foto-grid img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 7px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+  display: block;
+}
+
+/* ── Pagina header banner (niet-dashboard pagina's) ── */
+.page-header {
+  background: var(--groen);
+  padding: 28px 0 26px;
+}
+
+.page-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.page-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 4px;
+}
+
+.page-header p {
+  color: rgba(255,255,255,0.80);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* ── Hoofd layout ── */
+main {
+  max-width: 1200px;
+  margin: 28px auto;
+  padding: 0 24px;
+}
+
+h1 { font-size: 1.4rem; margin: 0 0 20px; color: var(--groen); font-weight: 600; }
+h2 { font-size: 1.05rem; margin: 24px 0 12px; color: var(--groen); font-weight: 600; }
+
+/* ── Kaarten ── */
+.kaart {
+  background: var(--card);
+  border: 1px solid #eef0f2;
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* ── Tabellen ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+th {
+  background: var(--groen);
+  color: #fff;
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 0.83rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0f2f4;
+  color: var(--tekst);
+}
+
+tr:last-child td { border-bottom: none; }
+tr:nth-child(even) td { background: #fafbfc; }
+tr:hover td { background: #f0faf5; }
+
+.locatie-kop td {
+  background: var(--groen-licht-bg);
+  font-weight: 600;
+  color: var(--groen);
+  padding: 6px 12px;
+  border-top: 2px solid var(--groen);
+}
+
+.geen-data {
+  text-align: center;
+  color: var(--subtekst);
+  padding: 32px !important;
+  font-style: italic;
 }
 
 /* ── Tabs ── */
@@ -134,7 +428,7 @@ nav .gebruiker {
 .tab-knop {
   padding: 9px 20px;
   border-radius: 6px 6px 0 0;
-  font-size: .9rem;
+  font-size: 0.88rem;
   font-weight: 600;
   color: #495057;
   text-decoration: none;
@@ -142,76 +436,16 @@ nav .gebruiker {
   border: 1px solid var(--grijs);
   border-bottom: none;
   margin-bottom: -2px;
-  transition: background .15s, color .15s;
+  transition: background 0.15s, color 0.15s;
 }
 
-.tab-knop:hover {
-  background: #dee2e6;
-  color: var(--tekst);
-}
+.tab-knop:hover { background: #dee2e6; color: var(--tekst); }
 
 .tab-knop.tab-actief {
   background: #fff;
   color: var(--groen);
   border-color: var(--grijs);
   border-bottom-color: #fff;
-}
-
-/* ── Hoofd layout ── */
-main {
-  max-width: 1100px;
-  margin: 32px auto;
-  padding: 0 20px;
-}
-
-h1 { font-size: 1.4rem; margin: 0 0 20px; color: var(--groen); }
-h2 { font-size: 1.1rem; margin: 24px 0 12px; color: var(--groen); }
-
-/* ── Kaarten ── */
-.kaart {
-  background: #fff;
-  border: 1px solid var(--grijs);
-  border-radius: 8px;
-  padding: 20px 24px;
-  margin-bottom: 24px;
-}
-
-/* ── Tabellen ── */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .9rem;
-}
-
-th {
-  background: var(--groen);
-  color: #fff;
-  text-align: left;
-  padding: 9px 12px;
-  font-weight: 600;
-}
-
-td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--grijs);
-}
-
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--grijs-licht); }
-
-.locatie-kop td {
-  background: var(--groen-bg);
-  font-weight: 600;
-  color: var(--groen);
-  padding: 6px 12px;
-  border-top: 2px solid var(--groen);
-}
-
-.geen-data {
-  text-align: center;
-  color: #6c757d;
-  padding: 32px !important;
-  font-style: italic;
 }
 
 /* ── Formulieren ── */
@@ -227,26 +461,32 @@ tr:hover td { background: var(--grijs-licht); }
 .veld.volledig { grid-column: 1 / -1; }
 
 label {
-  font-size: .85rem;
+  font-size: 0.83rem;
   font-weight: 600;
   color: #495057;
 }
 
 input, select, textarea {
-  border: 1px solid var(--grijs);
-  border-radius: 5px;
-  padding: 8px 10px;
-  font-size: .95rem;
+  border: 1.5px solid #d0d5dd;
+  border-radius: 7px;
+  padding: 9px 12px;
+  font-size: 0.93rem;
   font-family: inherit;
   color: var(--tekst);
   background: #fff;
-  transition: border-color .15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--groen-licht);
-  box-shadow: 0 0 0 3px rgba(64,145,108,.15);
+  border-color: var(--groen);
+  box-shadow: 0 0 0 3px rgba(45,106,79,0.12);
+}
+
+input:disabled, select:disabled {
+  background: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
 }
 
 textarea { resize: vertical; min-height: 80px; }
@@ -256,46 +496,97 @@ textarea { resize: vertical; min-height: 80px; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 18px;
-  border: none;
-  border-radius: 5px;
-  font-size: .9rem;
+  padding: 9px 20px;
+  border: 1.5px solid transparent;
+  border-radius: 7px;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  transition: opacity .15s, background .15s;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  line-height: 1.4;
 }
 
-.btn:hover { opacity: .88; }
+.btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
 
-.btn-primair  { background: var(--groen); color: #fff; }
-.btn-secundair { background: #6c757d; color: #fff; }
-.btn-gevaar   { background: var(--rood); color: #fff; padding: 5px 12px; font-size: .82rem; }
-.btn-waarschuw { background: var(--oranje); color: #fff; padding: 5px 12px; font-size: .82rem; }
-.btn-klein    { padding: 5px 12px; font-size: .82rem; }
+.btn-primair {
+  background: var(--groen);
+  color: #fff;
+  border-color: var(--groen);
+}
+
+.btn-primair:hover {
+  background: #235c43;
+  border-color: #235c43;
+}
+
+.btn-secundair {
+  background: #fff;
+  color: var(--groen);
+  border-color: var(--groen);
+}
+
+.btn-secundair:hover {
+  background: #f0faf5;
+}
+
+.btn-gevaar {
+  background: var(--rood);
+  color: #fff;
+  border-color: var(--rood);
+  padding: 6px 14px;
+  font-size: 0.82rem;
+}
+
+.btn-gevaar:hover { background: #a93226; border-color: #a93226; }
+
+.btn-waarschuw {
+  background: var(--oranje);
+  color: #fff;
+  border-color: var(--oranje);
+  padding: 6px 14px;
+  font-size: 0.82rem;
+}
+
+.btn-waarschuw:hover { background: #d35400; border-color: #d35400; }
+
+.btn-klein {
+  padding: 6px 14px;
+  font-size: 0.82rem;
+}
 
 /* ── Meldingen ── */
 .melding {
   padding: 12px 16px;
-  border-radius: 6px;
+  border-radius: 7px;
   margin-bottom: 20px;
-  font-size: .9rem;
+  font-size: 0.9rem;
 }
 
-.melding-succes { background: var(--groen-bg); color: var(--groen); border-left: 4px solid var(--groen); }
-.melding-fout   { background: #fde8e8; color: var(--rood); border-left: 4px solid var(--rood); }
+.melding-succes {
+  background: #edfaf3;
+  color: #1a7a4a;
+  border-left: 4px solid var(--groen);
+}
+
+.melding-fout {
+  background: #fde8e8;
+  color: var(--rood);
+  border-left: 4px solid var(--rood);
+}
 
 /* ── Badge ── */
 .badge {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 12px;
-  font-size: .78rem;
+  font-size: 0.78rem;
   font-weight: 600;
 }
 
-.badge-actief    { background: var(--groen-bg); color: var(--groen); }
-.badge-inactief  { background: #f8d7da; color: #721c24; }
+.badge-actief   { background: #edfaf3; color: #1a7a4a; }
+.badge-inactief { background: #f8d7da; color: #721c24; }
 
 /* ── Filters ── */
 .filter-balk {
@@ -308,59 +599,6 @@ textarea { resize: vertical; min-height: 80px; }
 
 .filter-balk .veld { min-width: 180px; }
 
-/* ── Login pagina ── */
-.login-wrapper {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f0f4f0;
-}
-
-.login-kaart {
-  background: #fff;
-  border: 1px solid var(--grijs);
-  border-radius: 10px;
-  padding: 40px 36px;
-  width: 360px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.08);
-}
-
-.login-kaart h1 {
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-.login-subtitel {
-  text-align: center;
-  color: #6c757d;
-  font-size: .85rem;
-  margin-bottom: 28px;
-}
-
-.login-kaart .veld { margin-bottom: 16px; }
-
-.login-kaart .btn { width: 100%; justify-content: center; margin-top: 8px; padding: 10px; }
-
-/* ── Stats rij op dashboard ── */
-.stats-rij {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.stat-kaart {
-  background: #fff;
-  border: 1px solid var(--grijs);
-  border-radius: 8px;
-  padding: 16px 20px;
-  border-top: 3px solid var(--groen);
-}
-
-.stat-kaart .getal { font-size: 1.8rem; font-weight: 700; color: var(--groen); }
-.stat-kaart .label { font-size: .8rem; color: #6c757d; margin-top: 2px; }
-
 /* ── Admin secties naast elkaar ── */
 .admin-grid {
   display: grid;
@@ -369,28 +607,81 @@ textarea { resize: vertical; min-height: 80px; }
   align-items: start;
 }
 
-/* ── Hamburger navigatie ── */
-.nav-toggle { display: none; }
-.nav-hamburger { display: none; }
-
-.nav-links {
+/* ── Login pagina ── */
+.login-wrapper {
+  min-height: 100vh;
   display: flex;
   align-items: center;
-  flex: 1;
+  justify-content: center;
+  background: linear-gradient(135deg, #2D6A4F 0%, #40916c 100%);
+  padding: 20px;
 }
 
-.nav-links .spacer { flex: 1; }
+.login-kaart {
+  background: #fff;
+  border-radius: 12px;
+  padding: 44px 40px;
+  width: 380px;
+  max-width: 100%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
 
-/* ── Mobile responsive (breakpoint 768px) ── */
-@media (max-width: 768px) {
+.login-logo {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 4px;
+}
 
-  /* Navigatie: hamburger */
-  nav {
+.login-kaart h1 {
+  text-align: center;
+  margin-bottom: 6px;
+  font-size: 1.4rem;
+  color: var(--groen);
+}
+
+.login-subtitel {
+  text-align: center;
+  color: var(--subtekst);
+  font-size: 0.88rem;
+  margin-bottom: 28px;
+}
+
+.login-kaart .veld { margin-bottom: 16px; }
+
+.login-kaart .btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 11px;
+  font-size: 0.95rem;
+}
+
+/* ── Footer ── */
+footer {
+  background: #f1f3f5;
+  text-align: center;
+  padding: 20px;
+  font-size: 0.83rem;
+  color: var(--subtekst);
+  margin-top: 48px;
+  border-top: 1px solid #e2e5e9;
+}
+
+/* ── Hamburger navigatie (mobiel) ── */
+@media (max-width: 900px) {
+  .topnav {
     flex-wrap: wrap;
     height: auto;
-    min-height: 54px;
+    min-height: 60px;
     padding: 0 16px;
     position: relative;
+  }
+
+  .topnav .brand {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    margin-right: 0;
   }
 
   .nav-hamburger {
@@ -398,17 +689,17 @@ textarea { resize: vertical; min-height: 80px; }
     flex-direction: column;
     justify-content: space-around;
     width: 44px;
-    height: 54px;
+    height: 60px;
     cursor: pointer;
     margin-left: auto;
-    padding: 14px 8px;
+    padding: 16px 8px;
   }
 
   .nav-hamburger span {
     display: block;
     width: 24px;
     height: 2px;
-    background: #fff;
+    background: var(--groen);
     border-radius: 2px;
   }
 
@@ -417,34 +708,29 @@ textarea { resize: vertical; min-height: 80px; }
     flex-direction: column;
     align-items: stretch;
     width: 100%;
-    background: var(--groen);
-    padding-bottom: 12px;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+    padding-bottom: 8px;
   }
 
   .nav-toggle:checked ~ .nav-links {
     display: flex;
   }
 
-  .nav-links .spacer { display: none; }
-
-  .nav-links .gebruiker {
-    padding: 12px 16px 4px;
-    margin: 0;
-    font-size: .85rem;
-    color: rgba(255,255,255,.7);
-    border-top: 1px solid rgba(255,255,255,.15);
-  }
-
-  .nav-links a {
+  .nav-links > a {
     padding: 13px 16px;
     height: auto;
-    font-size: .95rem;
-    border-bottom: 1px solid rgba(255,255,255,.08);
+    font-size: 0.95rem;
+    border-bottom: 1px solid #f0f0f0;
+    border-left: none;
   }
 
-  .nav-links a:last-child { border-bottom: none; }
+  .nav-links > a.actief {
+    border-bottom: 1px solid #f0f0f0;
+    background: #f0faf5;
+    border-left: 3px solid var(--groen);
+  }
 
-  /* Dropdown op mobiel: altijd uitgevouwen */
   .nav-dropdown {
     display: contents;
   }
@@ -459,27 +745,58 @@ textarea { resize: vertical; min-height: 80px; }
     background: none;
     border-radius: 0;
     box-shadow: none;
+    border: none;
   }
 
   .nav-dropdown-menu a {
-    padding: 13px 16px 13px 28px;
+    padding: 12px 16px 12px 28px;
     height: auto;
-    font-size: .95rem;
-    border-bottom: 1px solid rgba(255,255,255,.08);
-    background: rgba(0,0,0,.12);
+    font-size: 0.93rem;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fafafa;
+    color: #495057;
   }
 
   .nav-dropdown-menu a:hover,
   .nav-dropdown-menu a.actief {
-    background: rgba(255,255,255,.15);
+    background: #f0faf5;
+    color: var(--groen);
   }
 
-  /* Hoofd layout */
-  main {
-    margin: 16px auto;
-    padding: 0 12px;
+  .nav-right {
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 8px 16px 12px;
+    border-top: 1px solid #f0f0f0;
   }
 
+  .gebruiker-naam {
+    padding: 6px 0 4px;
+    font-size: 0.85rem;
+  }
+
+  .btn-uitloggen {
+    border-radius: 7px;
+    text-align: center;
+    padding: 10px 16px;
+    margin-top: 6px;
+  }
+
+  /* Hero */
+  .hero { height: 200px; }
+  .hero-text h1 { font-size: 1.5rem; }
+  .hero-content { flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px 16px; }
+  .hero-datum { text-align: left; }
+
+  /* Dashboard layout: stapelen */
+  .dashboard-wrap { padding: 16px 12px 32px; }
+  .dashboard-layout { grid-template-columns: 1fr; }
+  .stats-rij { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Main */
+  main { margin: 16px auto; padding: 0 12px; }
   h1 { font-size: 1.2rem; margin-bottom: 14px; }
   h2 { font-size: 1rem; margin: 16px 0 10px; }
 
@@ -490,10 +807,8 @@ textarea { resize: vertical; min-height: 80px; }
     overflow-x: auto !important;
   }
 
-  /* Tabellen: horizontaal scrollbaar */
-  table {
-    min-width: 520px;
-  }
+  /* Tabellen horizontaal scrollbaar */
+  table { min-width: 520px; }
 
   /* Formulieren: full-width */
   .form-grid {
@@ -505,33 +820,30 @@ textarea { resize: vertical; min-height: 80px; }
 
   input, select, textarea {
     width: 100%;
-    font-size: 16px; /* voorkomt iOS auto-zoom */
+    font-size: 16px;
     min-height: 44px;
     padding: 10px 12px;
   }
 
   textarea { min-height: 80px; }
 
-  /* Knoppen: groter tap-target */
   .btn {
     min-height: 44px;
     padding: 10px 16px;
-    font-size: .95rem;
+    font-size: 0.95rem;
   }
 
   .btn-gevaar, .btn-waarschuw, .btn-klein {
     min-height: 38px;
     padding: 8px 12px;
-    font-size: .85rem;
+    font-size: 0.85rem;
   }
 
-  /* Formulier actie-rij stapelen */
   .form-actie {
     flex-direction: column;
     align-items: stretch;
   }
 
-  /* Filter balk */
   .filter-balk {
     flex-direction: column;
     gap: 10px;
@@ -544,19 +856,13 @@ textarea { resize: vertical; min-height: 80px; }
 
   .filter-balk > div { width: 100%; }
 
-  /* Stats kaartjes: 2 kolommen op mobiel */
-  .stats-rij {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  /* Admin en andere grids: 1 kolom */
   .admin-grid { grid-template-columns: 1fr; }
 
-  /* Login kaart: smaller padding op kleine schermen */
-  .login-kaart {
-    width: 100%;
-    max-width: 360px;
-    padding: 28px 20px;
-  }
+  .page-header { padding: 20px 0 18px; }
+  .page-header h1 { font-size: 1.25rem; }
+}
+
+/* ── Print stijlen ── */
+@media print {
+  .topnav, footer { display: none !important; }
 }

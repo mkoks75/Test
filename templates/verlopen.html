@@ -1,13 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Bijna verlopen - Boerderij Voorraad{% endblock %}
+{% block title %}Bijna verlopen - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Bijna verlopen</h1>
-  <p style="color:#6c757d; margin-bottom:20px; font-size:.9rem;">
-    Alle producten waarvan de houdbaarheidsdatum binnen 30 dagen valt (of al verstreken is).
-  </p>
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Bijna verlopen</h1>
+    <p>Producten waarvan de houdbaarheidsdatum binnen 30 dagen valt of al verstreken is</p>
+  </div>
+</div>
 
+<main>
   {% if entries %}
   <div class="kaart" style="padding: 0; overflow: hidden;">
     <table>

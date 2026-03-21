@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wachtwoord resetten - Boerderij Voorraad</title>
+  <title>Wachtwoord resetten - MountainSense Farm</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <div class="login-wrapper">
   <div class="login-kaart">
-    <h1>Boerderij Voorraad</h1>
+    <div class="login-logo">&#127807;</div>
+    <h1>MountainSense Farm</h1>
     <p class="login-subtitel">Nieuw wachtwoord instellen</p>
 
     {% if ongeldig %}
@@ -34,12 +36,12 @@
         <label for="nieuw_wachtwoord2">Wachtwoord bevestigen</label>
         <input type="password" id="nieuw_wachtwoord2" name="nieuw_wachtwoord2" required autocomplete="new-password" minlength="6" placeholder="••••••••">
       </div>
-      <button type="submit" class="btn btn-primair" style="width:100%; margin-top:8px;">Wachtwoord opslaan</button>
+      <button type="submit" class="btn btn-primair" style="width:100%; margin-top:8px; justify-content:center;">Wachtwoord opslaan</button>
     </form>
     {% endif %}
 
-    <p style="margin-top:16px; text-align:center; font-size:.9rem;">
-      <a href="/login" style="color:var(--groen, #4a7c59);">Terug naar inloggen</a>
+    <p style="margin-top:16px; text-align:center; font-size:.88rem;">
+      <a href="/login" style="color:var(--groen);">Terug naar inloggen</a>
     </p>
   </div>
 </div>

@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Voorraad registreren - Boerderij Voorraad{% endblock %}
+{% block title %}Voorraad registreren - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Voorraad registreren</h1>
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Voorraad registreren</h1>
+    <p>Voeg een nieuwe oogst of aanvoer toe aan de voorraad</p>
+  </div>
+</div>
 
+<main>
   {% if success %}
   <div class="melding melding-succes">Oogst succesvol opgeslagen.</div>
   {% endif %}

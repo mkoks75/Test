@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Account - Boerderij Voorraad{% endblock %}
+{% block title %}Account - MountainSense Farm{% endblock %}
 
 {% block content %}
-<main>
-  <h1>Account beheer</h1>
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Account beheer</h1>
+    <p>Wijzig je gebruikersnaam, wachtwoord of e-mailadres</p>
+  </div>
+</div>
 
+<main>
   {% if success == 'wachtwoord_gewijzigd' %}
   <div class="melding melding-succes">Wachtwoord succesvol gewijzigd.</div>
   {% elif success == 'email_gewijzigd' %}
