@@ -275,8 +275,164 @@ textarea { resize: vertical; min-height: 80px; }
   align-items: start;
 }
 
-@media (max-width: 700px) {
+/* ── Hamburger navigatie ── */
+.nav-toggle { display: none; }
+.nav-hamburger { display: none; }
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.nav-links .spacer { flex: 1; }
+
+/* ── Mobile responsive (breakpoint 768px) ── */
+@media (max-width: 768px) {
+
+  /* Navigatie: hamburger */
+  nav {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 54px;
+    padding: 0 16px;
+    position: relative;
+  }
+
+  .nav-hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 44px;
+    height: 54px;
+    cursor: pointer;
+    margin-left: auto;
+    padding: 14px 8px;
+  }
+
+  .nav-hamburger span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: #fff;
+    border-radius: 2px;
+  }
+
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    background: var(--groen);
+    padding-bottom: 12px;
+  }
+
+  .nav-toggle:checked ~ .nav-links {
+    display: flex;
+  }
+
+  .nav-links .spacer { display: none; }
+
+  .nav-links .gebruiker {
+    padding: 12px 16px 4px;
+    margin: 0;
+    font-size: .85rem;
+    color: rgba(255,255,255,.7);
+    border-top: 1px solid rgba(255,255,255,.15);
+  }
+
+  .nav-links a {
+    padding: 13px 16px;
+    height: auto;
+    font-size: .95rem;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+
+  .nav-links a:last-child { border-bottom: none; }
+
+  /* Hoofd layout */
+  main {
+    margin: 16px auto;
+    padding: 0 12px;
+  }
+
+  h1 { font-size: 1.2rem; margin-bottom: 14px; }
+  h2 { font-size: 1rem; margin: 16px 0 10px; }
+
+  /* Kaarten */
+  .kaart {
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    overflow-x: auto !important;
+  }
+
+  /* Tabellen: horizontaal scrollbaar */
+  table {
+    min-width: 520px;
+  }
+
+  /* Formulieren: full-width */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .veld.volledig { grid-column: 1; }
+
+  input, select, textarea {
+    width: 100%;
+    font-size: 16px; /* voorkomt iOS auto-zoom */
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  textarea { min-height: 80px; }
+
+  /* Knoppen: groter tap-target */
+  .btn {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: .95rem;
+  }
+
+  .btn-gevaar, .btn-waarschuw, .btn-klein {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: .85rem;
+  }
+
+  /* Formulier actie-rij stapelen */
+  .form-actie {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Filter balk */
+  .filter-balk {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .filter-balk .veld {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .filter-balk > div { width: 100%; }
+
+  /* Stats kaartjes: 2 kolommen op mobiel */
+  .stats-rij {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* Admin en andere grids: 1 kolom */
   .admin-grid { grid-template-columns: 1fr; }
-  .form-grid { grid-template-columns: 1fr; }
-  .filter-balk { flex-direction: column; }
+
+  /* Login kaart: smaller padding op kleine schermen */
+  .login-kaart {
+    width: 100%;
+    max-width: 360px;
+    padding: 28px 20px;
+  }
 }

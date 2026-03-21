@@ -11,17 +11,23 @@
 {% if user is defined and user %}
 <nav>
   <a class="brand" href="/">Boerderij Voorraad</a>
-  <a href="/" {% if request.url.path == '/' %}class="actief"{% endif %}>Dashboard</a>
-  <a href="/harvest/new" {% if request.url.path == '/harvest/new' %}class="actief"{% endif %}>Voorraad registreren</a>
-  <a href="/uitgifte/new" {% if request.url.path == '/uitgifte/new' %}class="actief"{% endif %}>Uitgifte registreren</a>
-  <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>Bijna verlopen</a>
-  <a href="/history" {% if request.url.path == '/history' %}class="actief"{% endif %}>Geschiedenis</a>
-  <a href="/uitgiftes" {% if request.url.path == '/uitgiftes' %}class="actief"{% endif %}>Uitgifte overzicht</a>
-  <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Beheer</a>
-  <span class="spacer"></span>
-  <span class="gebruiker">Ingelogd als {{ user }}</span>
-  <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
-  <a href="/logout">Uitloggen</a>
+  <input type="checkbox" id="nav-toggle" class="nav-toggle">
+  <label for="nav-toggle" class="nav-hamburger" aria-label="Open navigatiemenu">
+    <span></span><span></span><span></span>
+  </label>
+  <div class="nav-links">
+    <a href="/" {% if request.url.path == '/' %}class="actief"{% endif %}>Dashboard</a>
+    <a href="/harvest/new" {% if request.url.path == '/harvest/new' %}class="actief"{% endif %}>Voorraad registreren</a>
+    <a href="/uitgifte/new" {% if request.url.path == '/uitgifte/new' %}class="actief"{% endif %}>Uitgifte registreren</a>
+    <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>Bijna verlopen</a>
+    <a href="/history" {% if request.url.path == '/history' %}class="actief"{% endif %}>Geschiedenis</a>
+    <a href="/uitgiftes" {% if request.url.path == '/uitgiftes' %}class="actief"{% endif %}>Uitgifte overzicht</a>
+    <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Beheer</a>
+    <span class="spacer"></span>
+    <span class="gebruiker">Ingelogd als {{ user }}</span>
+    <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
+    <a href="/logout">Uitloggen</a>
+  </div>
 </nav>
 {% endif %}
 
