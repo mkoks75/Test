@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Product bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Product bewerken</h1>
+    <p><a href="/admin">Beheer</a> &rsaquo; Product bewerken</p>
+  </div>
+</div>
+
+<main>
+  <div class="kaart" style="max-width:480px;">
+    <form method="post" action="/admin/product/{{ product.id }}/edit">
+      <div class="veld">
+        <label for="name">Naam</label>
+        <input type="text" id="name" name="name" value="{{ product.name }}" required>
+      </div>
+      <div class="veld">
+        <label for="eenheid_id">Eenheid</label>
+        <select id="eenheid_id" name="eenheid_id" required>
+          <option value="">-- Kies --</option>
+          {% for e in eenheden %}
+          <option value="{{ e.id }}" {% if e.id == product.eenheid_id %}selected{% endif %}>{{ e.naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/admin" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+  </div>
+</main>
+{% endblock %}

@@ -882,6 +882,7 @@ async def admin(
     request: Request,
     db: Session = Depends(get_db),
     success: str = None,
+    error: str = None,
 ):
     user = get_current_user(request)
     if not user:
@@ -904,6 +905,7 @@ async def admin(
             "eenheden": eenheden,
             "actieve_eenheden": actieve_eenheden,
             "success": success,
+            "error": error,
         },
     )
 
@@ -1116,6 +1118,235 @@ async def admin_activate_eenheid(
         eenheid.actief = True
         db.commit()
     return RedirectResponse("/admin", status_code=302)
+
+
+# ── Product bewerken / verwijderen ─────────────────────────────────────────────
+
+@app.get("/admin/product/{product_id}/edit")
+async def admin_edit_product(product_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        return RedirectResponse("/admin", status_code=302)
+
+    eenheden = db.query(models.Eenheid).filter(models.Eenheid.actief == True).order_by(models.Eenheid.naam).all()
+    return templates.TemplateResponse(
+        "admin_edit_product.html",
+        {"request": request, "user": user, "product": product, "eenheden": eenheden},
+    )
+
+
+@app.post("/admin/product/{product_id}/edit")
+async def admin_edit_product_post(
+    product_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+    eenheid_id: int = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+        product.name = name.strip()
+        product.eenheid_id = eenheid_id
+        if eenheid:
+            product.unit = eenheid.naam
+        db.commit()
+    return RedirectResponse("/admin?success=product_updated", status_code=302)
+
+
+@app.post("/admin/product/{product_id}/delete")
+async def admin_delete_product(product_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        return RedirectResponse("/admin", status_code=302)
+
+    heeft_entries = db.query(models.HarvestEntry).filter(models.HarvestEntry.product_id == product_id).first()
+    if heeft_entries:
+        return RedirectResponse("/admin?error=product_heeft_entries", status_code=302)
+
+    db.delete(product)
+    db.commit()
+    return RedirectResponse("/admin?success=product_deleted", status_code=302)
+
+
+# ── Locatie bewerken / verwijderen ─────────────────────────────────────────────
+
+@app.get("/admin/location/{location_id}/edit")
+async def admin_edit_location(location_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if not location:
+        return RedirectResponse("/admin", status_code=302)
+
+    return templates.TemplateResponse(
+        "admin_edit_location.html",
+        {"request": request, "user": user, "location": location},
+    )
+
+
+@app.post("/admin/location/{location_id}/edit")
+async def admin_edit_location_post(
+    location_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if location:
+        location.name = name.strip()
+        db.commit()
+    return RedirectResponse("/admin?success=location_updated", status_code=302)
+
+
+@app.post("/admin/location/{location_id}/delete")
+async def admin_delete_location(location_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if not location:
+        return RedirectResponse("/admin", status_code=302)
+
+    heeft_entries = db.query(models.HarvestEntry).filter(models.HarvestEntry.location_id == location_id).first()
+    heeft_uitgiftes = db.query(models.Uitgifte).filter(models.Uitgifte.location_id == location_id).first()
+    if heeft_entries or heeft_uitgiftes:
+        return RedirectResponse("/admin?error=location_heeft_registraties", status_code=302)
+
+    db.delete(location)
+    db.commit()
+    return RedirectResponse("/admin?success=location_deleted", status_code=302)
+
+
+# ── Ontvanger bewerken / verwijderen ───────────────────────────────────────────
+
+@app.get("/admin/ontvanger/{ontvanger_id}/edit")
+async def admin_edit_ontvanger(ontvanger_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == ontvanger_id).first()
+    if not ontvanger:
+        return RedirectResponse("/admin", status_code=302)
+
+    return templates.TemplateResponse(
+        "admin_edit_ontvanger.html",
+        {"request": request, "user": user, "ontvanger": ontvanger},
+    )
+
+
+@app.post("/admin/ontvanger/{ontvanger_id}/edit")
+async def admin_edit_ontvanger_post(
+    ontvanger_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == ontvanger_id).first()
+    if ontvanger:
+        ontvanger.naam = naam.strip()
+        db.commit()
+    return RedirectResponse("/admin?success=ontvanger_updated", status_code=302)
+
+
+@app.post("/admin/ontvanger/{ontvanger_id}/delete")
+async def admin_delete_ontvanger(ontvanger_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == ontvanger_id).first()
+    if not ontvanger:
+        return RedirectResponse("/admin", status_code=302)
+
+    heeft_uitgiftes = db.query(models.Uitgifte).filter(models.Uitgifte.ontvanger == ontvanger.naam).first()
+    if heeft_uitgiftes:
+        return RedirectResponse("/admin?error=ontvanger_heeft_uitgiftes", status_code=302)
+
+    db.delete(ontvanger)
+    db.commit()
+    return RedirectResponse("/admin?success=ontvanger_deleted", status_code=302)
+
+
+# ── Eenheid bewerken / verwijderen ─────────────────────────────────────────────
+
+@app.get("/admin/eenheid/{eenheid_id}/edit")
+async def admin_edit_eenheid(eenheid_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if not eenheid:
+        return RedirectResponse("/admin", status_code=302)
+
+    return templates.TemplateResponse(
+        "admin_edit_eenheid.html",
+        {"request": request, "user": user, "eenheid": eenheid},
+    )
+
+
+@app.post("/admin/eenheid/{eenheid_id}/edit")
+async def admin_edit_eenheid_post(
+    eenheid_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+    etiket_per_stuk: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if eenheid:
+        eenheid.naam = naam.strip()
+        eenheid.etiket_per_stuk = bool(etiket_per_stuk)
+        db.commit()
+    return RedirectResponse("/admin?success=eenheid_updated", status_code=302)
+
+
+@app.post("/admin/eenheid/{eenheid_id}/delete")
+async def admin_delete_eenheid(eenheid_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if not eenheid:
+        return RedirectResponse("/admin", status_code=302)
+
+    heeft_producten = db.query(models.Product).filter(models.Product.eenheid_id == eenheid_id).first()
+    if heeft_producten:
+        return RedirectResponse("/admin?error=eenheid_heeft_producten", status_code=302)
+
+    db.delete(eenheid)
+    db.commit()
+    return RedirectResponse("/admin?success=eenheid_deleted", status_code=302)
 
 
 # ── Uitgifte ───────────────────────────────────────────────────────────────────

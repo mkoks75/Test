@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Ontvanger bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Ontvanger bewerken</h1>
+    <p><a href="/admin">Beheer</a> &rsaquo; Ontvanger bewerken</p>
+  </div>
+</div>
+
+<main>
+  <div class="kaart" style="max-width:480px;">
+    <form method="post" action="/admin/ontvanger/{{ ontvanger.id }}/edit">
+      <div class="veld">
+        <label for="naam">Naam</label>
+        <input type="text" id="naam" name="naam" value="{{ ontvanger.naam }}" required>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/admin" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+  </div>
+</main>
+{% endblock %}

@@ -786,9 +786,13 @@ footer {
 
   /* Hero */
   .hero { height: 200px; }
+  .hero-bg { background-size: cover; background-position: center; }
   .hero-text h1 { font-size: 1.5rem; }
   .hero-content { flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px 16px; }
   .hero-datum { text-align: left; }
+
+  /* Foto galerij op mobiel */
+  .foto-grid img { height: 100px; aspect-ratio: unset; }
 
   /* Dashboard layout: stapelen */
   .dashboard-wrap { padding: 16px 12px 32px; }

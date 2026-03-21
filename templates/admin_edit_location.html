@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Locatie bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Locatie bewerken</h1>
+    <p><a href="/admin">Beheer</a> &rsaquo; Locatie bewerken</p>
+  </div>
+</div>
+
+<main>
+  <div class="kaart" style="max-width:480px;">
+    <form method="post" action="/admin/location/{{ location.id }}/edit">
+      <div class="veld">
+        <label for="name">Naam</label>
+        <input type="text" id="name" name="name" value="{{ location.name }}" required>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/admin" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+  </div>
+</main>
+{% endblock %}

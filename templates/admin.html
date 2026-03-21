@@ -12,12 +12,38 @@
 <main>
   {% if success == 'product_added' %}
   <div class="melding melding-succes">Product succesvol toegevoegd.</div>
+  {% elif success == 'product_updated' %}
+  <div class="melding melding-succes">Product succesvol bijgewerkt.</div>
+  {% elif success == 'product_deleted' %}
+  <div class="melding melding-succes">Product succesvol verwijderd.</div>
   {% elif success == 'location_added' %}
   <div class="melding melding-succes">Locatie succesvol toegevoegd.</div>
+  {% elif success == 'location_updated' %}
+  <div class="melding melding-succes">Locatie succesvol bijgewerkt.</div>
+  {% elif success == 'location_deleted' %}
+  <div class="melding melding-succes">Locatie succesvol verwijderd.</div>
   {% elif success == 'ontvanger_added' %}
   <div class="melding melding-succes">Ontvanger succesvol toegevoegd.</div>
+  {% elif success == 'ontvanger_updated' %}
+  <div class="melding melding-succes">Ontvanger succesvol bijgewerkt.</div>
+  {% elif success == 'ontvanger_deleted' %}
+  <div class="melding melding-succes">Ontvanger succesvol verwijderd.</div>
   {% elif success == 'eenheid_added' %}
   <div class="melding melding-succes">Eenheid succesvol toegevoegd.</div>
+  {% elif success == 'eenheid_updated' %}
+  <div class="melding melding-succes">Eenheid succesvol bijgewerkt.</div>
+  {% elif success == 'eenheid_deleted' %}
+  <div class="melding melding-succes">Eenheid succesvol verwijderd.</div>
+  {% endif %}
+
+  {% if error == 'product_heeft_entries' %}
+  <div class="melding melding-fout">Product kan niet verwijderd worden: er zijn voorraadregistraties aan gekoppeld.</div>
+  {% elif error == 'location_heeft_registraties' %}
+  <div class="melding melding-fout">Locatie kan niet verwijderd worden: er zijn registraties aan gekoppeld.</div>
+  {% elif error == 'ontvanger_heeft_uitgiftes' %}
+  <div class="melding melding-fout">Ontvanger kan niet verwijderd worden: er zijn uitgiftes aan gekoppeld.</div>
+  {% elif error == 'eenheid_heeft_producten' %}
+  <div class="melding melding-fout">Eenheid kan niet verwijderd worden: er zijn producten aan gekoppeld.</div>
   {% endif %}
 
   <div class="admin-grid">
@@ -65,17 +91,22 @@
                   <span class="badge badge-inactief">Inactief</span>
                 {% endif %}
               </td>
-              <td>
+              <td style="white-space:nowrap;">
+                <a href="/admin/product/{{ p.id }}/edit" class="btn btn-secundair btn-klein">Bewerken</a>
                 {% if p.active %}
                 <form method="post" action="/admin/product/{{ p.id }}/deactivate" style="display:inline;">
-                  <button type="submit" class="btn btn-gevaar"
+                  <button type="submit" class="btn btn-gevaar btn-klein"
                     onclick="return confirm('Product \'{{ p.name }}\' deactiveren?')">Deactiveren</button>
                 </form>
                 {% else %}
                 <form method="post" action="/admin/product/{{ p.id }}/activate" style="display:inline;">
-                  <button type="submit" class="btn btn-waarschuw">Activeren</button>
+                  <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
                 </form>
                 {% endif %}
+                <form method="post" action="/admin/product/{{ p.id }}/delete" style="display:inline;">
+                  <button type="submit" class="btn btn-gevaar btn-klein"
+                    onclick="return confirm('Product \'{{ p.name }}\' definitief verwijderen?')">Verwijderen</button>
+                </form>
               </td>
             </tr>
             {% else %}
@@ -120,17 +151,22 @@
                   <span class="badge badge-inactief">Inactief</span>
                 {% endif %}
               </td>
-              <td>
+              <td style="white-space:nowrap;">
+                <a href="/admin/location/{{ l.id }}/edit" class="btn btn-secundair btn-klein">Bewerken</a>
                 {% if l.active %}
                 <form method="post" action="/admin/location/{{ l.id }}/deactivate" style="display:inline;">
-                  <button type="submit" class="btn btn-gevaar"
+                  <button type="submit" class="btn btn-gevaar btn-klein"
                     onclick="return confirm('Locatie \'{{ l.name }}\' deactiveren?')">Deactiveren</button>
                 </form>
                 {% else %}
                 <form method="post" action="/admin/location/{{ l.id }}/activate" style="display:inline;">
-                  <button type="submit" class="btn btn-waarschuw">Activeren</button>
+                  <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
                 </form>
                 {% endif %}
+                <form method="post" action="/admin/location/{{ l.id }}/delete" style="display:inline;">
+                  <button type="submit" class="btn btn-gevaar btn-klein"
+                    onclick="return confirm('Locatie \'{{ l.name }}\' definitief verwijderen?')">Verwijderen</button>
+                </form>
               </td>
             </tr>
             {% else %}
@@ -177,17 +213,22 @@
                 <span class="badge badge-inactief">Inactief</span>
               {% endif %}
             </td>
-            <td>
+            <td style="white-space:nowrap;">
+              <a href="/admin/ontvanger/{{ o.id }}/edit" class="btn btn-secundair btn-klein">Bewerken</a>
               {% if o.actief %}
               <form method="post" action="/admin/ontvanger/{{ o.id }}/deactivate" style="display:inline;">
-                <button type="submit" class="btn btn-gevaar"
+                <button type="submit" class="btn btn-gevaar btn-klein"
                   onclick="return confirm('Ontvanger \'{{ o.naam }}\' deactiveren?')">Deactiveren</button>
               </form>
               {% else %}
               <form method="post" action="/admin/ontvanger/{{ o.id }}/activate" style="display:inline;">
-                <button type="submit" class="btn btn-waarschuw">Activeren</button>
+                <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
               </form>
               {% endif %}
+              <form method="post" action="/admin/ontvanger/{{ o.id }}/delete" style="display:inline;">
+                <button type="submit" class="btn btn-gevaar btn-klein"
+                  onclick="return confirm('Ontvanger \'{{ o.naam }}\' definitief verwijderen?')">Verwijderen</button>
+              </form>
             </td>
           </tr>
           {% else %}
@@ -240,17 +281,22 @@
                 <span class="badge badge-inactief">Inactief</span>
               {% endif %}
             </td>
-            <td>
+            <td style="white-space:nowrap;">
+              <a href="/admin/eenheid/{{ e.id }}/edit" class="btn btn-secundair btn-klein">Bewerken</a>
               {% if e.actief %}
               <form method="post" action="/admin/eenheid/{{ e.id }}/deactivate" style="display:inline;">
-                <button type="submit" class="btn btn-gevaar"
+                <button type="submit" class="btn btn-gevaar btn-klein"
                   onclick="return confirm('Eenheid \'{{ e.naam }}\' deactiveren?')">Deactiveren</button>
               </form>
               {% else %}
               <form method="post" action="/admin/eenheid/{{ e.id }}/activate" style="display:inline;">
-                <button type="submit" class="btn btn-waarschuw">Activeren</button>
+                <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
               </form>
               {% endif %}
+              <form method="post" action="/admin/eenheid/{{ e.id }}/delete" style="display:inline;">
+                <button type="submit" class="btn btn-gevaar btn-klein"
+                  onclick="return confirm('Eenheid \'{{ e.naam }}\' definitief verwijderen?')">Verwijderen</button>
+              </form>
             </td>
           </tr>
           {% else %}
