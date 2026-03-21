@@ -4,6 +4,7 @@ import datetime
 import logging
 import secrets
 import smtplib
+from urllib.parse import quote
 from datetime import timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -327,7 +328,7 @@ async def harvest_edit(entry_id: int, request: Request, db: Session = Depends(ge
 
     entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
     if not entry:
-        return RedirectResponse("/history", status_code=302)
+        return RedirectResponse("/beheer/geschiedenis", status_code=302)
 
     products = db.query(models.Product).order_by(models.Product.name).all()
     locations = db.query(models.Location).order_by(models.Location.name).all()
@@ -362,7 +363,7 @@ async def harvest_edit_post(
 
     entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
     if not entry:
-        return RedirectResponse("/history", status_code=302)
+        return RedirectResponse("/beheer/geschiedenis", status_code=302)
 
     houdbaar_tot_date = None
     if houdbaar_tot.strip():
@@ -381,7 +382,7 @@ async def harvest_edit_post(
     entry.gewijzigd_op = datetime.datetime.utcnow()
 
     db.commit()
-    return RedirectResponse("/history", status_code=302)
+    return RedirectResponse("/beheer/geschiedenis", status_code=302)
 
 
 @app.post("/harvest/delete/{entry_id}")
@@ -392,7 +393,7 @@ async def harvest_delete(entry_id: int, request: Request, db: Session = Depends(
 
     entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
     if not entry:
-        return RedirectResponse("/history", status_code=302)
+        return RedirectResponse("/beheer/geschiedenis", status_code=302)
 
     # Blokkeer verwijderen als er uitgiftes aan gekoppeld zijn
     gekoppeld = db.query(models.Uitgifte).filter(models.Uitgifte.harvest_entry_id == entry_id).first()
@@ -403,13 +404,18 @@ async def harvest_delete(entry_id: int, request: Request, db: Session = Depends(
 
     db.delete(entry)
     db.commit()
-    return RedirectResponse("/history", status_code=302)
+    return RedirectResponse("/beheer/geschiedenis", status_code=302)
 
 
-# ── Geschiedenis ───────────────────────────────────────────────────────────────
+# ── Geschiedenis (redirect naar nieuw gecombineerd overzicht) ──────────────────
 
 @app.get("/history")
-async def history(
+async def history_redirect(request: Request):
+    return RedirectResponse("/beheer/geschiedenis", status_code=301)
+
+
+@app.get("/history_legacy_unused")
+async def history_legacy(
     request: Request,
     db: Session = Depends(get_db),
     product_id: int = None,
@@ -452,6 +458,11 @@ async def history(
 
 
 @app.get("/history/export")
+async def history_export_redirect(request: Request):
+    return RedirectResponse("/beheer/geschiedenis/export/registraties", status_code=301)
+
+
+@app.get("/history/export_legacy_unused")
 async def history_export(
     request: Request,
     db: Session = Depends(get_db),
@@ -1105,6 +1116,11 @@ async def uitgifte_new_post(
 
 
 @app.get("/uitgiftes")
+async def uitgiftes_redirect(request: Request):
+    return RedirectResponse("/beheer/geschiedenis?tab=uitgiftes", status_code=301)
+
+
+@app.get("/uitgiftes_legacy_unused")
 async def uitgiftes(
     request: Request,
     db: Session = Depends(get_db),
@@ -1179,6 +1195,11 @@ async def uitgiftes(
 
 
 @app.get("/uitgiftes/export")
+async def uitgiftes_export_redirect(request: Request):
+    return RedirectResponse("/beheer/geschiedenis/export/uitgiftes", status_code=301)
+
+
+@app.get("/uitgiftes/export_legacy_unused")
 async def uitgiftes_export(
     request: Request,
     db: Session = Depends(get_db),
@@ -1225,3 +1246,307 @@ async def uitgiftes_export(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+# ── Beheer: Gecombineerd Geschiedenis & Uitgiftes overzicht ────────────────────
+
+@app.get("/beheer/geschiedenis")
+async def beheer_geschiedenis(
+    request: Request,
+    db: Session = Depends(get_db),
+    tab: str = "registraties",
+    product_id: int = None,
+    location_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+    ontvanger: str = None,
+    u_date_from: str = None,
+    u_date_to: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    products = db.query(models.Product).order_by(models.Product.name).all()
+    locations = db.query(models.Location).order_by(models.Location.name).all()
+
+    # Registraties
+    reg_query = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+    )
+    if product_id:
+        reg_query = reg_query.filter(models.HarvestEntry.product_id == product_id)
+    if location_id:
+        reg_query = reg_query.filter(models.HarvestEntry.location_id == location_id)
+    if date_from:
+        reg_query = reg_query.filter(models.HarvestEntry.date >= date_from)
+    if date_to:
+        reg_query = reg_query.filter(models.HarvestEntry.date <= date_to)
+    registraties = reg_query.order_by(
+        models.HarvestEntry.date.desc(), models.HarvestEntry.created_at.desc()
+    ).all()
+
+    # Uitgiftes
+    uit_query = (
+        db.query(models.Uitgifte)
+        .join(models.Product, models.Uitgifte.product_id == models.Product.id)
+        .join(models.Location, models.Uitgifte.location_id == models.Location.id)
+    )
+    if ontvanger:
+        uit_query = uit_query.filter(models.Uitgifte.ontvanger == ontvanger)
+    if u_date_from:
+        uit_query = uit_query.filter(models.Uitgifte.date >= u_date_from)
+    if u_date_to:
+        uit_query = uit_query.filter(models.Uitgifte.date <= u_date_to)
+    uitgifte_entries = uit_query.order_by(
+        models.Uitgifte.date.desc(), models.Uitgifte.created_at.desc()
+    ).all()
+
+    # Totaal per ontvanger
+    totaal_query = (
+        db.query(
+            models.Uitgifte.ontvanger,
+            models.Product.name.label("product_name"),
+            models.Product.unit.label("unit"),
+            func.sum(models.Uitgifte.quantity).label("total"),
+        )
+        .join(models.Product, models.Uitgifte.product_id == models.Product.id)
+        .group_by(models.Uitgifte.ontvanger, models.Product.id, models.Product.name, models.Product.unit)
+        .order_by(models.Uitgifte.ontvanger, models.Product.name)
+    )
+    if ontvanger:
+        totaal_query = totaal_query.filter(models.Uitgifte.ontvanger == ontvanger)
+    if u_date_from:
+        totaal_query = totaal_query.filter(models.Uitgifte.date >= u_date_from)
+    if u_date_to:
+        totaal_query = totaal_query.filter(models.Uitgifte.date <= u_date_to)
+    totaal_rows = totaal_query.all()
+    totaal_per_ontvanger: dict[str, list] = {}
+    for r in totaal_rows:
+        if r.ontvanger not in totaal_per_ontvanger:
+            totaal_per_ontvanger[r.ontvanger] = []
+        totaal_per_ontvanger[r.ontvanger].append(
+            {"product": r.product_name, "unit": r.unit, "total": r.total}
+        )
+
+    alle_ontvangers = [
+        r[0]
+        for r in db.query(models.Uitgifte.ontvanger).distinct().order_by(models.Uitgifte.ontvanger).all()
+    ]
+
+    return templates.TemplateResponse(
+        "beheer_geschiedenis.html",
+        {
+            "request": request,
+            "user": user,
+            "tab": tab if tab in ("registraties", "uitgiftes") else "registraties",
+            "registraties": registraties,
+            "products": products,
+            "locations": locations,
+            "filter_product_id": product_id,
+            "filter_location_id": location_id,
+            "filter_date_from": date_from or "",
+            "filter_date_to": date_to or "",
+            "uitgifte_entries": uitgifte_entries,
+            "alle_ontvangers": alle_ontvangers,
+            "filter_ontvanger": ontvanger or "",
+            "u_date_from": u_date_from or "",
+            "u_date_to": u_date_to or "",
+            "totaal_per_ontvanger": totaal_per_ontvanger,
+        },
+    )
+
+
+@app.get("/beheer/geschiedenis/export/registraties")
+async def beheer_geschiedenis_export_registraties(
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = None,
+    location_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    query = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+    )
+    if product_id:
+        query = query.filter(models.HarvestEntry.product_id == product_id)
+    if location_id:
+        query = query.filter(models.HarvestEntry.location_id == location_id)
+    if date_from:
+        query = query.filter(models.HarvestEntry.date >= date_from)
+    if date_to:
+        query = query.filter(models.HarvestEntry.date <= date_to)
+
+    entries = query.order_by(
+        models.HarvestEntry.date.desc(), models.HarvestEntry.created_at.desc()
+    ).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow([
+        "Datum", "Volgnummer", "Product", "Locatie", "Hoeveelheid", "Eenheid",
+        "Houdbaar tot", "Ingevoerd door", "Gewijzigd door", "Notitie",
+    ])
+    for e in entries:
+        writer.writerow([
+            e.date,
+            e.volgnummer or "",
+            e.product.name,
+            e.location.name,
+            e.quantity,
+            e.product.unit,
+            e.houdbaar_tot.isoformat() if e.houdbaar_tot else "",
+            e.entered_by,
+            e.gewijzigd_door or "",
+            e.note or "",
+        ])
+
+    filename = f"registraties_export_{datetime.date.today().isoformat()}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/beheer/geschiedenis/export/uitgiftes")
+async def beheer_geschiedenis_export_uitgiftes(
+    request: Request,
+    db: Session = Depends(get_db),
+    ontvanger: str = None,
+    u_date_from: str = None,
+    u_date_to: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    query = (
+        db.query(models.Uitgifte)
+        .join(models.Product, models.Uitgifte.product_id == models.Product.id)
+        .join(models.Location, models.Uitgifte.location_id == models.Location.id)
+    )
+    if ontvanger:
+        query = query.filter(models.Uitgifte.ontvanger == ontvanger)
+    if u_date_from:
+        query = query.filter(models.Uitgifte.date >= u_date_from)
+    if u_date_to:
+        query = query.filter(models.Uitgifte.date <= u_date_to)
+
+    entries = query.order_by(models.Uitgifte.date.desc(), models.Uitgifte.created_at.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Datum", "Product", "Locatie", "Hoeveelheid", "Eenheid", "Ontvanger", "Ingevoerd door", "Notitie"])
+    for e in entries:
+        writer.writerow([
+            e.date,
+            e.product.name,
+            e.location.name,
+            e.quantity,
+            e.product.unit,
+            e.ontvanger,
+            e.entered_by,
+            e.note or "",
+        ])
+
+    filename = f"uitgifte_export_{datetime.date.today().isoformat()}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ── Uitgifte bewerken ──────────────────────────────────────────────────────────
+
+@app.get("/beheer/uitgifte/edit/{uitgifte_id}")
+async def beheer_uitgifte_edit(uitgifte_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    uitgifte = db.query(models.Uitgifte).filter(models.Uitgifte.id == uitgifte_id).first()
+    if not uitgifte:
+        return RedirectResponse("/beheer/geschiedenis?tab=uitgiftes", status_code=302)
+
+    products = db.query(models.Product).order_by(models.Product.name).all()
+    locations = db.query(models.Location).order_by(models.Location.name).all()
+    ontvangers = db.query(models.Ontvanger).filter(models.Ontvanger.actief == True).order_by(models.Ontvanger.naam).all()
+
+    return templates.TemplateResponse(
+        "beheer_uitgifte_edit.html",
+        {
+            "request": request,
+            "user": user,
+            "uitgifte": uitgifte,
+            "products": products,
+            "locations": locations,
+            "ontvangers": ontvangers,
+        },
+    )
+
+
+@app.post("/beheer/uitgifte/edit/{uitgifte_id}")
+async def beheer_uitgifte_edit_post(
+    uitgifte_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = Form(...),
+    location_id: int = Form(...),
+    quantity: float = Form(...),
+    ontvanger: str = Form(...),
+    date: str = Form(...),
+    note: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    uitgifte = db.query(models.Uitgifte).filter(models.Uitgifte.id == uitgifte_id).first()
+    if not uitgifte:
+        return RedirectResponse("/beheer/geschiedenis?tab=uitgiftes", status_code=302)
+
+    # Beschikbare voorraad: voeg huidige uitgifte terug toe als product/locatie gelijk is
+    beschikbaar = _beschikbare_voorraad(db, product_id, location_id)
+    if product_id == uitgifte.product_id and location_id == uitgifte.location_id:
+        beschikbaar += uitgifte.quantity
+
+    if quantity > beschikbaar:
+        product = db.query(models.Product).filter(models.Product.id == product_id).first()
+        unit = product.unit if product else ""
+        return RedirectResponse(
+            f"/beheer/uitgifte/edit/{uitgifte_id}?error=voorraad&beschikbaar={beschikbaar:g}&unit={quote(unit)}",
+            status_code=302,
+        )
+
+    uitgifte.product_id = product_id
+    uitgifte.location_id = location_id
+    uitgifte.quantity = quantity
+    uitgifte.ontvanger = ontvanger.strip()
+    uitgifte.date = date
+    uitgifte.note = note.strip() or None
+    db.commit()
+    return RedirectResponse("/beheer/geschiedenis?tab=uitgiftes", status_code=302)
+
+
+@app.post("/beheer/uitgifte/delete/{uitgifte_id}")
+async def beheer_uitgifte_delete(uitgifte_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    uitgifte = db.query(models.Uitgifte).filter(models.Uitgifte.id == uitgifte_id).first()
+    if uitgifte:
+        db.delete(uitgifte)
+        db.commit()
+    return RedirectResponse("/beheer/geschiedenis?tab=uitgiftes", status_code=302)

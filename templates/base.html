@@ -20,12 +20,18 @@
     <a href="/harvest/new" {% if request.url.path == '/harvest/new' %}class="actief"{% endif %}>Voorraad registreren</a>
     <a href="/uitgifte/new" {% if request.url.path == '/uitgifte/new' %}class="actief"{% endif %}>Uitgifte registreren</a>
     <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>Bijna verlopen</a>
-    <a href="/history" {% if request.url.path == '/history' %}class="actief"{% endif %}>Geschiedenis</a>
-    <a href="/uitgiftes" {% if request.url.path == '/uitgiftes' %}class="actief"{% endif %}>Uitgifte overzicht</a>
-    <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Beheer</a>
+    <a href="/beheer/geschiedenis?tab=uitgiftes" {% if request.url.path == '/beheer/geschiedenis' and request.query_params.get('tab') == 'uitgiftes' %}class="actief"{% endif %}>Uitgifte overzicht</a>
+    <div class="nav-dropdown {% if request.url.path.startswith('/admin') or request.url.path.startswith('/beheer') or request.url.path == '/account' %}actief{% endif %}">
+      <span class="nav-dropdown-toggle">Beheer &#9660;</span>
+      <div class="nav-dropdown-menu">
+        <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Producten &amp; Locaties</a>
+        <a href="/admin#ontvangers" {% if request.url.path == '/admin' %}{% endif %}>Ontvangers</a>
+        <a href="/beheer/geschiedenis" {% if request.url.path == '/beheer/geschiedenis' and request.query_params.get('tab') != 'uitgiftes' %}class="actief"{% elif request.url.path.startswith('/beheer/uitgifte') %}class="actief"{% endif %}>Geschiedenis &amp; Uitgiftes</a>
+        <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
+      </div>
+    </div>
     <span class="spacer"></span>
     <span class="gebruiker">Ingelogd als {{ user }}</span>
-    <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
     <a href="/logout">Uitloggen</a>
   </div>
 </nav>

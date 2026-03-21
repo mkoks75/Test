@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Uitgifte bewerken - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Uitgifte bewerken</h1>
+
+  {% set err = request.query_params.get('error') %}
+  {% if err == 'voorraad' %}
+  <div class="melding melding-fout">
+    Onvoldoende voorraad. Beschikbaar: {{ request.query_params.get('beschikbaar') }} {{ request.query_params.get('unit') }}
+  </div>
+  {% endif %}
+
+  <div class="kaart" style="max-width:560px;">
+    <form method="post" action="/beheer/uitgifte/edit/{{ uitgifte.id }}">
+
+      <div class="veld">
+        <label>Ingevoerd door</label>
+        <input type="text" value="{{ uitgifte.entered_by }}" disabled style="background:#f8f9fa; color:#6c757d;">
+      </div>
+
+      <div class="veld">
+        <label for="product_id">Product <span style="color:#dc3545;">*</span></label>
+        <select id="product_id" name="product_id" required>
+          {% for p in products %}
+          <option value="{{ p.id }}" {% if p.id == uitgifte.product_id %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="veld">
+        <label for="location_id">Locatie <span style="color:#dc3545;">*</span></label>
+        <select id="location_id" name="location_id" required>
+          {% for l in locations %}
+          <option value="{{ l.id }}" {% if l.id == uitgifte.location_id %}selected{% endif %}>{{ l.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="veld">
+        <label for="quantity">Hoeveelheid <span style="color:#dc3545;">*</span></label>
+        <input type="number" id="quantity" name="quantity" step="0.01" min="0.01"
+               value="{{ uitgifte.quantity }}" required>
+      </div>
+
+      <div class="veld">
+        <label for="ontvanger">Ontvanger <span style="color:#dc3545;">*</span></label>
+        <select id="ontvanger" name="ontvanger" required>
+          {% for o in ontvangers %}
+          <option value="{{ o.naam }}" {% if o.naam == uitgifte.ontvanger %}selected{% endif %}>{{ o.naam }}</option>
+          {% endfor %}
+              {% if uitgifte.ontvanger not in ontvangers|map(attribute='naam')|list %}
+          <option value="{{ uitgifte.ontvanger }}" selected>{{ uitgifte.ontvanger }}</option>
+          {% endif %}
+        </select>
+      </div>
+
+      <div class="veld">
+        <label for="date">Datum <span style="color:#dc3545;">*</span></label>
+        <input type="date" id="date" name="date" value="{{ uitgifte.date }}" required>
+      </div>
+
+      <div class="veld">
+        <label for="note">Notitie</label>
+        <textarea id="note" name="note" rows="3">{{ uitgifte.note or '' }}</textarea>
+      </div>
+
+      <div class="form-actie" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/beheer/geschiedenis?tab=uitgiftes" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+  </div>
+</main>
+{% endblock %}

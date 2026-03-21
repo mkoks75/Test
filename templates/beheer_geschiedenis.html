@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}Geschiedenis & Uitgiftes - Boerderij Voorraad{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Geschiedenis &amp; Uitgiftes</h1>
+
+  <!-- Tabs -->
+  <div class="tabs-nav">
+    <a href="/beheer/geschiedenis?tab=registraties"
+       class="tab-knop {% if tab == 'registraties' %}tab-actief{% endif %}">
+      Voorraad registraties
+    </a>
+    <a href="/beheer/geschiedenis?tab=uitgiftes"
+       class="tab-knop {% if tab == 'uitgiftes' %}tab-actief{% endif %}">
+      Uitgiftes
+    </a>
+  </div>
+
+  {% if tab == 'registraties' %}
+  <!-- ── REGISTRATIES ── -->
+  <div class="kaart">
+    <form method="get" action="/beheer/geschiedenis">
+      <input type="hidden" name="tab" value="registraties">
+      <div class="filter-balk">
+        <div class="veld">
+          <label for="product_id">Product</label>
+          <select id="product_id" name="product_id">
+            <option value="">Alle producten</option>
+            {% for p in products %}
+            <option value="{{ p.id }}" {% if filter_product_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="veld">
+          <label for="location_id">Locatie</label>
+          <select id="location_id" name="location_id">
+            <option value="">Alle locaties</option>
+            {% for l in locations %}
+            <option value="{{ l.id }}" {% if filter_location_id == l.id %}selected{% endif %}>{{ l.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="veld">
+          <label for="date_from">Van datum</label>
+          <input type="date" id="date_from" name="date_from" value="{{ filter_date_from }}">
+        </div>
+
+        <div class="veld">
+          <label for="date_to">Tot datum</label>
+          <input type="date" id="date_to" name="date_to" value="{{ filter_date_to }}">
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:flex-end;">
+          <button type="submit" class="btn btn-primair btn-klein">Filteren</button>
+          <a href="/beheer/geschiedenis?tab=registraties" class="btn btn-secundair btn-klein">Reset</a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <span style="font-size:.9rem; color:#6c757d;">{{ registraties|length }} record(s) gevonden</span>
+    <a href="/beheer/geschiedenis/export/registraties?{% if filter_product_id %}product_id={{ filter_product_id }}&{% endif %}{% if filter_location_id %}location_id={{ filter_location_id }}&{% endif %}{% if filter_date_from %}date_from={{ filter_date_from }}&{% endif %}{% if filter_date_to %}date_to={{ filter_date_to }}{% endif %}"
+       class="btn btn-secundair btn-klein">
+      Exporteer CSV
+    </a>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Nr.</th>
+          <th>Product</th>
+          <th>Locatie</th>
+          <th style="text-align:right;">Hoeveelheid</th>
+          <th>Eenheid</th>
+          <th>Houdbaar tot</th>
+          <th>Ingevoerd door</th>
+          <th>Gewijzigd door</th>
+          <th>Notitie</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in registraties %}
+        <tr>
+          <td>{{ e.date }}</td>
+          <td style="color:#6c757d;">{{ e.volgnummer or "" }}</td>
+          <td>{{ e.product.name }}</td>
+          <td>{{ e.location.name }}</td>
+          <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(e.quantity) }}</td>
+          <td>{{ e.product.unit }}</td>
+          <td>
+            {% if e.houdbaar_tot %}
+              {{ e.houdbaar_tot }}
+            {% else %}
+              <span style="color:#adb5bd;">—</span>
+            {% endif %}
+          </td>
+          <td>{{ e.entered_by }}</td>
+          <td style="color:#6c757d; font-size:.85rem;">{{ e.gewijzigd_door or "" }}</td>
+          <td style="color:#6c757d; font-size:.85rem;">{{ e.note or "" }}</td>
+          <td><a href="/harvest/edit/{{ e.id }}" class="btn btn-secundair btn-klein">Bewerken</a></td>
+          <td>
+            <form method="post" action="/harvest/delete/{{ e.id }}" style="margin:0;"
+                  onsubmit="return confirm('Weet je zeker dat je deze registratie wilt verwijderen?')">
+              <button type="submit" class="btn btn-gevaar btn-klein">Verwijderen</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="12" class="geen-data">Geen registraties gevonden voor de geselecteerde filters.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <!-- ── UITGIFTES ── -->
+  <div class="kaart">
+    <form method="get" action="/beheer/geschiedenis">
+      <input type="hidden" name="tab" value="uitgiftes">
+      <div class="filter-balk">
+        <div class="veld">
+          <label for="ontvanger">Ontvanger</label>
+          <select id="ontvanger" name="ontvanger">
+            <option value="">Alle ontvangers</option>
+            {% for naam in alle_ontvangers %}
+            <option value="{{ naam }}" {% if filter_ontvanger == naam %}selected{% endif %}>{{ naam }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="veld">
+          <label for="u_date_from">Van datum</label>
+          <input type="date" id="u_date_from" name="u_date_from" value="{{ u_date_from }}">
+        </div>
+
+        <div class="veld">
+          <label for="u_date_to">Tot datum</label>
+          <input type="date" id="u_date_to" name="u_date_to" value="{{ u_date_to }}">
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:flex-end;">
+          <button type="submit" class="btn btn-primair btn-klein">Filteren</button>
+          <a href="/beheer/geschiedenis?tab=uitgiftes" class="btn btn-secundair btn-klein">Reset</a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <span style="font-size:.9rem; color:#6c757d;">{{ uitgifte_entries|length }} record(s) gevonden</span>
+    <a href="/beheer/geschiedenis/export/uitgiftes?{% if filter_ontvanger %}ontvanger={{ filter_ontvanger }}&{% endif %}{% if u_date_from %}u_date_from={{ u_date_from }}&{% endif %}{% if u_date_to %}u_date_to={{ u_date_to }}{% endif %}"
+       class="btn btn-secundair btn-klein">
+      Exporteer CSV
+    </a>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Product</th>
+          <th>Locatie</th>
+          <th style="text-align:right;">Hoeveelheid</th>
+          <th>Eenheid</th>
+          <th>Ontvanger</th>
+          <th>Ingevoerd door</th>
+          <th>Notitie</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in uitgifte_entries %}
+        <tr>
+          <td>{{ e.date }}</td>
+          <td>{{ e.product.name }}</td>
+          <td>{{ e.location.name }}</td>
+          <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(e.quantity) }}</td>
+          <td>{{ e.product.unit }}</td>
+          <td>{{ e.ontvanger }}</td>
+          <td>{{ e.entered_by }}</td>
+          <td style="color:#6c757d; font-size:.85rem;">{{ e.note or "" }}</td>
+          <td><a href="/beheer/uitgifte/edit/{{ e.id }}" class="btn btn-secundair btn-klein">Bewerken</a></td>
+          <td>
+            <form method="post" action="/beheer/uitgifte/delete/{{ e.id }}" style="margin:0;"
+                  onsubmit="return confirm('Weet je zeker dat je deze uitgifte wilt verwijderen?')">
+              <button type="submit" class="btn btn-gevaar btn-klein">Verwijderen</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="geen-data">Geen uitgiftes gevonden voor de geselecteerde filters.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if totaal_per_ontvanger %}
+  <h2 style="margin-top: 36px;">Totaal per ontvanger</h2>
+  {% for naam, producten in totaal_per_ontvanger.items() %}
+  <div class="kaart" style="padding:0; overflow:hidden; margin-bottom:16px;">
+    <table>
+      <thead>
+        <tr>
+          <th colspan="3" style="font-size:1rem;">{{ naam }}</th>
+        </tr>
+        <tr style="background:#e9ecef;">
+          <th style="background:#e9ecef; color:#495057;">Product</th>
+          <th style="background:#e9ecef; color:#495057;">Eenheid</th>
+          <th style="background:#e9ecef; color:#495057; text-align:right;">Totaal uitgegeven</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rij in producten %}
+        <tr>
+          <td>{{ rij.product }}</td>
+          <td>{{ rij.unit }}</td>
+          <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(rij.total) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% endif %}
+</main>
+{% endblock %}

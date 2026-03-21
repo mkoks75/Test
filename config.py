@@ -1,7 +1,8 @@
 import os
+import secrets
 import bcrypt
 
-SECRET_KEY = os.getenv("SECRET_KEY", "verander-dit-in-productie-gebruik-een-lang-random-string")
+SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 uur
 

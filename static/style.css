@@ -63,6 +63,100 @@ nav .gebruiker {
   margin-right: 12px;
 }
 
+/* ── Nav dropdown ── */
+.nav-dropdown {
+  position: relative;
+}
+
+.nav-dropdown-toggle {
+  color: rgba(255,255,255,.85);
+  text-decoration: none;
+  padding: 0 14px;
+  height: 54px;
+  display: inline-flex;
+  align-items: center;
+  font-size: .9rem;
+  cursor: pointer;
+  transition: background .15s;
+  user-select: none;
+}
+
+.nav-dropdown:hover .nav-dropdown-toggle,
+.nav-dropdown.actief .nav-dropdown-toggle {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+}
+
+.nav-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 54px;
+  left: 0;
+  min-width: 210px;
+  background: #1e4d38;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  z-index: 100;
+}
+
+.nav-dropdown:hover .nav-dropdown-menu {
+  display: block;
+}
+
+.nav-dropdown-menu a {
+  display: block;
+  padding: 11px 16px;
+  height: auto;
+  color: rgba(255,255,255,.85);
+  font-size: .9rem;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.nav-dropdown-menu a:last-child {
+  border-bottom: none;
+}
+
+.nav-dropdown-menu a:hover,
+.nav-dropdown-menu a.actief {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+}
+
+/* ── Tabs ── */
+.tabs-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--grijs);
+  padding-bottom: 0;
+}
+
+.tab-knop {
+  padding: 9px 20px;
+  border-radius: 6px 6px 0 0;
+  font-size: .9rem;
+  font-weight: 600;
+  color: #495057;
+  text-decoration: none;
+  background: #e9ecef;
+  border: 1px solid var(--grijs);
+  border-bottom: none;
+  margin-bottom: -2px;
+  transition: background .15s, color .15s;
+}
+
+.tab-knop:hover {
+  background: #dee2e6;
+  color: var(--tekst);
+}
+
+.tab-knop.tab-actief {
+  background: #fff;
+  color: var(--groen);
+  border-color: var(--grijs);
+  border-bottom-color: #fff;
+}
+
 /* ── Hoofd layout ── */
 main {
   max-width: 1100px;
@@ -349,6 +443,36 @@ textarea { resize: vertical; min-height: 80px; }
   }
 
   .nav-links a:last-child { border-bottom: none; }
+
+  /* Dropdown op mobiel: altijd uitgevouwen */
+  .nav-dropdown {
+    display: contents;
+  }
+
+  .nav-dropdown-toggle {
+    display: none;
+  }
+
+  .nav-dropdown-menu {
+    display: contents;
+    position: static;
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .nav-dropdown-menu a {
+    padding: 13px 16px 13px 28px;
+    height: auto;
+    font-size: .95rem;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    background: rgba(0,0,0,.12);
+  }
+
+  .nav-dropdown-menu a:hover,
+  .nav-dropdown-menu a.actief {
+    background: rgba(255,255,255,.15);
+  }
 
   /* Hoofd layout */
   main {
