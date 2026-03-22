@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Producten - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Producten</h1>
+    <p>Producten beheren</p>
+  </div>
+</div>
+
+<main>
+  {% if success == 'product_added' %}
+  <div class="melding melding-succes">Product succesvol toegevoegd.</div>
+  {% elif success == 'product_updated' %}
+  <div class="melding melding-succes">Product succesvol bijgewerkt.</div>
+  {% elif success == 'product_deleted' %}
+  <div class="melding melding-succes">Product succesvol verwijderd.</div>
+  {% endif %}
+
+  {% if error == 'product_heeft_entries' %}
+  <div class="melding melding-fout">Product kan niet verwijderd worden: er zijn voorraadregistraties aan gekoppeld.</div>
+  {% endif %}
+
+  <div class="kaart" style="margin-bottom:24px;">
+    <h2 style="margin-top:0; font-size:1rem;">Nieuw product toevoegen</h2>
+    <form method="post" action="/beheer/producten/add">
+      <div class="form-container">
+        <div class="form-group">
+          <label for="naam_product">Productnaam <span style="color:var(--rood)">*</span></label>
+          <input type="text" id="naam_product" name="name" required placeholder="bijv. Aardappelen">
+        </div>
+        <div class="form-group">
+          <label for="eenheid_id">Eenheid <span style="color:var(--rood)">*</span></label>
+          <select id="eenheid_id" name="eenheid_id" required>
+            <option value="">-- Kies eenheid --</option>
+            {% for e in actieve_eenheden %}
+            <option value="{{ e.id }}">{{ e.naam }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primair">Toevoegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Eenheid</th>
+          <th>Actief</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>{{ p.eenheid.naam if p.eenheid else p.unit }}</td>
+          <td>
+            {% if p.active %}
+              <span class="badge badge-actief">Actief</span>
+            {% else %}
+              <span class="badge badge-inactief">Inactief</span>
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap;">
+            <a href="/beheer/producten/edit/{{ p.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+            {% if p.active %}
+            <form method="post" action="/beheer/producten/deactivate/{{ p.id }}" style="display:inline;">
+              <button type="submit" class="btn btn-gevaar btn-klein"
+                onclick="return confirm('Product \'{{ p.name }}\' deactiveren?')">Deactiveren</button>
+            </form>
+            {% else %}
+            <form method="post" action="/beheer/producten/activate/{{ p.id }}" style="display:inline;">
+              <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="geen-data">Nog geen producten aangemaakt.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}

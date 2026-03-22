@@ -16,13 +16,13 @@
 
   <div class="kaart">
     {% if not products %}
-      <p class="melding melding-fout">Geen actieve producten beschikbaar. <a href="/admin">Voeg eerst een product toe.</a></p>
+      <p class="melding melding-fout">Geen actieve producten beschikbaar. <a href="/beheer/producten">Voeg eerst een product toe.</a></p>
     {% elif not locations %}
-      <p class="melding melding-fout">Geen actieve locaties beschikbaar. <a href="/admin">Voeg eerst een locatie toe.</a></p>
+      <p class="melding melding-fout">Geen actieve locaties beschikbaar. <a href="/beheer/locaties">Voeg eerst een locatie toe.</a></p>
     {% else %}
     <form method="post" action="/harvest/new">
-      <div class="form-grid">
-        <div class="veld">
+      <div class="form-container" style="max-width:600px;">
+        <div class="form-group">
           <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
           <select id="product_id" name="product_id" required>
             <option value="">-- Kies een product --</option>
@@ -36,31 +36,29 @@
         </div>
 
         <!-- Inline nieuw product formulier -->
-        <div id="nieuw-product-form" class="veld volledig" style="display:none; background:#f8fdf9; border:1px solid #b7e4c7; border-radius:8px; padding:14px 16px; margin-top:-8px;">
+        <div id="nieuw-product-form" style="display:none; background:#f8fdf9; border:1px solid #b7e4c7; border-radius:8px; padding:14px 16px; margin-bottom:1rem;">
           <strong style="font-size:0.88rem; color:var(--groen); display:block; margin-bottom:10px;">Nieuw product toevoegen</strong>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <div class="veld">
-              <label for="np-naam">Productnaam <span style="color:var(--rood)">*</span></label>
-              <input type="text" id="np-naam" placeholder="bijv. Witlof" autocomplete="off">
-            </div>
-            <div class="veld">
-              <label for="np-eenheid">Eenheid <span style="color:var(--rood)">*</span></label>
-              <select id="np-eenheid">
-                <option value="">-- Kies eenheid --</option>
-                {% for e in eenheden %}
-                <option value="{{ e.id }}" data-naam="{{ e.naam }}" data-per-stuk="{{ 'true' if e.etiket_per_stuk else 'false' }}">{{ e.naam }}</option>
-                {% endfor %}
-              </select>
-            </div>
+          <div class="form-group">
+            <label for="np-naam">Productnaam <span style="color:var(--rood)">*</span></label>
+            <input type="text" id="np-naam" placeholder="bijv. Witlof" autocomplete="off">
           </div>
-          <div id="np-fout" style="display:none; color:var(--rood); font-size:0.85rem; margin-top:8px;"></div>
-          <div style="margin-top:10px; display:flex; gap:8px;">
+          <div class="form-group">
+            <label for="np-eenheid">Eenheid <span style="color:var(--rood)">*</span></label>
+            <select id="np-eenheid">
+              <option value="">-- Kies eenheid --</option>
+              {% for e in eenheden %}
+              <option value="{{ e.id }}" data-naam="{{ e.naam }}" data-per-stuk="{{ 'true' if e.etiket_per_stuk else 'false' }}">{{ e.naam }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div id="np-fout" style="display:none; color:var(--rood); font-size:0.85rem; margin-bottom:8px;"></div>
+          <div style="display:flex; gap:8px;">
             <button type="button" id="np-opslaan" class="btn btn-primair btn-klein">Opslaan en selecteren</button>
             <button type="button" id="np-annuleren" class="btn btn-secundair btn-klein">Annuleren</button>
           </div>
         </div>
 
-        <div class="veld">
+        <div class="form-group">
           <label for="conserveringsmethode_id">Conserveringsmethode</label>
           <select id="conserveringsmethode_id" name="conserveringsmethode_id">
             <option value="">-- Kies een conserveringsmethode --</option>
@@ -71,7 +69,25 @@
           <div id="houdbaarheid-melding" style="display:none; font-size:0.83rem; color:var(--groen); margin-top:4px;"></div>
         </div>
 
-        <div class="veld">
+        <!-- Inline houdbaarheid toevoegen als combinatie niet bestaat -->
+        <div id="inline-houdbaarheid-form" style="display:none; background:#fff8f0; border:1px solid #f0c080; border-radius:8px; padding:14px 16px; margin-bottom:1rem;">
+          <p style="margin:0 0 10px; font-size:0.88rem; color:#856404;">
+            <strong>Geen bewaartermijn bekend voor deze combinatie.</strong>
+          </p>
+          <p style="margin:0 0 12px; font-size:0.85rem; color:#6c757d;">Bewaartermijn toevoegen:</p>
+          <div class="form-group">
+            <label>Conserveringsmethode</label>
+            <input type="text" id="inline-methode-naam" readonly style="background:#f8f9fa; color:#6c757d;">
+          </div>
+          <div class="form-group">
+            <label for="inline-maanden">Houdbaarheid in maanden <span style="color:var(--rood)">*</span></label>
+            <input type="number" id="inline-maanden" min="1" step="1" placeholder="bijv. 6">
+          </div>
+          <div id="inline-fout" style="display:none; color:var(--rood); font-size:0.85rem; margin-bottom:8px;"></div>
+          <button type="button" id="inline-opslaan" class="btn btn-primair btn-klein">Opslaan en gebruiken</button>
+        </div>
+
+        <div class="form-group">
           <label for="location_id">Locatie <span style="color:var(--rood)">*</span></label>
           <select id="location_id" name="location_id" required>
             <option value="">-- Kies een locatie --</option>
@@ -81,7 +97,7 @@
           </select>
         </div>
 
-        <div class="veld" id="veld-hoeveelheid">
+        <div class="form-group" id="veld-hoeveelheid">
           <label for="quantity">Hoeveelheid <span style="color:var(--rood)">*</span></label>
           <div style="display:flex; gap:8px; align-items:center;">
             <input type="number" id="quantity" name="quantity" step="0.01" min="0.01" required placeholder="bijv. 25.5" style="flex:1;">
@@ -90,28 +106,28 @@
         </div>
         <input type="hidden" id="quantity-hidden" name="quantity" value="1" disabled>
 
-        <div class="veld" id="veld-aantal-stuks" style="display:none;">
+        <div class="form-group" id="veld-aantal-stuks" style="display:none;">
           <label for="aantal_stuks">Aantal stuks (elk krijgt eigen etiket en volgnummer) <span style="color:var(--rood)">*</span></label>
           <input type="number" id="aantal_stuks" name="aantal_stuks" value="1" min="1" step="1" placeholder="bijv. 3">
         </div>
 
-        <div class="veld">
+        <div class="form-group">
           <label for="date">Datum <span style="color:var(--rood)">*</span></label>
           <input type="date" id="date" name="date" value="{{ today }}" required>
         </div>
 
-        <div class="veld">
+        <div class="form-group">
           <label for="houdbaar_tot">Houdbaar tot (optioneel)</label>
           <input type="date" id="houdbaar_tot" name="houdbaar_tot">
         </div>
 
-        <div class="veld volledig">
+        <div class="form-group">
           <label for="note">Notitie (optioneel)</label>
-          <textarea id="note" name="note" placeholder="Eventuele opmerkingen..."></textarea>
+          <textarea id="note" name="note" placeholder="Eventuele opmerkingen..." rows="3"></textarea>
         </div>
       </div>
 
-      <div class="form-actie" style="margin-top: 20px; display:flex; gap:12px; align-items:center;">
+      <div style="margin-top: 20px; display:flex; gap:12px; align-items:center;">
         <button type="submit" class="btn btn-primair">Opslaan</button>
         <a href="/" class="btn btn-secundair">Annuleren</a>
         <span style="font-size:.82rem; color:#6c757d; margin-left:4px;">Ingevoerd als: <strong>{{ user }}</strong></span>
@@ -170,9 +186,11 @@
     var conserveringsmethodeId = document.getElementById("conserveringsmethode_id").value;
     var melding = document.getElementById("houdbaarheid-melding");
     var houdbaarheidInput = document.getElementById("houdbaar_tot");
+    var inlineForm = document.getElementById("inline-houdbaarheid-form");
 
     if (!productId || !conserveringsmethodeId) {
       melding.style.display = "none";
+      inlineForm.style.display = "none";
       return;
     }
 
@@ -183,17 +201,74 @@
           houdbaarheidInput.value = data.houdbaar_tot;
           melding.textContent = "Houdbaarheidsdatum automatisch ingevuld (" + data.maanden + " maanden)";
           melding.style.display = "block";
+          inlineForm.style.display = "none";
         } else {
           melding.style.display = "none";
+          // Toon inline formulier om bewaartermijn toe te voegen
+          var methodeSelect = document.getElementById("conserveringsmethode_id");
+          var methodeNaam = methodeSelect.options[methodeSelect.selectedIndex].text;
+          document.getElementById("inline-methode-naam").value = methodeNaam;
+          document.getElementById("inline-maanden").value = "";
+          document.getElementById("inline-fout").style.display = "none";
+          inlineForm.style.display = "block";
         }
       })
       .catch(function() {
         melding.style.display = "none";
+        inlineForm.style.display = "none";
       });
   }
 
   document.getElementById("conserveringsmethode_id").addEventListener("change", function() {
     checkHoudbaarheid();
+  });
+
+  // ── Inline bewaartermijn opslaan ─────────────────────────────────────────────
+  document.getElementById("inline-opslaan").addEventListener("click", function() {
+    var productId = document.getElementById("product_id").value;
+    var conserveringsmethodeId = document.getElementById("conserveringsmethode_id").value;
+    var maanden = parseInt(document.getElementById("inline-maanden").value);
+    var foutDiv = document.getElementById("inline-fout");
+
+    if (!maanden || maanden < 1) {
+      foutDiv.textContent = "Voer een geldig aantal maanden in (minimaal 1).";
+      foutDiv.style.display = "block";
+      return;
+    }
+    foutDiv.style.display = "none";
+
+    var btn = document.getElementById("inline-opslaan");
+    btn.disabled = true;
+    btn.textContent = "Bezig...";
+
+    fetch("/api/houdbaarheid/toevoegen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        product_id: parseInt(productId),
+        conserveringsmethode_id: parseInt(conserveringsmethodeId),
+        houdbaarheid_maanden: maanden
+      })
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(d) { throw new Error(d.detail || "Fout bij opslaan"); });
+      return r.json();
+    })
+    .then(function(data) {
+      document.getElementById("houdbaar_tot").value = data.houdbaar_tot;
+      var melding = document.getElementById("houdbaarheid-melding");
+      melding.textContent = "Bewaartermijn opgeslagen. Houdbaarheidsdatum automatisch ingevuld (" + maanden + " maanden)";
+      melding.style.display = "block";
+      document.getElementById("inline-houdbaarheid-form").style.display = "none";
+    })
+    .catch(function(err) {
+      foutDiv.textContent = err.message;
+      foutDiv.style.display = "block";
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = "Opslaan en gebruiken";
+    });
   });
 
   // ── Inline nieuw product formulier ──────────────────────────────────────────

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Eenheden - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Eenheden</h1>
+    <p>Maateenheden beheren</p>
+  </div>
+</div>
+
+<main>
+  {% if success == 'eenheid_added' %}
+  <div class="melding melding-succes">Eenheid succesvol toegevoegd.</div>
+  {% elif success == 'eenheid_updated' %}
+  <div class="melding melding-succes">Eenheid succesvol bijgewerkt.</div>
+  {% elif success == 'eenheid_deleted' %}
+  <div class="melding melding-succes">Eenheid succesvol verwijderd.</div>
+  {% endif %}
+
+  {% if error == 'eenheid_heeft_producten' %}
+  <div class="melding melding-fout">Eenheid kan niet verwijderd worden: er zijn producten aan gekoppeld.</div>
+  {% endif %}
+
+  <div class="kaart" style="margin-bottom:24px;">
+    <h2 style="margin-top:0; font-size:1rem;">Nieuwe eenheid toevoegen</h2>
+    <form method="post" action="/beheer/eenheden/add">
+      <div class="form-container">
+        <div class="form-group">
+          <label for="naam_eenheid">Naam <span style="color:var(--rood)">*</span></label>
+          <input type="text" id="naam_eenheid" name="naam" required placeholder="bijv. doos">
+        </div>
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:500;">
+            <input type="checkbox" name="etiket_per_stuk" value="1" style="width:18px; height:18px;">
+            Etiket per stuk
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primair">Toevoegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Naam</th>
+          <th>Etiket per stuk</th>
+          <th>Actief</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in eenheden %}
+        <tr>
+          <td>{{ e.naam }}</td>
+          <td>{{ "Ja" if e.etiket_per_stuk else "Nee" }}</td>
+          <td>
+            {% if e.actief %}
+              <span class="badge badge-actief">Actief</span>
+            {% else %}
+              <span class="badge badge-inactief">Inactief</span>
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap;">
+            <a href="/beheer/eenheden/edit/{{ e.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+            {% if e.actief %}
+            <form method="post" action="/beheer/eenheden/deactivate/{{ e.id }}" style="display:inline;">
+              <button type="submit" class="btn btn-gevaar btn-klein"
+                onclick="return confirm('Eenheid \'{{ e.naam }}\' deactiveren?')">Deactiveren</button>
+            </form>
+            {% else %}
+            <form method="post" action="/beheer/eenheden/activate/{{ e.id }}" style="display:inline;">
+              <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="geen-data">Nog geen eenheden aangemaakt.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}

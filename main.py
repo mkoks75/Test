@@ -1274,36 +1274,8 @@ async def wachtwoord_reset_post(
 # ── Admin ──────────────────────────────────────────────────────────────────────
 
 @app.get("/admin")
-async def admin(
-    request: Request,
-    db: Session = Depends(get_db),
-    success: str = None,
-    error: str = None,
-):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-
-    products = db.query(models.Product).order_by(models.Product.active.desc(), models.Product.name).all()
-    locations = db.query(models.Location).order_by(models.Location.active.desc(), models.Location.name).all()
-    ontvangers = db.query(models.Ontvanger).order_by(models.Ontvanger.actief.desc(), models.Ontvanger.naam).all()
-    eenheden = db.query(models.Eenheid).order_by(models.Eenheid.actief.desc(), models.Eenheid.naam).all()
-    actieve_eenheden = [e for e in eenheden if e.actief]
-
-    return templates.TemplateResponse(
-        "admin.html",
-        {
-            "request": request,
-            "user": user,
-            "products": products,
-            "locations": locations,
-            "ontvangers": ontvangers,
-            "eenheden": eenheden,
-            "actieve_eenheden": actieve_eenheden,
-            "success": success,
-            "error": error,
-        },
-    )
+async def admin(request: Request):
+    return RedirectResponse("/beheer/producten", status_code=302)
 
 
 @app.post("/admin/product/add")
@@ -1322,7 +1294,7 @@ async def admin_add_product(
     product = models.Product(name=name.strip(), unit=unit_naam, eenheid_id=eenheid_id, active=True)
     db.add(product)
     db.commit()
-    return RedirectResponse("/admin?success=product_added", status_code=302)
+    return RedirectResponse("/beheer/producten?success=product_added", status_code=302)
 
 
 @app.post("/admin/product/{product_id}/deactivate")
@@ -1339,7 +1311,7 @@ async def admin_deactivate_product(
     if product:
         product.active = False
         db.commit()
-    return RedirectResponse("/admin", status_code=302)
+    return RedirectResponse("/beheer/producten", status_code=302)
 
 
 @app.post("/admin/product/{product_id}/activate")
@@ -1356,7 +1328,7 @@ async def admin_activate_product(
     if product:
         product.active = True
         db.commit()
-    return RedirectResponse("/admin", status_code=302)
+    return RedirectResponse("/beheer/producten", status_code=302)
 
 
 @app.post("/admin/location/add")
@@ -1372,7 +1344,7 @@ async def admin_add_location(
     location = models.Location(name=name.strip(), active=True)
     db.add(location)
     db.commit()
-    return RedirectResponse("/admin?success=location_added", status_code=302)
+    return RedirectResponse("/beheer/locaties?success=location_added", status_code=302)
 
 
 @app.post("/admin/location/{location_id}/deactivate")
@@ -1389,7 +1361,7 @@ async def admin_deactivate_location(
     if location:
         location.active = False
         db.commit()
-    return RedirectResponse("/admin", status_code=302)
+    return RedirectResponse("/beheer/locaties", status_code=302)
 
 
 @app.post("/admin/location/{location_id}/activate")
@@ -1406,7 +1378,7 @@ async def admin_activate_location(
     if location:
         location.active = True
         db.commit()
-    return RedirectResponse("/admin", status_code=302)
+    return RedirectResponse("/beheer/locaties", status_code=302)
 
 
 @app.post("/admin/ontvanger/add")
@@ -1422,7 +1394,7 @@ async def admin_add_ontvanger(
     ontvanger = models.Ontvanger(naam=naam.strip(), actief=True)
     db.add(ontvanger)
     db.commit()
-    return RedirectResponse("/admin?success=ontvanger_added", status_code=302)
+    return RedirectResponse("/beheer/personen?success=persoon_added", status_code=302)
 
 
 @app.post("/admin/ontvanger/{ontvanger_id}/deactivate")
@@ -1439,7 +1411,7 @@ async def admin_deactivate_ontvanger(
     if ontvanger:
         ontvanger.actief = False
         db.commit()
-    return RedirectResponse("/admin", status_code=302)
+    return RedirectResponse("/beheer/personen", status_code=302)
 
 
 @app.post("/admin/ontvanger/{ontvanger_id}/activate")
@@ -1456,7 +1428,7 @@ async def admin_activate_ontvanger(
     if ontvanger:
         ontvanger.actief = True
         db.commit()
-    return RedirectResponse("/admin", status_code=302)
+    return RedirectResponse("/beheer/personen", status_code=302)
 
 
 # ── Eenheden beheer ────────────────────────────────────────────────────────────
@@ -1479,7 +1451,7 @@ async def admin_add_eenheid(
     )
     db.add(eenheid)
     db.commit()
-    return RedirectResponse("/admin?success=eenheid_added", status_code=302)
+    return RedirectResponse("/beheer/eenheden?success=eenheid_added", status_code=302)
 
 
 @app.post("/admin/eenheid/{eenheid_id}/deactivate")
@@ -1496,7 +1468,7 @@ async def admin_deactivate_eenheid(
     if eenheid:
         eenheid.actief = False
         db.commit()
-    return RedirectResponse("/admin", status_code=302)
+    return RedirectResponse("/beheer/eenheden", status_code=302)
 
 
 @app.post("/admin/eenheid/{eenheid_id}/activate")
@@ -1513,26 +1485,14 @@ async def admin_activate_eenheid(
     if eenheid:
         eenheid.actief = True
         db.commit()
-    return RedirectResponse("/admin", status_code=302)
+    return RedirectResponse("/beheer/eenheden", status_code=302)
 
 
 # ── Product bewerken / verwijderen ─────────────────────────────────────────────
 
 @app.get("/admin/product/{product_id}/edit")
-async def admin_edit_product(product_id: int, request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product:
-        return RedirectResponse("/admin", status_code=302)
-
-    eenheden = db.query(models.Eenheid).filter(models.Eenheid.actief == True).order_by(models.Eenheid.naam).all()
-    return templates.TemplateResponse(
-        "admin_edit_product.html",
-        {"request": request, "user": user, "product": product, "eenheden": eenheden},
-    )
+async def admin_edit_product(product_id: int, request: Request):
+    return RedirectResponse(f"/beheer/producten/edit/{product_id}", status_code=302)
 
 
 @app.post("/admin/product/{product_id}/edit")
@@ -1555,7 +1515,7 @@ async def admin_edit_product_post(
         if eenheid:
             product.unit = eenheid.naam
         db.commit()
-    return RedirectResponse("/admin?success=product_updated", status_code=302)
+    return RedirectResponse("/beheer/producten?success=product_updated", status_code=302)
 
 
 @app.post("/admin/product/{product_id}/delete")
@@ -1566,33 +1526,22 @@ async def admin_delete_product(product_id: int, request: Request, db: Session = 
 
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product:
-        return RedirectResponse("/admin", status_code=302)
+        return RedirectResponse("/beheer/producten", status_code=302)
 
     heeft_entries = db.query(models.HarvestEntry).filter(models.HarvestEntry.product_id == product_id).first()
     if heeft_entries:
-        return RedirectResponse("/admin?error=product_heeft_entries", status_code=302)
+        return RedirectResponse("/beheer/producten?error=product_heeft_entries", status_code=302)
 
     db.delete(product)
     db.commit()
-    return RedirectResponse("/admin?success=product_deleted", status_code=302)
+    return RedirectResponse("/beheer/producten?success=product_deleted", status_code=302)
 
 
 # ── Locatie bewerken / verwijderen ─────────────────────────────────────────────
 
 @app.get("/admin/location/{location_id}/edit")
-async def admin_edit_location(location_id: int, request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-
-    location = db.query(models.Location).filter(models.Location.id == location_id).first()
-    if not location:
-        return RedirectResponse("/admin", status_code=302)
-
-    return templates.TemplateResponse(
-        "admin_edit_location.html",
-        {"request": request, "user": user, "location": location},
-    )
+async def admin_edit_location(location_id: int, request: Request):
+    return RedirectResponse(f"/beheer/locaties/edit/{location_id}", status_code=302)
 
 
 @app.post("/admin/location/{location_id}/edit")
@@ -1610,7 +1559,7 @@ async def admin_edit_location_post(
     if location:
         location.name = name.strip()
         db.commit()
-    return RedirectResponse("/admin?success=location_updated", status_code=302)
+    return RedirectResponse("/beheer/locaties?success=location_updated", status_code=302)
 
 
 @app.post("/admin/location/{location_id}/delete")
@@ -1621,34 +1570,23 @@ async def admin_delete_location(location_id: int, request: Request, db: Session 
 
     location = db.query(models.Location).filter(models.Location.id == location_id).first()
     if not location:
-        return RedirectResponse("/admin", status_code=302)
+        return RedirectResponse("/beheer/locaties", status_code=302)
 
     heeft_entries = db.query(models.HarvestEntry).filter(models.HarvestEntry.location_id == location_id).first()
     heeft_uitgiftes = db.query(models.Uitgifte).filter(models.Uitgifte.location_id == location_id).first()
     if heeft_entries or heeft_uitgiftes:
-        return RedirectResponse("/admin?error=location_heeft_registraties", status_code=302)
+        return RedirectResponse("/beheer/locaties?error=location_heeft_registraties", status_code=302)
 
     db.delete(location)
     db.commit()
-    return RedirectResponse("/admin?success=location_deleted", status_code=302)
+    return RedirectResponse("/beheer/locaties?success=location_deleted", status_code=302)
 
 
 # ── Ontvanger bewerken / verwijderen ───────────────────────────────────────────
 
 @app.get("/admin/ontvanger/{ontvanger_id}/edit")
-async def admin_edit_ontvanger(ontvanger_id: int, request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-
-    ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == ontvanger_id).first()
-    if not ontvanger:
-        return RedirectResponse("/admin", status_code=302)
-
-    return templates.TemplateResponse(
-        "admin_edit_ontvanger.html",
-        {"request": request, "user": user, "ontvanger": ontvanger},
-    )
+async def admin_edit_ontvanger(ontvanger_id: int, request: Request):
+    return RedirectResponse(f"/beheer/personen/edit/{ontvanger_id}", status_code=302)
 
 
 @app.post("/admin/ontvanger/{ontvanger_id}/edit")
@@ -1666,7 +1604,7 @@ async def admin_edit_ontvanger_post(
     if ontvanger:
         ontvanger.naam = naam.strip()
         db.commit()
-    return RedirectResponse("/admin?success=ontvanger_updated", status_code=302)
+    return RedirectResponse("/beheer/personen?success=persoon_updated", status_code=302)
 
 
 @app.post("/admin/ontvanger/{ontvanger_id}/delete")
@@ -1677,33 +1615,22 @@ async def admin_delete_ontvanger(ontvanger_id: int, request: Request, db: Sessio
 
     ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == ontvanger_id).first()
     if not ontvanger:
-        return RedirectResponse("/admin", status_code=302)
+        return RedirectResponse("/beheer/personen", status_code=302)
 
     heeft_uitgiftes = db.query(models.Uitgifte).filter(models.Uitgifte.ontvanger == ontvanger.naam).first()
     if heeft_uitgiftes:
-        return RedirectResponse("/admin?error=ontvanger_heeft_uitgiftes", status_code=302)
+        return RedirectResponse("/beheer/personen?error=persoon_heeft_uitgiftes", status_code=302)
 
     db.delete(ontvanger)
     db.commit()
-    return RedirectResponse("/admin?success=ontvanger_deleted", status_code=302)
+    return RedirectResponse("/beheer/personen?success=persoon_deleted", status_code=302)
 
 
 # ── Eenheid bewerken / verwijderen ─────────────────────────────────────────────
 
 @app.get("/admin/eenheid/{eenheid_id}/edit")
-async def admin_edit_eenheid(eenheid_id: int, request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-
-    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
-    if not eenheid:
-        return RedirectResponse("/admin", status_code=302)
-
-    return templates.TemplateResponse(
-        "admin_edit_eenheid.html",
-        {"request": request, "user": user, "eenheid": eenheid},
-    )
+async def admin_edit_eenheid(eenheid_id: int, request: Request):
+    return RedirectResponse(f"/beheer/eenheden/edit/{eenheid_id}", status_code=302)
 
 
 @app.post("/admin/eenheid/{eenheid_id}/edit")
@@ -1723,7 +1650,7 @@ async def admin_edit_eenheid_post(
         eenheid.naam = naam.strip()
         eenheid.etiket_per_stuk = bool(etiket_per_stuk)
         db.commit()
-    return RedirectResponse("/admin?success=eenheid_updated", status_code=302)
+    return RedirectResponse("/beheer/eenheden?success=eenheid_updated", status_code=302)
 
 
 @app.post("/admin/eenheid/{eenheid_id}/delete")
@@ -1734,15 +1661,15 @@ async def admin_delete_eenheid(eenheid_id: int, request: Request, db: Session = 
 
     eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
     if not eenheid:
-        return RedirectResponse("/admin", status_code=302)
+        return RedirectResponse("/beheer/eenheden", status_code=302)
 
     heeft_producten = db.query(models.Product).filter(models.Product.eenheid_id == eenheid_id).first()
     if heeft_producten:
-        return RedirectResponse("/admin?error=eenheid_heeft_producten", status_code=302)
+        return RedirectResponse("/beheer/eenheden?error=eenheid_heeft_producten", status_code=302)
 
     db.delete(eenheid)
     db.commit()
-    return RedirectResponse("/admin?success=eenheid_deleted", status_code=302)
+    return RedirectResponse("/beheer/eenheden?success=eenheid_deleted", status_code=302)
 
 
 # ── Houdbaarheid beheer ────────────────────────────────────────────────────────
@@ -1806,9 +1733,6 @@ async def beheer_houdbaarheid(
         .order_by(models.Product.name, models.Conserveringsmethode.naam)
         .all()
     )
-    producten = db.query(models.Product).filter(models.Product.active == True).order_by(models.Product.name).all()
-    conserveringsmethoden = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.actief == True).order_by(models.Conserveringsmethode.naam).all()
-    alle_conserveringsmethoden = db.query(models.Conserveringsmethode).order_by(models.Conserveringsmethode.naam).all()
 
     return templates.TemplateResponse(
         "beheer_houdbaarheid.html",
@@ -1816,9 +1740,6 @@ async def beheer_houdbaarheid(
             "request": request,
             "user": user,
             "records": records,
-            "producten": producten,
-            "conserveringsmethoden": conserveringsmethoden,
-            "alle_conserveringsmethoden": alle_conserveringsmethoden,
             "success": success,
             "error": error,
         },
@@ -1920,39 +1841,22 @@ async def beheer_conserveringsmethode_add(
 
     naam = naam.strip()
     if not naam:
-        return RedirectResponse("/beheer/houdbaarheid?error=lege_naam", status_code=302)
+        return RedirectResponse("/beheer/conservering?error=lege_naam", status_code=302)
 
     bestaand = db.query(models.Conserveringsmethode).filter(
         func.lower(models.Conserveringsmethode.naam) == naam.lower()
     ).first()
     if bestaand:
-        return RedirectResponse("/beheer/houdbaarheid?error=dubbele_methode", status_code=302)
+        return RedirectResponse("/beheer/conservering?error=dubbele_methode", status_code=302)
 
     db.add(models.Conserveringsmethode(naam=naam, actief=True))
     db.commit()
-    return RedirectResponse("/beheer/houdbaarheid?success=methode_toegevoegd", status_code=302)
+    return RedirectResponse("/beheer/conservering?success=methode_toegevoegd", status_code=302)
 
 
 @app.get("/beheer/conserveringsmethode/edit/{methode_id}")
-async def beheer_conserveringsmethode_edit(methode_id: int, request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-
-    methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
-    if not methode:
-        return RedirectResponse("/beheer/houdbaarheid", status_code=302)
-
-    in_gebruik = db.query(models.HarvestEntry).filter(
-        models.HarvestEntry.conserveringsmethode_id == methode_id
-    ).count() > 0 or db.query(models.ProductHoudbaarheid).filter(
-        models.ProductHoudbaarheid.conserveringsmethode_id == methode_id
-    ).count() > 0
-
-    return templates.TemplateResponse(
-        "beheer_conserveringsmethode_edit.html",
-        {"request": request, "user": user, "methode": methode, "in_gebruik": in_gebruik},
-    )
+async def beheer_conserveringsmethode_edit_redirect(methode_id: int, request: Request):
+    return RedirectResponse(f"/beheer/conservering/edit/{methode_id}", status_code=302)
 
 
 @app.post("/beheer/conserveringsmethode/edit/{methode_id}")
@@ -1972,7 +1876,7 @@ async def beheer_conserveringsmethode_edit_post(
         methode.naam = naam.strip()
         methode.actief = actief == "on"
         db.commit()
-    return RedirectResponse("/beheer/houdbaarheid?success=methode_bijgewerkt", status_code=302)
+    return RedirectResponse("/beheer/conservering?success=methode_bijgewerkt", status_code=302)
 
 
 @app.post("/beheer/conserveringsmethode/delete/{methode_id}")
@@ -1988,13 +1892,13 @@ async def beheer_conserveringsmethode_delete(methode_id: int, request: Request, 
     ).count() > 0
 
     if in_gebruik:
-        return RedirectResponse("/beheer/houdbaarheid?error=methode_in_gebruik", status_code=302)
+        return RedirectResponse("/beheer/conservering?error=methode_in_gebruik", status_code=302)
 
     methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
     if methode:
         db.delete(methode)
         db.commit()
-    return RedirectResponse("/beheer/houdbaarheid?success=methode_verwijderd", status_code=302)
+    return RedirectResponse("/beheer/conservering?success=methode_verwijderd", status_code=302)
 
 
 # ── QR Scan lookup ─────────────────────────────────────────────────────────────
@@ -2753,3 +2657,729 @@ async def beheer_uitgifte_delete(uitgifte_id: int, request: Request, db: Session
         db.delete(uitgifte)
         db.commit()
     return RedirectResponse("/beheer/geschiedenis?tab=uitgiftes", status_code=302)
+
+
+# ── Beheer: Producten module ────────────────────────────────────────────────────
+
+@app.get("/beheer/producten")
+async def beheer_producten(
+    request: Request,
+    db: Session = Depends(get_db),
+    success: str = None,
+    error: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    products = db.query(models.Product).order_by(models.Product.active.desc(), models.Product.name).all()
+    actieve_eenheden = db.query(models.Eenheid).filter(models.Eenheid.actief == True).order_by(models.Eenheid.naam).all()
+
+    return templates.TemplateResponse(
+        "beheer_producten.html",
+        {
+            "request": request,
+            "user": user,
+            "products": products,
+            "actieve_eenheden": actieve_eenheden,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+@app.post("/beheer/producten/add")
+async def beheer_producten_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+    eenheid_id: int = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    unit_naam = eenheid.naam if eenheid else ""
+    product = models.Product(name=name.strip(), unit=unit_naam, eenheid_id=eenheid_id, active=True)
+    db.add(product)
+    db.commit()
+    return RedirectResponse("/beheer/producten?success=product_added", status_code=302)
+
+
+@app.post("/beheer/producten/deactivate/{product_id}")
+async def beheer_producten_deactivate(product_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        product.active = False
+        db.commit()
+    return RedirectResponse("/beheer/producten", status_code=302)
+
+
+@app.post("/beheer/producten/activate/{product_id}")
+async def beheer_producten_activate(product_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        product.active = True
+        db.commit()
+    return RedirectResponse("/beheer/producten", status_code=302)
+
+
+@app.get("/beheer/producten/edit/{product_id}")
+async def beheer_producten_edit(product_id: int, request: Request, db: Session = Depends(get_db), success: str = None, error: str = None):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        return RedirectResponse("/beheer/producten", status_code=302)
+
+    eenheden = db.query(models.Eenheid).filter(models.Eenheid.actief == True).order_by(models.Eenheid.naam).all()
+
+    houdbaarheid_records = (
+        db.query(models.ProductHoudbaarheid)
+        .outerjoin(models.Conserveringsmethode, models.ProductHoudbaarheid.conserveringsmethode_id == models.Conserveringsmethode.id)
+        .filter(models.ProductHoudbaarheid.product_id == product_id)
+        .order_by(models.Conserveringsmethode.naam)
+        .all()
+    )
+
+    # Methoden die nog niet gebruikt zijn voor dit product
+    gebruikte_methode_ids = {r.conserveringsmethode_id for r in houdbaarheid_records if r.conserveringsmethode_id}
+    alle_methoden = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.actief == True).order_by(models.Conserveringsmethode.naam).all()
+    beschikbare_methoden = [m for m in alle_methoden if m.id not in gebruikte_methode_ids]
+
+    return templates.TemplateResponse(
+        "beheer_producten_edit.html",
+        {
+            "request": request,
+            "user": user,
+            "product": product,
+            "eenheden": eenheden,
+            "houdbaarheid_records": houdbaarheid_records,
+            "beschikbare_methoden": beschikbare_methoden,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+@app.post("/beheer/producten/edit/{product_id}")
+async def beheer_producten_edit_post(
+    product_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+    eenheid_id: int = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+        product.name = name.strip()
+        product.eenheid_id = eenheid_id
+        if eenheid:
+            product.unit = eenheid.naam
+        db.commit()
+    return RedirectResponse(f"/beheer/producten/edit/{product_id}?success=product_updated", status_code=302)
+
+
+@app.post("/beheer/producten/delete/{product_id}")
+async def beheer_producten_delete(product_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        return RedirectResponse("/beheer/producten", status_code=302)
+
+    heeft_entries = db.query(models.HarvestEntry).filter(models.HarvestEntry.product_id == product_id).first()
+    if heeft_entries:
+        return RedirectResponse("/beheer/producten?error=product_heeft_entries", status_code=302)
+
+    db.delete(product)
+    db.commit()
+    return RedirectResponse("/beheer/producten?success=product_deleted", status_code=302)
+
+
+@app.post("/beheer/producten/houdbaarheid/add")
+async def beheer_producten_houdbaarheid_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = Form(...),
+    conserveringsmethode_id: int = Form(...),
+    houdbaarheid_maanden: int = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    bestaand = db.query(models.ProductHoudbaarheid).filter(
+        models.ProductHoudbaarheid.product_id == product_id,
+        models.ProductHoudbaarheid.conserveringsmethode_id == conserveringsmethode_id,
+    ).first()
+    if bestaand:
+        return RedirectResponse(f"/beheer/producten/edit/{product_id}?error=houdbaarheid_dubbel", status_code=302)
+
+    if houdbaarheid_maanden < 1:
+        return RedirectResponse(f"/beheer/producten/edit/{product_id}?error=houdbaarheid_ongeldig", status_code=302)
+
+    record = models.ProductHoudbaarheid(
+        product_id=product_id,
+        conserveringsmethode_id=conserveringsmethode_id,
+        houdbaarheid_maanden=houdbaarheid_maanden,
+        actief=True,
+    )
+    db.add(record)
+    db.commit()
+    return RedirectResponse(f"/beheer/producten/edit/{product_id}?success=houdbaarheid_toegevoegd", status_code=302)
+
+
+# ── Beheer: Locaties module ─────────────────────────────────────────────────────
+
+@app.get("/beheer/locaties")
+async def beheer_locaties(
+    request: Request,
+    db: Session = Depends(get_db),
+    success: str = None,
+    error: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    locations = db.query(models.Location).order_by(models.Location.active.desc(), models.Location.name).all()
+
+    return templates.TemplateResponse(
+        "beheer_locaties.html",
+        {
+            "request": request,
+            "user": user,
+            "locations": locations,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+@app.post("/beheer/locaties/add")
+async def beheer_locaties_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = models.Location(name=name.strip(), active=True)
+    db.add(location)
+    db.commit()
+    return RedirectResponse("/beheer/locaties?success=location_added", status_code=302)
+
+
+@app.post("/beheer/locaties/deactivate/{location_id}")
+async def beheer_locaties_deactivate(location_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if location:
+        location.active = False
+        db.commit()
+    return RedirectResponse("/beheer/locaties", status_code=302)
+
+
+@app.post("/beheer/locaties/activate/{location_id}")
+async def beheer_locaties_activate(location_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if location:
+        location.active = True
+        db.commit()
+    return RedirectResponse("/beheer/locaties", status_code=302)
+
+
+@app.get("/beheer/locaties/edit/{location_id}")
+async def beheer_locaties_edit(location_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if not location:
+        return RedirectResponse("/beheer/locaties", status_code=302)
+
+    return templates.TemplateResponse(
+        "beheer_locaties_edit.html",
+        {"request": request, "user": user, "location": location},
+    )
+
+
+@app.post("/beheer/locaties/edit/{location_id}")
+async def beheer_locaties_edit_post(
+    location_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if location:
+        location.name = name.strip()
+        db.commit()
+    return RedirectResponse("/beheer/locaties?success=location_updated", status_code=302)
+
+
+@app.post("/beheer/locaties/delete/{location_id}")
+async def beheer_locaties_delete(location_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if not location:
+        return RedirectResponse("/beheer/locaties", status_code=302)
+
+    heeft_entries = db.query(models.HarvestEntry).filter(models.HarvestEntry.location_id == location_id).first()
+    heeft_uitgiftes = db.query(models.Uitgifte).filter(models.Uitgifte.location_id == location_id).first()
+    if heeft_entries or heeft_uitgiftes:
+        return RedirectResponse("/beheer/locaties?error=location_heeft_registraties", status_code=302)
+
+    db.delete(location)
+    db.commit()
+    return RedirectResponse("/beheer/locaties?success=location_deleted", status_code=302)
+
+
+# ── Beheer: Personen module ─────────────────────────────────────────────────────
+
+@app.get("/beheer/personen")
+async def beheer_personen(
+    request: Request,
+    db: Session = Depends(get_db),
+    success: str = None,
+    error: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    personen = db.query(models.Ontvanger).order_by(models.Ontvanger.actief.desc(), models.Ontvanger.naam).all()
+
+    return templates.TemplateResponse(
+        "beheer_personen.html",
+        {
+            "request": request,
+            "user": user,
+            "personen": personen,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+@app.post("/beheer/personen/add")
+async def beheer_personen_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    persoon = models.Ontvanger(naam=naam.strip(), actief=True)
+    db.add(persoon)
+    db.commit()
+    return RedirectResponse("/beheer/personen?success=persoon_added", status_code=302)
+
+
+@app.post("/beheer/personen/deactivate/{persoon_id}")
+async def beheer_personen_deactivate(persoon_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    persoon = db.query(models.Ontvanger).filter(models.Ontvanger.id == persoon_id).first()
+    if persoon:
+        persoon.actief = False
+        db.commit()
+    return RedirectResponse("/beheer/personen", status_code=302)
+
+
+@app.post("/beheer/personen/activate/{persoon_id}")
+async def beheer_personen_activate(persoon_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    persoon = db.query(models.Ontvanger).filter(models.Ontvanger.id == persoon_id).first()
+    if persoon:
+        persoon.actief = True
+        db.commit()
+    return RedirectResponse("/beheer/personen", status_code=302)
+
+
+@app.get("/beheer/personen/edit/{persoon_id}")
+async def beheer_personen_edit(persoon_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    persoon = db.query(models.Ontvanger).filter(models.Ontvanger.id == persoon_id).first()
+    if not persoon:
+        return RedirectResponse("/beheer/personen", status_code=302)
+
+    return templates.TemplateResponse(
+        "beheer_personen_edit.html",
+        {"request": request, "user": user, "persoon": persoon},
+    )
+
+
+@app.post("/beheer/personen/edit/{persoon_id}")
+async def beheer_personen_edit_post(
+    persoon_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    persoon = db.query(models.Ontvanger).filter(models.Ontvanger.id == persoon_id).first()
+    if persoon:
+        persoon.naam = naam.strip()
+        db.commit()
+    return RedirectResponse("/beheer/personen?success=persoon_updated", status_code=302)
+
+
+@app.post("/beheer/personen/delete/{persoon_id}")
+async def beheer_personen_delete(persoon_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    persoon = db.query(models.Ontvanger).filter(models.Ontvanger.id == persoon_id).first()
+    if not persoon:
+        return RedirectResponse("/beheer/personen", status_code=302)
+
+    heeft_uitgiftes = db.query(models.Uitgifte).filter(models.Uitgifte.ontvanger == persoon.naam).first()
+    if heeft_uitgiftes:
+        return RedirectResponse("/beheer/personen?error=persoon_heeft_uitgiftes", status_code=302)
+
+    db.delete(persoon)
+    db.commit()
+    return RedirectResponse("/beheer/personen?success=persoon_deleted", status_code=302)
+
+
+# ── Beheer: Eenheden module ─────────────────────────────────────────────────────
+
+@app.get("/beheer/eenheden")
+async def beheer_eenheden(
+    request: Request,
+    db: Session = Depends(get_db),
+    success: str = None,
+    error: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheden = db.query(models.Eenheid).order_by(models.Eenheid.actief.desc(), models.Eenheid.naam).all()
+
+    return templates.TemplateResponse(
+        "beheer_eenheden.html",
+        {
+            "request": request,
+            "user": user,
+            "eenheden": eenheden,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+@app.post("/beheer/eenheden/add")
+async def beheer_eenheden_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+    etiket_per_stuk: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = models.Eenheid(
+        naam=naam.strip(),
+        etiket_per_stuk=bool(etiket_per_stuk),
+        actief=True,
+    )
+    db.add(eenheid)
+    db.commit()
+    return RedirectResponse("/beheer/eenheden?success=eenheid_added", status_code=302)
+
+
+@app.post("/beheer/eenheden/deactivate/{eenheid_id}")
+async def beheer_eenheden_deactivate(eenheid_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if eenheid:
+        eenheid.actief = False
+        db.commit()
+    return RedirectResponse("/beheer/eenheden", status_code=302)
+
+
+@app.post("/beheer/eenheden/activate/{eenheid_id}")
+async def beheer_eenheden_activate(eenheid_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if eenheid:
+        eenheid.actief = True
+        db.commit()
+    return RedirectResponse("/beheer/eenheden", status_code=302)
+
+
+@app.get("/beheer/eenheden/edit/{eenheid_id}")
+async def beheer_eenheden_edit(eenheid_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if not eenheid:
+        return RedirectResponse("/beheer/eenheden", status_code=302)
+
+    return templates.TemplateResponse(
+        "beheer_eenheden_edit.html",
+        {"request": request, "user": user, "eenheid": eenheid},
+    )
+
+
+@app.post("/beheer/eenheden/edit/{eenheid_id}")
+async def beheer_eenheden_edit_post(
+    eenheid_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+    etiket_per_stuk: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if eenheid:
+        eenheid.naam = naam.strip()
+        eenheid.etiket_per_stuk = bool(etiket_per_stuk)
+        db.commit()
+    return RedirectResponse("/beheer/eenheden?success=eenheid_updated", status_code=302)
+
+
+@app.post("/beheer/eenheden/delete/{eenheid_id}")
+async def beheer_eenheden_delete(eenheid_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if not eenheid:
+        return RedirectResponse("/beheer/eenheden", status_code=302)
+
+    heeft_producten = db.query(models.Product).filter(models.Product.eenheid_id == eenheid_id).first()
+    if heeft_producten:
+        return RedirectResponse("/beheer/eenheden?error=eenheid_heeft_producten", status_code=302)
+
+    db.delete(eenheid)
+    db.commit()
+    return RedirectResponse("/beheer/eenheden?success=eenheid_deleted", status_code=302)
+
+
+# ── Beheer: Conservering module ─────────────────────────────────────────────────
+
+@app.get("/beheer/conservering")
+async def beheer_conservering(
+    request: Request,
+    db: Session = Depends(get_db),
+    success: str = None,
+    error: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    methoden = db.query(models.Conserveringsmethode).order_by(models.Conserveringsmethode.naam).all()
+
+    return templates.TemplateResponse(
+        "beheer_conservering.html",
+        {
+            "request": request,
+            "user": user,
+            "methoden": methoden,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+@app.post("/beheer/conservering/add")
+async def beheer_conservering_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    naam = naam.strip()
+    if not naam:
+        return RedirectResponse("/beheer/conservering?error=lege_naam", status_code=302)
+
+    bestaand = db.query(models.Conserveringsmethode).filter(
+        func.lower(models.Conserveringsmethode.naam) == naam.lower()
+    ).first()
+    if bestaand:
+        return RedirectResponse("/beheer/conservering?error=dubbele_methode", status_code=302)
+
+    db.add(models.Conserveringsmethode(naam=naam, actief=True))
+    db.commit()
+    return RedirectResponse("/beheer/conservering?success=methode_toegevoegd", status_code=302)
+
+
+@app.get("/beheer/conservering/edit/{methode_id}")
+async def beheer_conservering_edit(methode_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
+    if not methode:
+        return RedirectResponse("/beheer/conservering", status_code=302)
+
+    in_gebruik = (
+        db.query(models.HarvestEntry).filter(models.HarvestEntry.conserveringsmethode_id == methode_id).count() > 0
+        or db.query(models.ProductHoudbaarheid).filter(models.ProductHoudbaarheid.conserveringsmethode_id == methode_id).count() > 0
+    )
+
+    return templates.TemplateResponse(
+        "beheer_conservering_edit.html",
+        {"request": request, "user": user, "methode": methode, "in_gebruik": in_gebruik},
+    )
+
+
+@app.post("/beheer/conservering/edit/{methode_id}")
+async def beheer_conservering_edit_post(
+    methode_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+    actief: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
+    if methode:
+        methode.naam = naam.strip()
+        methode.actief = actief == "on"
+        db.commit()
+    return RedirectResponse("/beheer/conservering?success=methode_bijgewerkt", status_code=302)
+
+
+@app.post("/beheer/conservering/delete/{methode_id}")
+async def beheer_conservering_delete(methode_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    in_gebruik = (
+        db.query(models.HarvestEntry).filter(models.HarvestEntry.conserveringsmethode_id == methode_id).count() > 0
+        or db.query(models.ProductHoudbaarheid).filter(models.ProductHoudbaarheid.conserveringsmethode_id == methode_id).count() > 0
+    )
+
+    if in_gebruik:
+        return RedirectResponse("/beheer/conservering?error=methode_in_gebruik", status_code=302)
+
+    methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
+    if methode:
+        db.delete(methode)
+        db.commit()
+    return RedirectResponse("/beheer/conservering?success=methode_verwijderd", status_code=302)
+
+
+# ── API: Houdbaarheid inline toevoegen ──────────────────────────────────────────
+
+@app.post("/api/houdbaarheid/toevoegen")
+async def api_houdbaarheid_toevoegen(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    import json as _json
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    try:
+        body = await request.json()
+        product_id = int(body["product_id"])
+        conserveringsmethode_id = int(body["conserveringsmethode_id"])
+        houdbaarheid_maanden = int(body["houdbaarheid_maanden"])
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    if houdbaarheid_maanden < 1:
+        return JSONResponse({"error": "Houdbaarheid moet minimaal 1 maand zijn"}, status_code=400)
+
+    bestaand = db.query(models.ProductHoudbaarheid).filter(
+        models.ProductHoudbaarheid.product_id == product_id,
+        models.ProductHoudbaarheid.conserveringsmethode_id == conserveringsmethode_id,
+    ).first()
+    if bestaand:
+        # Update bestaand record in plaats van fout teruggeven
+        bestaand.houdbaarheid_maanden = houdbaarheid_maanden
+        db.commit()
+    else:
+        record = models.ProductHoudbaarheid(
+            product_id=product_id,
+            conserveringsmethode_id=conserveringsmethode_id,
+            houdbaarheid_maanden=houdbaarheid_maanden,
+            actief=True,
+        )
+        db.add(record)
+        db.commit()
+
+    houdbaar_tot = _add_months(datetime.date.today(), houdbaarheid_maanden)
+    return JSONResponse({
+        "succes": True,
+        "houdbaar_tot": houdbaar_tot.isoformat(),
+        "maanden": houdbaarheid_maanden,
+    })

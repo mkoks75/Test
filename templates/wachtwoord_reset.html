@@ -28,11 +28,11 @@
     {% endif %}
 
     <form method="post" action="/wachtwoord-reset/{{ token }}">
-      <div class="veld">
+      <div class="form-group">
         <label for="nieuw_wachtwoord">Nieuw wachtwoord</label>
         <input type="password" id="nieuw_wachtwoord" name="nieuw_wachtwoord" required autofocus autocomplete="new-password" minlength="6" placeholder="••••••••">
       </div>
-      <div class="veld">
+      <div class="form-group">
         <label for="nieuw_wachtwoord2">Wachtwoord bevestigen</label>
         <input type="password" id="nieuw_wachtwoord2" name="nieuw_wachtwoord2" required autocomplete="new-password" minlength="6" placeholder="••••••••">
       </div>

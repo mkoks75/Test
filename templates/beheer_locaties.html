@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Locaties - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Locaties</h1>
+    <p>Opslaglocaties beheren</p>
+  </div>
+</div>
+
+<main>
+  {% if success == 'location_added' %}
+  <div class="melding melding-succes">Locatie succesvol toegevoegd.</div>
+  {% elif success == 'location_updated' %}
+  <div class="melding melding-succes">Locatie succesvol bijgewerkt.</div>
+  {% elif success == 'location_deleted' %}
+  <div class="melding melding-succes">Locatie succesvol verwijderd.</div>
+  {% endif %}
+
+  {% if error == 'location_heeft_registraties' %}
+  <div class="melding melding-fout">Locatie kan niet verwijderd worden: er zijn registraties aan gekoppeld.</div>
+  {% endif %}
+
+  <div class="kaart" style="margin-bottom:24px;">
+    <h2 style="margin-top:0; font-size:1rem;">Nieuwe locatie toevoegen</h2>
+    <form method="post" action="/beheer/locaties/add">
+      <div class="form-container">
+        <div class="form-group">
+          <label for="naam_locatie">Naam <span style="color:var(--rood)">*</span></label>
+          <input type="text" id="naam_locatie" name="name" required placeholder="bijv. Schuur Noord">
+        </div>
+        <button type="submit" class="btn btn-primair">Toevoegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Naam</th>
+          <th>Actief</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in locations %}
+        <tr>
+          <td>{{ l.name }}</td>
+          <td>
+            {% if l.active %}
+              <span class="badge badge-actief">Actief</span>
+            {% else %}
+              <span class="badge badge-inactief">Inactief</span>
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap;">
+            <a href="/beheer/locaties/edit/{{ l.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+            {% if l.active %}
+            <form method="post" action="/beheer/locaties/deactivate/{{ l.id }}" style="display:inline;">
+              <button type="submit" class="btn btn-gevaar btn-klein"
+                onclick="return confirm('Locatie \'{{ l.name }}\' deactiveren?')">Deactiveren</button>
+            </form>
+            {% else %}
+            <form method="post" action="/beheer/locaties/activate/{{ l.id }}" style="display:inline;">
+              <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="geen-data">Nog geen locaties aangemaakt.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}

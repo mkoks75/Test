@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Conservering - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Conserveringsmethoden</h1>
+    <p>Conserveringsmethoden beheren</p>
+  </div>
+</div>
+
+<main>
+  {% if success == 'methode_toegevoegd' %}
+  <div class="melding melding-succes">Conserveringsmethode succesvol toegevoegd.</div>
+  {% elif success == 'methode_bijgewerkt' %}
+  <div class="melding melding-succes">Conserveringsmethode succesvol bijgewerkt.</div>
+  {% elif success == 'methode_verwijderd' %}
+  <div class="melding melding-succes">Conserveringsmethode succesvol verwijderd.</div>
+  {% endif %}
+
+  {% if error == 'dubbele_methode' %}
+  <div class="melding melding-fout">Er bestaat al een conserveringsmethode met deze naam.</div>
+  {% elif error == 'lege_naam' %}
+  <div class="melding melding-fout">Naam mag niet leeg zijn.</div>
+  {% elif error == 'methode_in_gebruik' %}
+  <div class="melding melding-fout">Deze conserveringsmethode is in gebruik en kan niet worden verwijderd.</div>
+  {% endif %}
+
+  <div class="kaart" style="margin-bottom:24px;">
+    <h2 style="margin-top:0; font-size:1rem;">Nieuwe conserveringsmethode toevoegen</h2>
+    <form method="post" action="/beheer/conservering/add">
+      <div class="form-container">
+        <div class="form-group">
+          <label for="methode_naam">Naam <span style="color:var(--rood)">*</span></label>
+          <input type="text" id="methode_naam" name="naam" required placeholder="bijv. Invriezen">
+        </div>
+        <button type="submit" class="btn btn-primair">Toevoegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Naam</th>
+          <th>Actief</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in methoden %}
+        <tr>
+          <td>{{ m.naam }}</td>
+          <td>
+            {% if m.actief %}
+              <span class="badge badge-actief">Actief</span>
+            {% else %}
+              <span class="badge badge-inactief">Inactief</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/beheer/conservering/edit/{{ m.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="geen-data">Nog geen conserveringsmethoden aangemaakt.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}

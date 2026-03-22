@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Personen - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Personen</h1>
+    <p>Personen (ontvangers) beheren</p>
+  </div>
+</div>
+
+<main>
+  {% if success == 'persoon_added' %}
+  <div class="melding melding-succes">Persoon succesvol toegevoegd.</div>
+  {% elif success == 'persoon_updated' %}
+  <div class="melding melding-succes">Persoon succesvol bijgewerkt.</div>
+  {% elif success == 'persoon_deleted' %}
+  <div class="melding melding-succes">Persoon succesvol verwijderd.</div>
+  {% endif %}
+
+  {% if error == 'persoon_heeft_uitgiftes' %}
+  <div class="melding melding-fout">Persoon kan niet verwijderd worden: er zijn uitgiftes aan gekoppeld.</div>
+  {% endif %}
+
+  <div class="kaart" style="margin-bottom:24px;">
+    <h2 style="margin-top:0; font-size:1rem;">Nieuwe persoon toevoegen</h2>
+    <form method="post" action="/beheer/personen/add">
+      <div class="form-container">
+        <div class="form-group">
+          <label for="naam_persoon">Naam <span style="color:var(--rood)">*</span></label>
+          <input type="text" id="naam_persoon" name="naam" required placeholder="bijv. Jan de Vries">
+        </div>
+        <button type="submit" class="btn btn-primair">Toevoegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Naam</th>
+          <th>Actief</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in personen %}
+        <tr>
+          <td>{{ o.naam }}</td>
+          <td>
+            {% if o.actief %}
+              <span class="badge badge-actief">Actief</span>
+            {% else %}
+              <span class="badge badge-inactief">Inactief</span>
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap;">
+            <a href="/beheer/personen/edit/{{ o.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+            {% if o.actief %}
+            <form method="post" action="/beheer/personen/deactivate/{{ o.id }}" style="display:inline;">
+              <button type="submit" class="btn btn-gevaar btn-klein"
+                onclick="return confirm('Persoon \'{{ o.naam }}\' deactiveren?')">Deactiveren</button>
+            </form>
+            {% else %}
+            <form method="post" action="/beheer/personen/activate/{{ o.id }}" style="display:inline;">
+              <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="geen-data">Nog geen personen aangemaakt.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}

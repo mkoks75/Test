@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Eenheid bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Eenheid bewerken</h1>
+    <p><a href="/beheer/eenheden">Eenheden</a> &rsaquo; {{ eenheid.naam }}</p>
+  </div>
+</div>
+
+<main>
+  <div class="kaart form-container">
+    <form method="post" action="/beheer/eenheden/edit/{{ eenheid.id }}">
+      <div class="form-group">
+        <label for="naam">Naam <span style="color:var(--rood)">*</span></label>
+        <input type="text" id="naam" name="naam" value="{{ eenheid.naam }}" required>
+      </div>
+      <div class="form-group">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:500;">
+          <input type="checkbox" name="etiket_per_stuk" value="1" style="width:18px; height:18px;"
+            {% if eenheid.etiket_per_stuk %}checked{% endif %}>
+          Etiket per stuk
+        </label>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/beheer/eenheden" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+
+    <hr style="margin:24px 0; border:none; border-top:1px solid #e9ecef;">
+
+    <form method="post" action="/beheer/eenheden/delete/{{ eenheid.id }}"
+          onsubmit="return confirm('Weet je zeker dat je eenheid \'{{ eenheid.naam }}\' wilt verwijderen?')">
+      <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+    </form>
+  </div>
+</main>
+{% endblock %}

@@ -457,6 +457,36 @@ tr:hover td { background: #f0faf5; }
 .veld { display: flex; flex-direction: column; gap: 5px; }
 .veld.volledig { grid-column: 1 / -1; }
 
+/* ── Form group (single-column forms) ── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+.form-group label {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: #212529;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+.form-container {
+  max-width: 600px;
+}
+@media (min-width: 768px) {
+  .form-container {
+    margin: 0 auto;
+  }
+}
+
 label {
   font-size: 0.83rem;
   font-weight: 600;

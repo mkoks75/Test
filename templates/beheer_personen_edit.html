@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Persoon bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Persoon bewerken</h1>
+    <p><a href="/beheer/personen">Personen</a> &rsaquo; {{ persoon.naam }}</p>
+  </div>
+</div>
+
+<main>
+  <div class="kaart form-container">
+    <form method="post" action="/beheer/personen/edit/{{ persoon.id }}">
+      <div class="form-group">
+        <label for="naam">Naam <span style="color:var(--rood)">*</span></label>
+        <input type="text" id="naam" name="naam" value="{{ persoon.naam }}" required>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/beheer/personen" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+
+    <hr style="margin:24px 0; border:none; border-top:1px solid #e9ecef;">
+
+    <form method="post" action="/beheer/personen/delete/{{ persoon.id }}"
+          onsubmit="return confirm('Weet je zeker dat je persoon \'{{ persoon.naam }}\' wilt verwijderen?')">
+      <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+    </form>
+  </div>
+</main>
+{% endblock %}

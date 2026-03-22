@@ -35,13 +35,13 @@
 
   <div class="kaart">
     {% if not products %}
-      <p class="melding melding-fout">Geen actieve producten beschikbaar. <a href="/admin">Voeg eerst een product toe.</a></p>
+      <p class="melding melding-fout">Geen actieve producten beschikbaar. <a href="/beheer/producten">Voeg eerst een product toe.</a></p>
     {% elif not locations %}
-      <p class="melding melding-fout">Geen actieve locaties beschikbaar. <a href="/admin">Voeg eerst een locatie toe.</a></p>
+      <p class="melding melding-fout">Geen actieve locaties beschikbaar. <a href="/beheer/locaties">Voeg eerst een locatie toe.</a></p>
     {% else %}
     <form method="post" action="/uitgifte/new">
-      <div class="form-grid">
-        <div class="veld">
+      <div class="form-container">
+        <div class="form-group">
           <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
           <select id="product_id" name="product_id" required>
             <option value="">-- Kies een product --</option>
@@ -51,7 +51,7 @@
           </select>
         </div>
 
-        <div class="veld">
+        <div class="form-group">
           <label for="location_id">Locatie <span style="color:var(--rood)">*</span></label>
           <select id="location_id" name="location_id" required>
             <option value="">-- Kies een locatie --</option>
@@ -61,7 +61,7 @@
           </select>
         </div>
 
-        <div class="veld">
+        <div class="form-group">
           <label for="quantity">Hoeveelheid <span style="color:var(--rood)">*</span></label>
           <input type="number" id="quantity" name="quantity" step="0.01" min="0.01" required
                  placeholder="bijv. 25.5" value="{{ form.quantity if form.quantity is defined and form.quantity != None else '' }}">
@@ -71,8 +71,8 @@
         <input type="hidden" name="ontvanger_keuze" id="ontvanger_keuze_input"
                value="{{ form.ontvanger_keuze if form.ontvanger_keuze else '' }}">
 
-        <div class="veld volledig">
-          <label style="display:block; margin-bottom:8px; font-weight:600;">
+        <div class="form-group">
+          <label style="display:block; margin-bottom:8px; font-weight:500; color:#212529;">
             Ontvanger <span style="color:var(--rood)">*</span>
           </label>
           <!-- Snelkeuze knoppen -->
@@ -102,21 +102,21 @@
           {% endif %}
         </div>
 
-        <div class="veld">
+        <div class="form-group">
           <label for="date">Datum <span style="color:var(--rood)">*</span></label>
           <input type="date" id="date" name="date" value="{{ form.date if form.date else today }}" required>
         </div>
 
-        <div class="veld volledig">
+        <div class="form-group">
           <label for="note">Notitie (optioneel)</label>
           <textarea id="note" name="note" placeholder="Eventuele opmerkingen...">{{ form.note if form.note else '' }}</textarea>
         </div>
-      </div>
 
-      <div class="form-actie" style="margin-top: 20px; display:flex; gap:12px; align-items:center;">
-        <button type="submit" class="btn btn-primair">Opslaan</button>
-        <a href="/" class="btn btn-secundair">Annuleren</a>
-        <span style="font-size:.82rem; color:#6c757d; margin-left:4px;">Ingevoerd als: <strong>{{ user }}</strong></span>
+        <div style="margin-top: 20px; display:flex; gap:12px; align-items:center;">
+          <button type="submit" class="btn btn-primair">Opslaan</button>
+          <a href="/" class="btn btn-secundair">Annuleren</a>
+          <span style="font-size:.82rem; color:#6c757d; margin-left:4px;">Ingevoerd als: <strong>{{ user }}</strong></span>
+        </div>
       </div>
     </form>
     {% endif %}

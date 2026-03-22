@@ -5,114 +5,26 @@
 <div class="page-header">
   <div class="page-header-inner">
     <h1>Houdbaarheid &amp; Conservering</h1>
-    <p><a href="/admin">Beheer</a> &rsaquo; Houdbaarheid &amp; Conservering</p>
+    <p>Overzicht van alle bewaartermijnen per product + conserveringsmethode</p>
   </div>
 </div>
 
 <main>
-  {% if success == 'toegevoegd' %}
-  <div class="melding melding-succes">Houdbaarheid succesvol toegevoegd.</div>
-  {% elif success == 'bijgewerkt' %}
-  <div class="melding melding-succes">Houdbaarheid succesvol bijgewerkt.</div>
+  {% if success == 'bijgewerkt' %}
+  <div class="melding melding-succes">Bewaartermijn succesvol bijgewerkt.</div>
   {% elif success == 'verwijderd' %}
-  <div class="melding melding-succes">Houdbaarheid succesvol verwijderd.</div>
-  {% elif success == 'methode_toegevoegd' %}
-  <div class="melding melding-succes">Conserveringsmethode succesvol toegevoegd.</div>
-  {% elif success == 'methode_bijgewerkt' %}
-  <div class="melding melding-succes">Conserveringsmethode succesvol bijgewerkt.</div>
-  {% elif success == 'methode_verwijderd' %}
-  <div class="melding melding-succes">Conserveringsmethode succesvol verwijderd.</div>
+  <div class="melding melding-succes">Bewaartermijn succesvol verwijderd.</div>
   {% endif %}
 
-  {% if error == 'dubbel' %}
-  <div class="melding melding-fout">Deze combinatie van product en conserveringsmethode bestaat al.</div>
-  {% elif error == 'ongeldig' %}
+  {% if error == 'ongeldig' %}
   <div class="melding melding-fout">Houdbaarheid moet minimaal 1 maand zijn.</div>
-  {% elif error == 'dubbele_methode' %}
-  <div class="melding melding-fout">Er bestaat al een conserveringsmethode met deze naam.</div>
-  {% elif error == 'lege_naam' %}
-  <div class="melding melding-fout">Naam mag niet leeg zijn.</div>
-  {% elif error == 'methode_in_gebruik' %}
-  <div class="melding melding-fout">Deze conserveringsmethode is in gebruik en kan niet worden verwijderd.</div>
   {% endif %}
 
-  <!-- SECTIE 1: Conserveringsmethoden -->
-  <h2 style="margin: 0 0 12px; font-size:1.1rem; color:var(--groen);">Conserveringsmethoden</h2>
+  <p style="font-size:0.88rem; color:#6c757d; margin-bottom:16px;">
+    Om een nieuwe bewaartermijn toe te voegen, ga naar
+    <a href="/beheer/producten">Producten</a> en open het gewenste product.
+  </p>
 
-  <!-- Toevoegen formulier -->
-  <div class="kaart" style="margin-bottom:16px;">
-    <h3 style="margin-top:0; font-size:0.95rem;">Nieuwe conserveringsmethode toevoegen</h3>
-    <form method="post" action="/beheer/conserveringsmethode/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-      <div class="veld" style="flex:3; min-width:200px;">
-        <label for="methode_naam">Naam <span style="color:var(--rood)">*</span></label>
-        <input type="text" id="methode_naam" name="naam" required placeholder="bijv. Invriezen">
-      </div>
-      <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
-    </form>
-  </div>
-
-  <!-- Overzichtstabel conserveringsmethoden -->
-  <div class="kaart" style="padding:0; overflow:hidden; margin-bottom:36px;">
-    <table>
-      <thead>
-        <tr>
-          <th>Naam</th>
-          <th>Actief</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for m in alle_conserveringsmethoden %}
-        <tr>
-          <td>{{ m.naam }}</td>
-          <td>{{ 'Ja' if m.actief else 'Nee' }}</td>
-          <td>
-            <a href="/beheer/conserveringsmethode/edit/{{ m.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="3" class="geen-data">Nog geen conserveringsmethoden aangemaakt.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- SECTIE 2: Houdbaarheid per product -->
-  <h2 style="margin: 0 0 12px; font-size:1.1rem; color:var(--groen);">Houdbaarheid per product</h2>
-
-  <!-- Toevoegen formulier -->
-  <div class="kaart" style="margin-bottom:16px;">
-    <h3 style="margin-top:0; font-size:0.95rem;">Nieuwe combinatie toevoegen</h3>
-    <form method="post" action="/beheer/houdbaarheid/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-      <div class="veld" style="flex:2; min-width:160px;">
-        <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
-        <select id="product_id" name="product_id" required>
-          <option value="">-- Kies product --</option>
-          {% for p in producten %}
-          <option value="{{ p.id }}">{{ p.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="veld" style="flex:2; min-width:160px;">
-        <label for="conserveringsmethode_id">Conserveringsmethode <span style="color:var(--rood)">*</span></label>
-        <select id="conserveringsmethode_id" name="conserveringsmethode_id" required>
-          <option value="">-- Kies methode --</option>
-          {% for m in conserveringsmethoden %}
-          <option value="{{ m.id }}">{{ m.naam }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="veld" style="flex:1; min-width:120px;">
-        <label for="houdbaarheid_maanden">Houdbaarheid (maanden) <span style="color:var(--rood)">*</span></label>
-        <input type="number" id="houdbaarheid_maanden" name="houdbaarheid_maanden" min="1" step="1" required placeholder="bijv. 5">
-      </div>
-      <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
-    </form>
-  </div>
-
-  <!-- Overzichtstabel houdbaarheid -->
   <div class="kaart" style="padding:0; overflow:hidden;">
     <table>
       <thead>

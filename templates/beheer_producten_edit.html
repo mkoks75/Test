@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Product bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Product bewerken</h1>
+    <p><a href="/beheer/producten">Producten</a> &rsaquo; {{ product.name }}</p>
+  </div>
+</div>
+
+<main>
+  {% if success == 'product_updated' %}
+  <div class="melding melding-succes">Product succesvol bijgewerkt.</div>
+  {% elif success == 'houdbaarheid_toegevoegd' %}
+  <div class="melding melding-succes">Bewaartermijn succesvol toegevoegd.</div>
+  {% elif success == 'houdbaarheid_bijgewerkt' %}
+  <div class="melding melding-succes">Bewaartermijn succesvol bijgewerkt.</div>
+  {% endif %}
+
+  {% if error == 'houdbaarheid_dubbel' %}
+  <div class="melding melding-fout">Er bestaat al een bewaartermijn voor deze conserveringsmethode.</div>
+  {% elif error == 'houdbaarheid_ongeldig' %}
+  <div class="melding melding-fout">Houdbaarheid moet minimaal 1 maand zijn.</div>
+  {% endif %}
+
+  <div class="kaart form-container" style="margin-bottom:24px;">
+    <form method="post" action="/beheer/producten/edit/{{ product.id }}">
+      <div class="form-group">
+        <label for="name">Productnaam <span style="color:var(--rood)">*</span></label>
+        <input type="text" id="name" name="name" value="{{ product.name }}" required>
+      </div>
+      <div class="form-group">
+        <label for="eenheid_id">Eenheid <span style="color:var(--rood)">*</span></label>
+        <select id="eenheid_id" name="eenheid_id" required>
+          <option value="">-- Kies eenheid --</option>
+          {% for e in eenheden %}
+          <option value="{{ e.id }}" {% if e.id == product.eenheid_id %}selected{% endif %}>{{ e.naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/beheer/producten" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="kaart" style="margin-bottom:24px;">
+    <h2 style="margin-top:0; font-size:1rem; color:var(--groen);">Bewaartermijnen voor dit product</h2>
+
+    <table style="margin-bottom:20px;">
+      <thead>
+        <tr>
+          <th>Conserveringsmethode</th>
+          <th>Maanden</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in houdbaarheid_records %}
+        <tr>
+          <td>{{ r.conserveringsmethode.naam if r.conserveringsmethode else '—' }}</td>
+          <td>{{ r.houdbaarheid_maanden }}</td>
+          <td>
+            <a href="/beheer/houdbaarheid/edit/{{ r.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="geen-data">Nog geen bewaartermijnen voor dit product.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if beschikbare_methoden %}
+    <h3 style="font-size:0.9rem; margin-bottom:12px;">Bewaartermijn toevoegen</h3>
+    <form method="post" action="/beheer/producten/houdbaarheid/add">
+      <input type="hidden" name="product_id" value="{{ product.id }}">
+      <div class="form-container">
+        <div class="form-group">
+          <label for="conserveringsmethode_id">Conserveringsmethode <span style="color:var(--rood)">*</span></label>
+          <select id="conserveringsmethode_id" name="conserveringsmethode_id" required>
+            <option value="">-- Kies methode --</option>
+            {% for m in beschikbare_methoden %}
+            <option value="{{ m.id }}">{{ m.naam }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="houdbaarheid_maanden">Houdbaarheid in maanden <span style="color:var(--rood)">*</span></label>
+          <input type="number" id="houdbaarheid_maanden" name="houdbaarheid_maanden" min="1" step="1" required placeholder="bijv. 6">
+        </div>
+        <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
+      </div>
+    </form>
+    {% else %}
+    <p style="color:#6c757d; font-size:0.88rem;">Alle conserveringsmethoden hebben al een bewaartermijn voor dit product.</p>
+    {% endif %}
+  </div>
+
+  <div class="kaart form-container">
+    <hr style="margin:0 0 20px; border:none; border-top:1px solid #e9ecef;">
+    <form method="post" action="/beheer/producten/delete/{{ product.id }}"
+          onsubmit="return confirm('Weet je zeker dat je product \'{{ product.name }}\' wilt verwijderen?')">
+      <button type="submit" class="btn btn-gevaar">Product verwijderen</button>
+    </form>
+  </div>
+</main>
+{% endblock %}
