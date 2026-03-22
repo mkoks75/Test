@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Zoekresultaten - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="zoekbalk-wrap zoekbalk-pagina">
+    <div class="zoekbalk-inner">
+      <input type="text" id="zoek-input" class="zoekbalk-input"
+             value="{{ q | e }}"
+             placeholder="Zoek een product in de voorraad..."
+             autocomplete="off">
+      <button type="button" class="zoekbalk-btn" onclick="voerZoekUit()">Zoeken</button>
+    </div>
+  </div>
+
+  {% if q and q|length >= 2 %}
+    {% if entries %}
+      <p class="zoek-telling"><strong>{{ entries|length }} stuks {{ q | e }}</strong> gevonden in voorraad</p>
+      <div class="kaart" style="padding: 0; overflow: hidden;">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Product</th>
+              <th>Locatie</th>
+              <th>Hoeveelheid</th>
+              <th>Houdbaar tot</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+            <tr>
+              <td style="color:#6c757d; font-size:.85rem;">{{ entry.volgnummer if entry.volgnummer else '—' }}</td>
+              <td>{{ entry.product.name }}</td>
+              <td>{{ entry.location.name }}</td>
+              <td>{{ "%.2f"|format(entry.quantity) }}&nbsp;{{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit or '' }}</td>
+              <td>
+                {% if entry.houdbaar_tot %}
+                  <span {% if entry.houdbaar_tot <= today %}style="color:var(--rood);font-weight:600;"{% elif entry.houdbaar_tot <= cutoff %}style="color:var(--rood);font-weight:600;"{% endif %}>
+                    {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
+                  </span>
+                {% else %}
+                  <span style="color:#adb5bd;">—</span>
+                {% endif %}
+              </td>
+              <td><span class="badge-beschikbaar">Beschikbaar</span></td>
+              <td><a href="/scan/{{ entry.id }}" class="btn-uitgeven-klein">Uitgeven</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="kaart">
+        <p class="geen-data">Geen voorraad gevonden voor &ldquo;{{ q | e }}&rdquo;</p>
+      </div>
+    {% endif %}
+  {% elif q %}
+    <div class="kaart">
+      <p class="geen-data">Voer minimaal 2 tekens in om te zoeken.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function voerZoekUit() {
+  var q = document.getElementById('zoek-input').value.trim();
+  if (q.length >= 2) {
+    window.location.href = '/zoek?q=' + encodeURIComponent(q);
+  }
+}
+document.getElementById('zoek-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { voerZoekUit(); }
+});
+</script>
+{% endblock %}

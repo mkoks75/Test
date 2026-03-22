@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 
 import bcrypt
 from fastapi import FastAPI, Request, Depends, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -261,6 +261,17 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     total_producten = sum(1 for items in inventory.values() for item in items if item["total"] > 0)
     total_locaties = len([loc for loc, items in inventory.items() if any(item["total"] > 0 for item in items)])
 
+    producten_in_voorraad = db.query(func.count(models.HarvestEntry.id)).filter(
+        models.HarvestEntry.uitgegeven == False
+    ).scalar() or 0
+
+    bijna_verlopen_cutoff = today + datetime.timedelta(days=30)
+    kort_houdbaar_count = db.query(func.count(models.HarvestEntry.id)).filter(
+        models.HarvestEntry.uitgegeven == False,
+        models.HarvestEntry.houdbaar_tot != None,
+        models.HarvestEntry.houdbaar_tot <= bijna_verlopen_cutoff,
+    ).scalar() or 0
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -269,13 +280,74 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "inventory": inventory,
             "location_entries": location_entries,
             "today_date": today,
-            "bijna_verlopen_date": today + datetime.timedelta(days=30),
+            "bijna_verlopen_date": bijna_verlopen_cutoff,
             "stats": {
                 "total_producten": total_producten,
                 "total_locaties": total_locaties,
                 "registraties_week": registraties_week,
                 "uitgiftes_week": uitgiftes_week,
+                "producten_in_voorraad": producten_in_voorraad,
+                "kort_houdbaar_count": kort_houdbaar_count,
             },
+        },
+    )
+
+
+# ── Zoeken ─────────────────────────────────────────────────────────────────────
+
+@app.get("/zoek")
+async def zoek(request: Request, db: Session = Depends(get_db), q: str = "", format: str = "html"):
+    user = get_current_user(request)
+    if not user:
+        if format == "json":
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        return RedirectResponse("/login", status_code=302)
+
+    today = datetime.date.today()
+    cutoff = today + datetime.timedelta(days=30)
+
+    entries = []
+    if q and len(q) >= 2:
+        from sqlalchemy import func as sqlfunc
+        entries = (
+            db.query(models.HarvestEntry)
+            .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+            .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+            .filter(models.HarvestEntry.uitgegeven == False)
+            .filter(sqlfunc.lower(models.Product.name).contains(q.lower()))
+            .order_by(
+                (models.HarvestEntry.houdbaar_tot == None).asc(),
+                models.HarvestEntry.houdbaar_tot.asc(),
+            )
+            .all()
+        )
+
+    if format == "json":
+        results = []
+        for e in entries:
+            eenheid = e.product.eenheid.naam if e.product.eenheid else (e.product.unit or "")
+            results.append({
+                "id": e.id,
+                "volgnummer": e.volgnummer,
+                "product": e.product.name,
+                "locatie": e.location.name,
+                "quantity": e.quantity,
+                "eenheid": eenheid,
+                "houdbaar_tot": e.houdbaar_tot.isoformat() if e.houdbaar_tot else None,
+                "houdbaar_tot_display": e.houdbaar_tot.strftime("%d-%m-%Y") if e.houdbaar_tot else None,
+                "kort_houdbaar": bool(e.houdbaar_tot and e.houdbaar_tot <= cutoff),
+            })
+        return JSONResponse({"results": results, "q": q, "count": len(results)})
+
+    return templates.TemplateResponse(
+        "zoek.html",
+        {
+            "request": request,
+            "user": user,
+            "entries": entries,
+            "q": q,
+            "today": today,
+            "cutoff": cutoff,
         },
     )
 

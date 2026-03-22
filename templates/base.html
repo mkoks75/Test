@@ -23,10 +23,11 @@
     <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>Bijna verlopen</a>
     <a href="/beheer/geschiedenis?tab=uitgiftes" {% if request.url.path == '/beheer/geschiedenis' and request.query_params.get('tab') == 'uitgiftes' %}class="actief"{% endif %}>Uitgifte overzicht</a>
     <div class="nav-dropdown {% if request.url.path.startswith('/admin') or request.url.path.startswith('/beheer') or request.url.path == '/account' %}actief{% endif %}">
-      <span class="nav-dropdown-toggle">Beheer &#9660;</span>
-      <div class="nav-dropdown-menu">
+      <span class="nav-dropdown-toggle" id="beheer-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="beheer-submenu">Beheer &#9660;</span>
+      <div class="nav-dropdown-menu" id="beheer-submenu">
         <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Producten &amp; Locaties</a>
         <a href="/admin#ontvangers">Ontvangers</a>
+        <a href="/admin#eenheden">Eenheden</a>
         <a href="/beheer/geschiedenis" {% if request.url.path == '/beheer/geschiedenis' and request.query_params.get('tab') != 'uitgiftes' %}class="actief"{% elif request.url.path.startswith('/beheer/uitgifte') %}class="actief"{% endif %}>Voorraad &amp; Uitgiftes</a>
         <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
       </div>
@@ -46,6 +47,39 @@
   <p>MountainSense Farm &copy; 2025</p>
 </footer>
 {% endif %}
+
+{% block extra_scripts %}{% endblock %}
+
+<script>
+(function() {
+  // Mobiel: Beheer submenu uitklappen/inklappen
+  var toggle = document.getElementById('beheer-toggle');
+  var submenu = document.getElementById('beheer-submenu');
+  if (toggle && submenu) {
+    toggle.addEventListener('click', function(e) {
+      var open = submenu.classList.toggle('mobiel-open');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      e.stopPropagation();
+    });
+    toggle.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle.click();
+      }
+    });
+  }
+
+  // Sluit hamburger menu na aantikken van een link
+  var navToggle = document.getElementById('nav-toggle');
+  if (navToggle) {
+    document.querySelectorAll('.nav-links a').forEach(function(link) {
+      link.addEventListener('click', function() {
+        navToggle.checked = false;
+      });
+    });
+  }
+})();
+</script>
 
 </body>
 </html>

@@ -21,28 +21,35 @@
 
 <div class="dashboard-wrap">
 
-  <!-- Stats kaartjes -->
-  <div class="stats-rij">
-    <div class="stat-kaart">
-      <span class="stat-icon">&#128200;</span>
-      <div class="getal">{{ stats.total_producten }}</div>
-      <div class="label">Producten in voorraad</div>
+  <!-- Zoekbalk -->
+  <div class="zoekbalk-wrap">
+    <div class="zoekbalk-inner">
+      <input type="text" id="zoek-input" class="zoekbalk-input"
+             placeholder="Zoek een product in de voorraad..."
+             autocomplete="off" minlength="2">
+      <button type="button" class="zoekbalk-btn" onclick="voerZoekUit()">Zoeken</button>
     </div>
-    <div class="stat-kaart">
-      <span class="stat-icon">&#127968;</span>
-      <div class="getal">{{ stats.total_locaties }}</div>
-      <div class="label">Actieve locaties</div>
-    </div>
-    <div class="stat-kaart">
-      <span class="stat-icon">&#128203;</span>
-      <div class="getal">{{ stats.registraties_week }}</div>
-      <div class="label">Registraties deze week</div>
-    </div>
-    <div class="stat-kaart">
-      <span class="stat-icon">&#128666;</span>
-      <div class="getal">{{ stats.uitgiftes_week }}</div>
-      <div class="label">Uitgiftes deze week</div>
-    </div>
+    <div id="zoek-resultaten" class="zoek-resultaten-inline" style="display:none;"></div>
+  </div>
+
+  <!-- Actie tegels -->
+  <div class="tegels-rij">
+    <a href="/harvest/new" class="actie-tegel tegel-groen-donker">
+      <span class="tegel-icon">&#128230;</span>
+      <div class="tegel-label">Product toevoegen</div>
+    </a>
+    <a href="/uitgifte/new" class="actie-tegel tegel-blauw">
+      <span class="tegel-icon">&#127859;</span>
+      <div class="tegel-label">Product uitgeven</div>
+    </a>
+    <a href="/beheer/geschiedenis" class="actie-tegel tegel-groen">
+      <div class="tegel-getal">{{ stats.producten_in_voorraad }}</div>
+      <div class="tegel-label">Producten in voorraad</div>
+    </a>
+    <a href="/verlopen" class="actie-tegel {% if stats.kort_houdbaar_count > 0 %}tegel-oranje{% else %}tegel-grijs{% endif %}">
+      <div class="tegel-getal">{{ stats.kort_houdbaar_count }}</div>
+      <div class="tegel-label">Producten kort houdbaar</div>
+    </a>
   </div>
 
   <!-- Twee-kolom layout: hoofdinhoud + sidebar -->
@@ -141,4 +148,87 @@
   </div><!-- /.dashboard-layout -->
 </div><!-- /.dashboard-wrap -->
 
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  var input = document.getElementById('zoek-input');
+  var resultDiv = document.getElementById('zoek-resultaten');
+  var zoekTimer = null;
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderResultaten(data) {
+    if (!data.q || data.q.length < 2) {
+      resultDiv.style.display = 'none';
+      return;
+    }
+    var html = '';
+    if (data.count === 0) {
+      html = '<p class="zoek-geen">Geen voorraad gevonden voor &ldquo;' + escHtml(data.q) + '&rdquo;</p>';
+    } else {
+      html += '<p class="zoek-telling"><strong>' + data.count + ' stuks ' + escHtml(data.q) + '</strong> gevonden in voorraad</p>';
+      html += '<div class="zoek-tabel-wrap"><table class="zoek-tabel"><thead><tr>';
+      html += '<th>#</th><th>Product</th><th>Locatie</th><th>Hoeveelheid</th><th>Houdbaar tot</th><th>Status</th><th></th>';
+      html += '</tr></thead><tbody>';
+      data.results.forEach(function(r) {
+        var houdAttr = r.kort_houdbaar ? ' style="color:var(--rood);font-weight:600;"' : (!r.houdbaar_tot ? ' style="color:#adb5bd;"' : '');
+        var houdTekst = r.houdbaar_tot_display ? r.houdbaar_tot_display : '&mdash;';
+        html += '<tr>';
+        html += '<td style="color:#6c757d;font-size:.85rem;">' + (r.volgnummer || '&mdash;') + '</td>';
+        html += '<td>' + escHtml(r.product) + '</td>';
+        html += '<td>' + escHtml(r.locatie) + '</td>';
+        html += '<td>' + r.quantity + '\u00a0' + escHtml(r.eenheid) + '</td>';
+        html += '<td' + houdAttr + '>' + houdTekst + '</td>';
+        html += '<td><span class="badge-beschikbaar">Beschikbaar</span></td>';
+        html += '<td><a href="/scan/' + r.id + '" class="btn-uitgeven-klein">Uitgeven</a></td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      html += '<div class="zoek-meer"><a href="/zoek?q=' + encodeURIComponent(data.q) + '">Bekijk als volledige pagina &rarr;</a></div>';
+    }
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = 'block';
+  }
+
+  function zoekLive(q) {
+    if (!q || q.length < 2) {
+      resultDiv.style.display = 'none';
+      return;
+    }
+    fetch('/zoek?q=' + encodeURIComponent(q) + '&format=json')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderResultaten(data); })
+      .catch(function() {});
+  }
+
+  if (input) {
+    input.addEventListener('input', function() {
+      clearTimeout(zoekTimer);
+      var q = input.value.trim();
+      zoekTimer = setTimeout(function() { zoekLive(q); }, 300);
+    });
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { voerZoekUit(); }
+    });
+  }
+
+  document.addEventListener('click', function(e) {
+    if (resultDiv && !e.target.closest('.zoekbalk-wrap')) {
+      resultDiv.style.display = 'none';
+    }
+  });
+})();
+
+function voerZoekUit() {
+  var q = document.getElementById('zoek-input').value.trim();
+  if (q.length >= 2) {
+    window.location.href = '/zoek?q=' + encodeURIComponent(q);
+  }
+}
+</script>
 {% endblock %}
