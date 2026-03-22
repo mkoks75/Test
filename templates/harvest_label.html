@@ -1,51 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Oogst opgeslagen - MountainSense Farm{% endblock %}
+{% block title %}Etiket herdruk - MountainSense Farm{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header-inner">
-    <h1>Oogst opgeslagen</h1>
-    <p>De voorraadregistratie is succesvol bewaard</p>
+    <h1>Etiket herdrukken</h1>
+    <p>ID: {{ entry.id }} &mdash; {{ entry.product.name }}</p>
   </div>
 </div>
 
 <main>
-  <div class="kaart" style="max-width:640px;">
-    <h2 style="margin-top:0;">Samenvatting</h2>
-    <table>
-      <tbody>
-        <tr><th style="text-align:left; width:160px;">Product</th><td>{{ entry.product.name }}</td></tr>
-        <tr><th style="text-align:left;">Entry ID</th><td>{{ entry.id }}</td></tr>
-        <tr><th style="text-align:left;">Locatie</th><td>{{ entry.location.name }}</td></tr>
-        <tr><th style="text-align:left;">Hoeveelheid</th><td>{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</td></tr>
-        <tr><th style="text-align:left;">Datum oogst</th><td>{{ entry.date }}</td></tr>
-        <tr><th style="text-align:left;">Houdbaar tot</th>
-          <td {% if entry.houdbaar_tot and (entry.houdbaar_tot - today).days <= 30 %}style="color:var(--rood); font-weight:600;"{% endif %}>
-            {% if entry.houdbaar_tot %}{{ entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
-          </td>
-        </tr>
-        {% if entry.note %}
-        <tr><th style="text-align:left;">Notitie</th><td>{{ entry.note }}</td></tr>
-        {% endif %}
-        <tr><th style="text-align:left;">Ingevoerd door</th><td>{{ entry.entered_by }}</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="kaart" style="max-width:640px; margin-top:16px;" id="etiket-kaart">
-    <h2 style="margin-top:0;">Etiket</h2>
+  <div class="kaart" style="max-width:640px;" id="etiket-kaart">
 
     <p class="brother-instructie">
       Zorg dat de <strong>Brother QL-820NWBc</strong> is ingesteld als standaardprinter met <strong>DK-22251</strong> labels (60 &times; 30 mm).
     </p>
 
-    <!-- Label preview (scherm, vergroot voor leesbaarheid) -->
+    <!-- Label preview (scherm) -->
     <div class="preview-wrapper">
       <div class="preview-label">
         <div class="plabel-links">
           <p class="plabel-naam">{{ entry.product.name }}</p>
-          <p class="plabel-hoeveelheid">{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</p>
           <p class="plabel-id">ID: {{ entry.id }}</p>
+          <p class="plabel-locatie">{{ entry.location.name }}</p>
+          <p class="plabel-hoeveelheid">{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</p>
+          {% if entry.conserveringsmethode %}
+          <p class="plabel-methode">{{ entry.conserveringsmethode.naam }}</p>
+          {% endif %}
           {% if entry.houdbaar_tot %}
           <p class="plabel-datum datum-rood">THT: {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</p>
           {% endif %}
@@ -57,9 +38,9 @@
     </div>
 
     <div class="etiket-knoppen" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-      <button onclick="window.print()" class="btn btn-primair">Print etiket</button>
-      <button onclick="downloadPDF()" class="btn btn-secundair">Download PDF</button>
-      <a href="/" class="btn btn-secundair">Terug naar dashboard</a>
+      <button onclick="window.print()" class="btn btn-primair">&#128438; Print label</button>
+      <button onclick="downloadPDF()" class="btn btn-secundair">&#128196; Download PDF</button>
+      <a href="/beheer/geschiedenis" class="btn btn-secundair">&larr; Terug naar overzichten</a>
     </div>
   </div>
 
@@ -68,8 +49,12 @@
     <div class="print-label">
       <div class="print-links">
         <p class="print-naam">{{ entry.product.name }}</p>
-        <p class="print-hoeveelheid">{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</p>
         <p class="print-id">ID: {{ entry.id }}</p>
+        <p class="print-locatie">{{ entry.location.name }}</p>
+        <p class="print-hoeveelheid">{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</p>
+        {% if entry.conserveringsmethode %}
+        <p class="print-methode">{{ entry.conserveringsmethode.naam }}</p>
+        {% endif %}
         {% if entry.houdbaar_tot %}
         <p class="print-datum" data-color="red">THT: {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</p>
         {% endif %}
@@ -101,8 +86,10 @@
     var doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [60, 30] });
 
     var naam = {{ entry.product.name | tojson }};
-    var hoeveelheid = {{ ("%.2f"|format(entry.quantity) ~ " " ~ (entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit)) | tojson }};
     var entryId = 'ID: {{ entry.id }}';
+    var locatie = {{ entry.location.name | tojson }};
+    var hoeveelheid = {{ ("%.2f"|format(entry.quantity) ~ " " ~ (entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit)) | tojson }};
+    var methode = {{ (entry.conserveringsmethode.naam if entry.conserveringsmethode else '') | tojson }};
     var houdbaarTot = {{ (entry.houdbaar_tot.strftime('%d-%m-%Y') if entry.houdbaar_tot else '') | tojson }};
 
     var y = 5;
@@ -115,15 +102,25 @@
     y += regels.length * 4;
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(0, 0, 0);
-    doc.text(hoeveelheid, 2, y);
-    y += 3.2;
-
     doc.setFontSize(6);
     doc.setTextColor(120, 120, 120);
     doc.text(entryId, 2, y);
     y += 2.8;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(7);
+    doc.text(locatie, 2, y);
+    y += 3.2;
+
+    doc.text(hoeveelheid, 2, y);
+    y += 3.2;
+
+    if (methode) {
+      doc.setFontSize(6);
+      doc.setTextColor(80, 80, 80);
+      doc.text(methode, 2, y);
+      y += 2.8;
+    }
 
     if (houdbaarTot) {
       doc.setFont('helvetica', 'bold');
@@ -136,7 +133,7 @@
     doc.addImage(canvas.toDataURL('image/png'), 'PNG', 37, 2, 21, 21);
 
     var datum = new Date().toISOString().slice(0, 10);
-    doc.save('etiket-' + naam.replace(/[^a-zA-Z0-9]/g, '-') + '-' + datum + '.pdf');
+    doc.save('etiket-' + naam.replace(/[^a-zA-Z0-9]/g, '-') + '-{{ entry.id }}-' + datum + '.pdf');
   }
 </script>
 
@@ -149,8 +146,7 @@
 
   @media print {
     .topnav, footer, .page-header, .etiket-knoppen, .brother-instructie,
-    .preview-wrapper, .kaart:not(#etiket-kaart), #etiket-kaart > h2,
-    #etiket-kaart > p { display: none !important; }
+    .preview-wrapper, #etiket-kaart > h2, #etiket-kaart > p { display: none !important; }
     body, html { margin: 0 !important; padding: 0 !important; background: white !important; }
     main { padding: 0 !important; margin: 0 !important; }
     #etiket-kaart { border: none !important; box-shadow: none !important;
@@ -177,8 +173,10 @@
       line-height: 1.2; overflow: hidden;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     }
-    .print-hoeveelheid { font-size: 7pt; color: #000; margin: 0 0 0.5mm 0; line-height: 1.15; }
     .print-id { font-size: 6pt; color: #888; margin: 0 0 0.4mm 0; line-height: 1.15; }
+    .print-locatie { font-size: 7pt; color: #000; margin: 0 0 0.4mm 0; line-height: 1.15; }
+    .print-hoeveelheid { font-size: 7pt; color: #000; margin: 0 0 0.5mm 0; line-height: 1.15; }
+    .print-methode { font-size: 6pt; color: #555; margin: 0 0 0.4mm 0; line-height: 1.15; }
     .print-datum { font-size: 8pt; font-weight: bold; color: #CC0000 !important; margin: 0; line-height: 1.2; }
   }
 
@@ -205,9 +203,11 @@
     align-items: center; justify-content: center;
     background: #fafafa; border-left: 1px solid #eee;
   }
-  .plabel-naam { font-size: 1.5rem; font-weight: 700; margin: 0 0 8px 0; line-height: 1.2; }
-  .plabel-hoeveelheid { font-size: 1rem; margin: 0 0 5px 0; color: #333; }
+  .plabel-naam { font-size: 1.5rem; font-weight: 700; margin: 0 0 6px 0; line-height: 1.2; }
   .plabel-id { font-size: 0.82rem; color: #888; margin: 0 0 3px 0; }
+  .plabel-locatie { font-size: 0.9rem; color: #333; margin: 0 0 4px 0; }
+  .plabel-hoeveelheid { font-size: 1rem; margin: 0 0 4px 0; color: #333; }
+  .plabel-methode { font-size: 0.82rem; color: #555; margin: 0 0 4px 0; }
   .plabel-datum { font-size: 1rem; margin: 0; }
   .datum-rood { color: #CC0000 !important; font-weight: 700; }
 </style>

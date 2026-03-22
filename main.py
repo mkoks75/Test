@@ -740,6 +740,33 @@ async def harvest_confirm_batch(request: Request, ids: str = "", db: Session = D
     )
 
 
+# ── Label herdruk ──────────────────────────────────────────────────────────────
+
+@app.get("/harvest/label/{entry_id}")
+async def harvest_label(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(f"/login?next=/harvest/label/{entry_id}", status_code=302)
+
+    entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
+    if not entry:
+        return RedirectResponse("/beheer/geschiedenis", status_code=302)
+
+    today = datetime.date.today()
+    qr_url = f"https://mountainsense.nl/scan/{entry.id}"
+
+    return templates.TemplateResponse(
+        "harvest_label.html",
+        {
+            "request": request,
+            "user": user,
+            "entry": entry,
+            "today": today,
+            "qr_url": qr_url,
+        },
+    )
+
+
 # ── Oogst bewerken ─────────────────────────────────────────────────────────────
 
 @app.get("/harvest/edit/{entry_id}")
@@ -2475,6 +2502,12 @@ async def beheer_geschiedenis(
             {"product": r.product_name, "unit": r.unit, "total": r.total}
         )
 
+    _ontvanger_prio = {"hinke": 0, "maarten": 1}
+    totaal_per_ontvanger = dict(
+        sorted(totaal_per_ontvanger.items(),
+               key=lambda x: (_ontvanger_prio.get(x[0].lower(), 2), x[0].lower()))
+    )
+
     alle_ontvangers = [
         r[0]
         for r in db.query(models.Uitgifte.ontvanger).distinct().order_by(models.Uitgifte.ontvanger).all()
@@ -2537,13 +2570,13 @@ async def beheer_geschiedenis_export_registraties(
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
     writer.writerow([
-        "Datum", "Volgnummer", "Product", "Locatie", "Hoeveelheid", "Eenheid",
+        "Datum", "Entry ID", "Product", "Locatie", "Hoeveelheid", "Eenheid",
         "Houdbaar tot", "Ingevoerd door", "Gewijzigd door", "Notitie",
     ])
     for e in entries:
         writer.writerow([
             e.date,
-            e.volgnummer or "",
+            e.id,
             e.product.name,
             e.location.name,
             e.quantity,

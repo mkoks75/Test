@@ -20,7 +20,7 @@
         <table>
           <thead>
             <tr>
-              <th>#</th>
+              <th>ID</th>
               <th>Product</th>
               <th>Locatie</th>
               <th>Hoeveelheid</th>
@@ -32,7 +32,7 @@
           <tbody>
             {% for entry in entries %}
             <tr>
-              <td style="color:#6c757d; font-size:.85rem;">{{ entry.volgnummer if entry.volgnummer else '—' }}</td>
+              <td style="color:#6c757d; font-size:.85rem;">{{ entry.id }}</td>
               <td>{{ entry.product.name }}</td>
               <td>{{ entry.location.name }}</td>
               <td>{{ "%.2f"|format(entry.quantity) }}&nbsp;{{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit or '' }}</td>

@@ -49,7 +49,6 @@
             <p class="plabel-naam">{{ item.entry.product.name }}</p>
             <p class="plabel-hoeveelheid">{{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
             <p class="plabel-id">ID: {{ item.entry.id }}</p>
-            <p class="plabel-volgnr">#{{ "%04d"|format(item.entry.volgnummer) }}</p>
             {% if item.entry.houdbaar_tot %}
             <p class="plabel-datum datum-rood">THT: {{ item.entry.houdbaar_tot.strftime('%d-%m-%Y') }}</p>
             {% endif %}
@@ -75,7 +74,6 @@
         <p class="print-naam">{{ item.entry.product.name }}</p>
         <p class="print-hoeveelheid">{{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
         <p class="print-id">ID: {{ item.entry.id }}</p>
-        <p class="print-volgnr">#{{ "%04d"|format(item.entry.volgnummer) }}</p>
         {% if item.entry.houdbaar_tot %}
         <p class="print-datum" data-color="red">THT: {{ item.entry.houdbaar_tot.strftime('%d-%m-%Y') }}</p>
         {% endif %}
@@ -112,7 +110,6 @@
         naam: {{ item.entry.product.name | tojson }},
         hoeveelheid: {{ ("%.2f"|format(item.entry.quantity) ~ " " ~ (item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit)) | tojson }},
         entryId: 'ID: {{ item.entry.id }}',
-        volgnr: '#' + String({{ item.entry.volgnummer }}).padStart(4, '0'),
         houdbaarTot: {{ (item.entry.houdbaar_tot.strftime('%d-%m-%Y') if item.entry.houdbaar_tot else '') | tojson }},
         qrId: 'qr-print-{{ item.entry.id }}'
       }{% if not loop.last %},{% endif %}
@@ -149,9 +146,6 @@
       doc.setFontSize(6);
       doc.setTextColor(120, 120, 120);
       doc.text(e.entryId, 2, y);
-      y += 2.8;
-
-      doc.text(e.volgnr, 2, y);
       y += 2.8;
 
       if (e.houdbaarTot) {
@@ -213,7 +207,6 @@
     }
     .print-hoeveelheid { font-size: 7pt; color: #000; margin: 0 0 0.5mm 0; line-height: 1.15; }
     .print-id { font-size: 6pt; color: #888; margin: 0 0 0.4mm 0; line-height: 1.15; }
-    .print-volgnr { font-size: 6pt; color: #888; margin: 0 0 0.4mm 0; line-height: 1.15; }
     .print-datum { font-size: 8pt; font-weight: bold; color: #CC0000 !important; margin: 0; line-height: 1.2; }
   }
 
@@ -243,7 +236,6 @@
   .plabel-naam { font-size: 1.5rem; font-weight: 700; margin: 0 0 8px 0; line-height: 1.2; }
   .plabel-hoeveelheid { font-size: 1rem; margin: 0 0 5px 0; color: #333; }
   .plabel-id { font-size: 0.82rem; color: #888; margin: 0 0 3px 0; }
-  .plabel-volgnr { font-size: 0.82rem; color: #888; margin: 0 0 5px 0; }
   .plabel-datum { font-size: 1rem; margin: 0; }
   .datum-rood { color: #CC0000 !important; font-weight: 700; }
 </style>

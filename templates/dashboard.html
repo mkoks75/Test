@@ -203,13 +203,13 @@
     } else {
       html += '<p class="zoek-telling"><strong>' + data.count + ' stuks ' + escHtml(data.q) + '</strong> gevonden in voorraad</p>';
       html += '<div class="zoek-tabel-wrap"><table class="zoek-tabel"><thead><tr>';
-      html += '<th>#</th><th>Product</th><th>Locatie</th><th>Hoeveelheid</th><th>Houdbaar tot</th><th>Status</th><th></th>';
+      html += '<th>ID</th><th>Product</th><th>Locatie</th><th>Hoeveelheid</th><th>Houdbaar tot</th><th>Status</th><th></th>';
       html += '</tr></thead><tbody>';
       data.results.forEach(function(r) {
         var houdAttr = r.kort_houdbaar ? ' style="color:var(--rood);font-weight:600;"' : (!r.houdbaar_tot ? ' style="color:#adb5bd;"' : '');
         var houdTekst = r.houdbaar_tot_display ? r.houdbaar_tot_display : '&mdash;';
         html += '<tr>';
-        html += '<td style="color:#6c757d;font-size:.85rem;">' + (r.volgnummer || '&mdash;') + '</td>';
+        html += '<td style="color:#6c757d;font-size:.85rem;">' + r.id + '</td>';
         html += '<td>' + escHtml(r.product) + '</td>';
         html += '<td>' + escHtml(r.locatie) + '</td>';
         html += '<td>' + r.quantity + '\u00a0' + escHtml(r.eenheid) + '</td>';

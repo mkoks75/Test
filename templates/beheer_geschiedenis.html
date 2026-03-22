@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Voorraad & Uitgiftes - MountainSense Farm{% endblock %}
+{% block title %}Overzichten - MountainSense Farm{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header-inner">
-    <h1>Voorraad &amp; Uitgiftes</h1>
+    <h1>Overzichten</h1>
     <p>Bekijk, bewerk en exporteer registraties en uitgiftes</p>
   </div>
 </div>
@@ -79,7 +79,7 @@
       <thead>
         <tr>
           <th>Datum</th>
-          <th>Nr.</th>
+          <th>ID</th>
           <th>Product</th>
           <th>Locatie</th>
           <th style="text-align:right;">Hoeveelheid</th>
@@ -96,7 +96,7 @@
         {% for e in registraties %}
         <tr {% if e.uitgegeven %}style="opacity:0.55;"{% endif %}>
           <td>{{ e.date }}</td>
-          <td style="color:#6c757d;">{{ e.volgnummer or "" }}</td>
+          <td style="color:#6c757d;">{{ e.id }}</td>
           <td {% if e.uitgegeven %}style="text-decoration:line-through; color:#6c757d;"{% endif %}>{{ e.product.name }}</td>
           <td>{{ e.location.name }}</td>
           <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(e.quantity) }}</td>
@@ -118,11 +118,14 @@
           <td>{{ e.entered_by }}</td>
           <td style="color:#6c757d; font-size:.85rem;">{{ e.gewijzigd_door or "" }}</td>
           <td style="color:#6c757d; font-size:.85rem;">{{ e.note or "" }}</td>
-          <td><a href="/harvest/edit/{{ e.id }}" class="btn btn-secundair btn-klein">Bewerken</a></td>
+          <td style="white-space:nowrap;">
+            <a href="/harvest/label/{{ e.id }}" class="btn btn-secundair btn-klein" style="margin-right:4px;">&#128438; Label</a>
+            <a href="/harvest/edit/{{ e.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+          </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="12" class="geen-data">Geen registraties gevonden voor de geselecteerde filters.</td>
+          <td colspan="11" class="geen-data">Geen registraties gevonden voor de geselecteerde filters.</td>
         </tr>
         {% endfor %}
       </tbody>

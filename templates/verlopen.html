@@ -15,7 +15,7 @@
     <table>
       <thead>
         <tr>
-          <th>#</th>
+          <th>ID</th>
           <th>Product</th>
           <th>Locatie</th>
           <th style="text-align:right;">Hoeveelheid</th>
@@ -27,7 +27,7 @@
       <tbody>
         {% for entry in entries %}
         <tr {% if entry.houdbaar_tot <= today %}style="background:#fde8e8;"{% endif %}>
-          <td style="color:#6c757d; font-size:.85rem;">{{ entry.volgnummer if entry.volgnummer else '—' }}</td>
+          <td style="color:#6c757d; font-size:.85rem;">{{ entry.id }}</td>
           <td>{{ entry.product.name }}</td>
           <td>{{ entry.location.name }}</td>
           <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(entry.quantity) }}</td>

@@ -21,7 +21,7 @@
     <a href="/harvest/new" {% if request.url.path == '/harvest/new' %}class="actief"{% endif %}>Voorraad registreren</a>
     <a href="/uitgifte/new" {% if request.url.path == '/uitgifte/new' %}class="actief"{% endif %}>Uitgifte registreren</a>
     <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>Bijna verlopen</a>
-    <a href="/beheer/geschiedenis?tab=uitgiftes" {% if request.url.path == '/beheer/geschiedenis' and request.query_params.get('tab') == 'uitgiftes' %}class="actief"{% endif %}>Uitgifte overzicht</a>
+    <a href="/beheer/geschiedenis" {% if request.url.path == '/beheer/geschiedenis' %}class="actief"{% endif %}>Overzichten</a>
     <div class="nav-dropdown {% if request.url.path.startswith('/admin') or request.url.path.startswith('/beheer') or request.url.path == '/account' %}actief{% endif %}">
       <span class="nav-dropdown-toggle" id="beheer-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="beheer-submenu">Beheer &#9660;</span>
       <div class="nav-dropdown-menu" id="beheer-submenu">
@@ -29,7 +29,7 @@
         <a href="/admin#ontvangers">Ontvangers</a>
         <a href="/admin#eenheden">Eenheden</a>
         <a href="/beheer/houdbaarheid" {% if request.url.path == '/beheer/houdbaarheid' or request.url.path.startswith('/beheer/houdbaarheid/') or request.url.path.startswith('/beheer/conserveringsmethode/') %}class="actief"{% endif %}>Houdbaarheid &amp; Conservering</a>
-        <a href="/beheer/geschiedenis" {% if request.url.path == '/beheer/geschiedenis' and request.query_params.get('tab') != 'uitgiftes' %}class="actief"{% elif request.url.path.startswith('/beheer/uitgifte') %}class="actief"{% endif %}>Voorraad &amp; Uitgiftes</a>
+        <a href="/beheer/geschiedenis" {% if request.url.path == '/beheer/geschiedenis' or request.url.path.startswith('/beheer/uitgifte') %}class="actief"{% endif %}>Voorraad &amp; Uitgiftes</a>
         <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
       </div>
     </div>
