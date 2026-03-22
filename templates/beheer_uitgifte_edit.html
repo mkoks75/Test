@@ -71,18 +71,18 @@
         <textarea id="note" name="note" rows="3">{{ uitgifte.note or '' }}</textarea>
       </div>
 
-      <div class="form-actie" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+      <div class="form-actions">
         <button type="submit" class="btn btn-primair">Opslaan</button>
         <a href="/beheer/geschiedenis?tab=uitgiftes" class="btn btn-secundair">Annuleren</a>
       </div>
     </form>
 
-    <hr style="margin:24px 0; border:none; border-top:1px solid #e9ecef;">
-
-    <form method="post" action="/beheer/uitgifte/delete/{{ uitgifte.id }}"
-          onsubmit="return confirm('Weet je zeker dat je deze uitgifte wilt verwijderen?')">
-      <button type="submit" class="btn btn-gevaar">Verwijderen</button>
-    </form>
+    <div class="form-delete">
+      <form method="post" action="/beheer/uitgifte/delete/{{ uitgifte.id }}"
+            onsubmit="return confirm('Weet je zeker dat je deze uitgifte wilt verwijderen?')">
+        <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+      </form>
+    </div>
   </div>
 </main>
 {% endblock %}

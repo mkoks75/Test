@@ -23,21 +23,21 @@
           Actief
         </label>
       </div>
-      <div style="display:flex; gap:10px; margin-top:8px;">
+      <div class="form-actions">
         <button type="submit" class="btn btn-primair">Opslaan</button>
         <a href="/beheer/conservering" class="btn btn-secundair">Annuleren</a>
       </div>
     </form>
 
-    <hr style="margin:24px 0; border:none; border-top:1px solid #e9ecef;">
-
     {% if in_gebruik %}
-    <p style="color:#6c757d; font-size:0.88rem;">Deze conserveringsmethode is in gebruik en kan niet worden verwijderd.</p>
+    <p style="color:#6c757d; font-size:0.88rem; margin-top:2rem; padding-top:1.5rem; border-top:1px solid #dee2e6;">Deze conserveringsmethode is in gebruik en kan niet worden verwijderd.</p>
     {% else %}
-    <form method="post" action="/beheer/conservering/delete/{{ methode.id }}"
-          onsubmit="return confirm('Weet je zeker dat je &quot;{{ methode.naam }}&quot; wilt verwijderen?')">
-      <button type="submit" class="btn btn-gevaar">Verwijderen</button>
-    </form>
+    <div class="form-delete">
+      <form method="post" action="/beheer/conservering/delete/{{ methode.id }}"
+            onsubmit="return confirm('Weet je zeker dat je &quot;{{ methode.naam }}&quot; wilt verwijderen?')">
+        <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+      </form>
+    </div>
     {% endif %}
   </div>
 </main>

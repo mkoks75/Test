@@ -47,7 +47,7 @@
           <label for="new_username">Nieuwe gebruikersnaam <span style="color:var(--rood)">*</span></label>
           <input type="text" id="new_username" name="new_username" required autocomplete="username">
         </div>
-        <div style="margin-top:8px;">
+        <div class="form-actions">
           <button type="submit" class="btn btn-primair">Gebruikersnaam opslaan</button>
         </div>
       </form>
@@ -68,7 +68,7 @@
           <label for="new_password2">Nieuw wachtwoord (herhaal) <span style="color:var(--rood)">*</span></label>
           <input type="password" id="new_password2" name="new_password2" required autocomplete="new-password" minlength="6">
         </div>
-        <div style="margin-top:8px;">
+        <div class="form-actions">
           <button type="submit" class="btn btn-primair">Wachtwoord opslaan</button>
         </div>
       </form>
@@ -84,7 +84,7 @@
           <label for="email">E-mailadres</label>
           <input type="email" id="email" name="email" value="{{ current_user_email or '' }}" autocomplete="email" placeholder="jou@voorbeeld.nl">
         </div>
-        <div style="margin-top:8px;">
+        <div class="form-actions">
           <button type="submit" class="btn btn-primair">E-mailadres opslaan</button>
         </div>
       </form>

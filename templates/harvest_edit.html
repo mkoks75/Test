@@ -67,15 +67,18 @@
       </p>
       {% endif %}
 
-      <div class="form-actie" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <div class="form-actions">
         <button type="submit" class="btn btn-primair">Opslaan</button>
         <a href="/beheer/geschiedenis" class="btn btn-secundair">Annuleren</a>
-        <form method="post" action="/harvest/delete/{{ entry.id }}" style="margin:0;"
-              onsubmit="return confirm('Weet je zeker dat je deze entry wilt verwijderen?')">
-          <button type="submit" class="btn btn-gevaar">Verwijderen</button>
-        </form>
       </div>
     </form>
+
+    <div class="form-delete">
+      <form method="post" action="/harvest/delete/{{ entry.id }}"
+            onsubmit="return confirm('Weet je zeker dat je deze entry wilt verwijderen?')">
+        <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+      </form>
+    </div>
   </div>
 </main>
 {% endblock %}

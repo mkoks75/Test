@@ -23,18 +23,18 @@
           Etiket per stuk
         </label>
       </div>
-      <div style="display:flex; gap:10px; margin-top:16px;">
+      <div class="form-actions">
         <button type="submit" class="btn btn-primair">Opslaan</button>
         <a href="/admin" class="btn btn-secundair">Annuleren</a>
       </div>
     </form>
 
-    <hr style="margin:24px 0; border:none; border-top:1px solid #e9ecef;">
-
-    <form method="post" action="/admin/eenheid/{{ eenheid.id }}/delete"
-          onsubmit="return confirm('Weet je zeker dat je eenheid \'{{ eenheid.naam }}\' wilt verwijderen?')">
-      <button type="submit" class="btn btn-gevaar">Verwijderen</button>
-    </form>
+    <div class="form-delete">
+      <form method="post" action="/admin/eenheid/{{ eenheid.id }}/delete"
+            onsubmit="return confirm('Weet je zeker dat je eenheid \'{{ eenheid.naam }}\' wilt verwijderen?')">
+        <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+      </form>
+    </div>
   </div>
 </main>
 {% endblock %}

@@ -39,7 +39,7 @@
           {% endfor %}
         </select>
       </div>
-      <div style="display:flex; gap:10px; margin-top:8px;">
+      <div class="form-actions">
         <button type="submit" class="btn btn-primair">Opslaan</button>
         <a href="/beheer/producten" class="btn btn-secundair">Annuleren</a>
       </div>
@@ -101,11 +101,12 @@
   </div>
 
   <div class="kaart form-container">
-    <hr style="margin:0 0 20px; border:none; border-top:1px solid #e9ecef;">
-    <form method="post" action="/beheer/producten/delete/{{ product.id }}"
-          onsubmit="return confirm('Weet je zeker dat je product \'{{ product.name }}\' wilt verwijderen?')">
-      <button type="submit" class="btn btn-gevaar">Product verwijderen</button>
-    </form>
+    <div class="form-delete" style="margin-top:0; border-top:none; padding-top:0;">
+      <form method="post" action="/beheer/producten/delete/{{ product.id }}"
+            onsubmit="return confirm('Weet je zeker dat je product \'{{ product.name }}\' wilt verwijderen?')">
+        <button type="submit" class="btn btn-gevaar">Product verwijderen</button>
+      </form>
+    </div>
   </div>
 </main>
 {% endblock %}
