@@ -23,11 +23,12 @@
 
   <!-- Zoekbalk -->
   <div class="zoekbalk-wrap">
-    <div class="zoekbalk-inner">
+    <div class="zoekbalk-inner" style="position:relative;">
       <input type="text" id="zoek-input" class="zoekbalk-input"
              placeholder="Zoek een product in de voorraad..."
              autocomplete="off" minlength="2">
       <button type="button" class="zoekbalk-btn" onclick="voerZoekUit()">Zoeken</button>
+      <div id="zoek-suggesties" class="zoek-suggesties-dropdown" style="display:none;"></div>
     </div>
     <div id="zoek-resultaten" class="zoek-resultaten-inline" style="display:none;"></div>
   </div>
@@ -155,12 +156,40 @@
 (function() {
   var input = document.getElementById('zoek-input');
   var resultDiv = document.getElementById('zoek-resultaten');
+  var suggestiesDiv = document.getElementById('zoek-suggesties');
   var zoekTimer = null;
+  var suggestiesTimer = null;
 
   function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── Autocomplete suggesties ──────────────────────────────────
+  function toonSuggesties(suggesties) {
+    if (!suggesties || suggesties.length === 0) {
+      suggestiesDiv.style.display = 'none';
+      return;
+    }
+    var html = '';
+    suggesties.forEach(function(s) {
+      html += '<div class="zoek-suggestie-rij" onclick="kiesSuggestie(' + JSON.stringify(s) + ')">' + escHtml(s) + '</div>';
+    });
+    suggestiesDiv.innerHTML = html;
+    suggestiesDiv.style.display = 'block';
+  }
+
+  function laadSuggesties(q) {
+    if (!q || q.length < 2) {
+      suggestiesDiv.style.display = 'none';
+      return;
+    }
+    fetch('/zoek/suggesties?q=' + encodeURIComponent(q))
+      .then(function(r) { return r.json(); })
+      .then(function(data) { toonSuggesties(data.suggesties); })
+      .catch(function() {});
+  }
+
+  // ── Live zoekresultaten ─────────────────────────────────────
   function renderResultaten(data) {
     if (!data.q || data.q.length < 2) {
       resultDiv.style.display = 'none';
@@ -207,22 +236,39 @@
 
   if (input) {
     input.addEventListener('input', function() {
-      clearTimeout(zoekTimer);
       var q = input.value.trim();
-      zoekTimer = setTimeout(function() { zoekLive(q); }, 300);
+      clearTimeout(zoekTimer);
+      clearTimeout(suggestiesTimer);
+      suggestiesTimer = setTimeout(function() { laadSuggesties(q); }, 200);
+      zoekTimer = setTimeout(function() { zoekLive(q); }, 400);
     });
 
     input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') { voerZoekUit(); }
+      if (e.key === 'Enter') {
+        suggestiesDiv.style.display = 'none';
+        voerZoekUit();
+      }
+      if (e.key === 'Escape') {
+        suggestiesDiv.style.display = 'none';
+      }
     });
   }
 
   document.addEventListener('click', function(e) {
-    if (resultDiv && !e.target.closest('.zoekbalk-wrap')) {
-      resultDiv.style.display = 'none';
+    if (!e.target.closest('.zoekbalk-wrap')) {
+      if (resultDiv) resultDiv.style.display = 'none';
+      if (suggestiesDiv) suggestiesDiv.style.display = 'none';
     }
   });
 })();
+
+function kiesSuggestie(naam) {
+  var input = document.getElementById('zoek-input');
+  var suggestiesDiv = document.getElementById('zoek-suggesties');
+  input.value = naam;
+  suggestiesDiv.style.display = 'none';
+  window.location.href = '/zoek?q=' + encodeURIComponent(naam);
+}
 
 function voerZoekUit() {
   var q = document.getElementById('zoek-input').value.trim();

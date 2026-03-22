@@ -136,6 +136,19 @@ async def startup():
     finally:
         db.close()
 
+    # Zorg dat Hinke en Maarten als ontvangers bestaan
+    db = database.SessionLocal()
+    try:
+        for naam in ["Hinke", "Maarten"]:
+            bestaand = db.query(models.Ontvanger).filter(
+                func.lower(models.Ontvanger.naam) == naam.lower()
+            ).first()
+            if not bestaand:
+                db.add(models.Ontvanger(naam=naam, actief=True))
+        db.commit()
+    finally:
+        db.close()
+
 
 # ── Authenticatie ──────────────────────────────────────────────────────────────
 
@@ -351,6 +364,24 @@ async def zoek(request: Request, db: Session = Depends(get_db), q: str = "", for
             "cutoff": cutoff,
         },
     )
+
+
+@app.get("/zoek/suggesties")
+async def zoek_suggesties(request: Request, db: Session = Depends(get_db), q: str = ""):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    if not q or len(q) < 2:
+        return JSONResponse({"suggesties": []})
+    producten = (
+        db.query(models.Product.name)
+        .filter(models.Product.active == True)
+        .filter(func.lower(models.Product.name).contains(q.lower()))
+        .order_by(models.Product.name)
+        .limit(8)
+        .all()
+    )
+    return JSONResponse({"suggesties": [p.name for p in producten]})
 
 
 # ── Nieuwe oogst ───────────────────────────────────────────────────────────────
@@ -1541,12 +1572,15 @@ async def scan_uitgifte_form(entry_id: int, request: Request, db: Session = Depe
     if not entry or entry.uitgegeven:
         return RedirectResponse(f"/scan/{entry_id}", status_code=302)
 
-    ontvangers = (
+    alle_ontvangers = (
         db.query(models.Ontvanger)
         .filter(models.Ontvanger.actief == True)
         .order_by(models.Ontvanger.naam)
         .all()
     )
+    _snelkeuze = {"hinke", "maarten"}
+    ontvangers_snelkeuze = [o for o in alle_ontvangers if o.naam.lower() in _snelkeuze]
+    ontvangers_overig = [o for o in alle_ontvangers if o.naam.lower() not in _snelkeuze]
     today_str = datetime.date.today().isoformat()
     today_date = datetime.date.today()
 
@@ -1556,7 +1590,8 @@ async def scan_uitgifte_form(entry_id: int, request: Request, db: Session = Depe
             "request": request,
             "user": user,
             "entry": entry,
-            "ontvangers": ontvangers,
+            "ontvangers_snelkeuze": ontvangers_snelkeuze,
+            "ontvangers_overig": ontvangers_overig,
             "today": today_str,
             "today_date": today_date,
             "error": None,
@@ -1569,8 +1604,7 @@ async def scan_uitgifte_post(
     entry_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    ontvanger_keuze: str = Form(...),
-    ontvanger_vrij: str = Form(default=""),
+    ontvanger_keuze: str = Form(default=""),
     date: str = Form(...),
     note: str = Form(default=""),
 ):
@@ -1582,11 +1616,27 @@ async def scan_uitgifte_post(
     if not entry or entry.uitgegeven:
         return RedirectResponse(f"/scan/{entry_id}", status_code=302)
 
-    if ontvanger_keuze == "overig":
-        ontvanger_naam = ontvanger_vrij.strip()
-    else:
-        db_ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == int(ontvanger_keuze)).first()
-        ontvanger_naam = db_ontvanger.naam if db_ontvanger else ontvanger_keuze
+    if not ontvanger_keuze.strip():
+        alle_ontvangers = (
+            db.query(models.Ontvanger).filter(models.Ontvanger.actief == True).order_by(models.Ontvanger.naam).all()
+        )
+        _snelkeuze = {"hinke", "maarten"}
+        return templates.TemplateResponse(
+            "scan_uitgifte.html",
+            {
+                "request": request,
+                "user": user,
+                "entry": entry,
+                "ontvangers_snelkeuze": [o for o in alle_ontvangers if o.naam.lower() in _snelkeuze],
+                "ontvangers_overig": [o for o in alle_ontvangers if o.naam.lower() not in _snelkeuze],
+                "today": date,
+                "today_date": datetime.date.today(),
+                "error": "Selecteer een ontvanger.",
+            },
+        )
+
+    db_ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == int(ontvanger_keuze)).first()
+    ontvanger_naam = db_ontvanger.naam if db_ontvanger else ontvanger_keuze
 
     # Maak uitgifte record aan
     uitgifte = models.Uitgifte(
@@ -1674,12 +1724,15 @@ async def uitgifte_new(request: Request, db: Session = Depends(get_db)):
         .order_by(models.Location.name)
         .all()
     )
-    ontvangers = (
+    alle_ontvangers = (
         db.query(models.Ontvanger)
         .filter(models.Ontvanger.actief == True)
         .order_by(models.Ontvanger.naam)
         .all()
     )
+    _snelkeuze = {"hinke", "maarten"}
+    ontvangers_snelkeuze = [o for o in alle_ontvangers if o.naam.lower() in _snelkeuze]
+    ontvangers_overig = [o for o in alle_ontvangers if o.naam.lower() not in _snelkeuze]
     today = datetime.date.today().isoformat()
 
     return templates.TemplateResponse(
@@ -1689,7 +1742,8 @@ async def uitgifte_new(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "products": products,
             "locations": locations,
-            "ontvangers": ontvangers,
+            "ontvangers_snelkeuze": ontvangers_snelkeuze,
+            "ontvangers_overig": ontvangers_overig,
             "today": today,
             "error": None,
             "form": {},
@@ -1704,8 +1758,7 @@ async def uitgifte_new_post(
     product_id: int = Form(...),
     location_id: int = Form(...),
     quantity: float = Form(...),
-    ontvanger_keuze: str = Form(...),
-    ontvanger_vrij: str = Form(default=""),
+    ontvanger_keuze: str = Form(default=""),
     date: str = Form(...),
     note: str = Form(default=""),
 ):
@@ -1713,38 +1766,61 @@ async def uitgifte_new_post(
     if not user:
         return RedirectResponse("/login", status_code=302)
 
+    def _haal_formulier_data():
+        alle = (
+            db.query(models.Ontvanger).filter(models.Ontvanger.actief == True).order_by(models.Ontvanger.naam).all()
+        )
+        _sk = {"hinke", "maarten"}
+        return (
+            db.query(models.Product).filter(models.Product.active == True).order_by(models.Product.name).all(),
+            db.query(models.Location).filter(models.Location.active == True).order_by(models.Location.name).all(),
+            [o for o in alle if o.naam.lower() in _sk],
+            [o for o in alle if o.naam.lower() not in _sk],
+        )
+
+    if not ontvanger_keuze.strip():
+        prods, locs, sk, ov = _haal_formulier_data()
+        return templates.TemplateResponse(
+            "uitgifte_new.html",
+            {
+                "request": request,
+                "user": user,
+                "products": prods,
+                "locations": locs,
+                "ontvangers_snelkeuze": sk,
+                "ontvangers_overig": ov,
+                "today": date,
+                "error": "Selecteer een ontvanger.",
+                "form": {
+                    "product_id": product_id,
+                    "location_id": location_id,
+                    "quantity": quantity,
+                    "ontvanger_keuze": "",
+                    "date": date,
+                    "note": note,
+                },
+            },
+        )
+
     # Bepaal de ontvangernaam
-    if ontvanger_keuze == "overig":
-        ontvanger = ontvanger_vrij.strip()
-    else:
-        db_ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == int(ontvanger_keuze)).first()
-        ontvanger = db_ontvanger.naam if db_ontvanger else ontvanger_keuze
+    db_ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == int(ontvanger_keuze)).first()
+    ontvanger = db_ontvanger.naam if db_ontvanger else ontvanger_keuze
 
     beschikbaar = _beschikbare_voorraad(db, product_id, location_id)
 
     if quantity > beschikbaar:
         product = db.query(models.Product).filter(models.Product.id == product_id).first()
         unit = product.unit if product else ""
-        products = (
-            db.query(models.Product).filter(models.Product.active == True).order_by(models.Product.name).all()
-        )
-        locations = (
-            db.query(models.Location).filter(models.Location.active == True).order_by(models.Location.name).all()
-        )
-        ontvangers = (
-            db.query(models.Ontvanger)
-            .filter(models.Ontvanger.actief == True)
-            .order_by(models.Ontvanger.naam)
-            .all()
-        )
+        prods, locs, sk, ov = _haal_formulier_data()
         return templates.TemplateResponse(
             "uitgifte_new.html",
             {
                 "request": request,
                 "user": user,
-                "products": products,
-                "locations": locations,
-                "ontvangers": ontvangers,
+                "products": prods,
+                "locations": locs,
+                "ontvangers_snelkeuze": sk,
+                "ontvangers_overig": ov,
                 "today": date,
                 "error": f"Onvoldoende voorraad. Beschikbaar: {beschikbaar:g} {unit}",
                 "form": {
@@ -1752,7 +1828,6 @@ async def uitgifte_new_post(
                     "location_id": location_id,
                     "quantity": quantity,
                     "ontvanger_keuze": ontvanger_keuze,
-                    "ontvanger_vrij": ontvanger_vrij,
                     "date": date,
                     "note": note,
                 },

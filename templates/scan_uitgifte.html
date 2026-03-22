@@ -38,24 +38,41 @@
 
   <div class="kaart">
     <h3 style="margin-top:0;">Uitgifte registreren</h3>
-    <form method="post" action="/scan/{{ entry.id }}/uitgifte">
-      <div class="form-grid">
-        <div class="veld volledig">
-          <label for="ontvanger_keuze">Ontvanger <span style="color:var(--rood)">*</span></label>
-          <select id="ontvanger_keuze" name="ontvanger_keuze" required style="min-height:52px; font-size:1rem;">
-            <option value="">-- Kies een ontvanger --</option>
-            {% for o in ontvangers %}
+    <form method="post" action="/scan/{{ entry.id }}/uitgifte" id="uitgifte-form">
+      <!-- Verborgen veld: geselecteerde ontvanger ID -->
+      <input type="hidden" name="ontvanger_keuze" id="ontvanger_keuze_input" value="">
+
+      <div class="veld volledig" style="margin-bottom:16px;">
+        <label style="display:block; margin-bottom:8px; font-weight:600;">
+          Ontvanger <span style="color:var(--rood)">*</span>
+        </label>
+        <!-- Snelkeuze knoppen -->
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+          {% for o in ontvangers_snelkeuze %}
+          <button type="button"
+                  class="ontvanger-snelknop"
+                  data-id="{{ o.id }}"
+                  onclick="selecteerOntvanger({{ o.id }}, this)">
+            &#128100; {{ o.naam }}
+          </button>
+          {% endfor %}
+        </div>
+        {% if ontvangers_overig %}
+        <!-- Andere ontvanger dropdown -->
+        <div>
+          <label for="ontvanger_overig" style="font-size:.9rem; color:#6c757d;">Of kies een andere ontvanger:</label>
+          <select id="ontvanger_overig" onchange="selecteerOntvangerDropdown(this)"
+                  style="min-height:48px; font-size:1rem; width:100%; margin-top:6px;">
+            <option value="">-- Andere ontvanger --</option>
+            {% for o in ontvangers_overig %}
             <option value="{{ o.id }}">{{ o.naam }}</option>
             {% endfor %}
-            <option value="overig">Overig (vrije invoer)</option>
           </select>
         </div>
+        {% endif %}
+      </div>
 
-        <div class="veld volledig" id="vrij-veld" style="display:none;">
-          <label for="ontvanger_vrij">Naam ontvanger <span style="color:var(--rood)">*</span></label>
-          <input type="text" id="ontvanger_vrij" name="ontvanger_vrij" placeholder="Voer naam in" style="min-height:52px; font-size:1rem;">
-        </div>
-
+      <div class="form-grid">
         <div class="veld volledig">
           <label for="date">Datum <span style="color:var(--rood)">*</span></label>
           <input type="date" id="date" name="date" value="{{ today }}" required style="min-height:52px; font-size:1rem;">
@@ -80,21 +97,28 @@
 </main>
 
 <script>
-  (function() {
-    var keuze = document.getElementById('ontvanger_keuze');
-    var vrijVeld = document.getElementById('vrij-veld');
-    var vrijInput = document.getElementById('ontvanger_vrij');
+  function selecteerOntvanger(id, btn) {
+    document.getElementById('ontvanger_keuze_input').value = id;
+    document.querySelectorAll('.ontvanger-snelknop').forEach(function(b) {
+      b.classList.remove('ontvanger-snelknop-actief');
+    });
+    btn.classList.add('ontvanger-snelknop-actief');
+    var dd = document.getElementById('ontvanger_overig');
+    if (dd) dd.value = '';
+  }
 
-    function updateVrij() {
-      var isOverig = keuze && keuze.value === 'overig';
-      if (vrijVeld) vrijVeld.style.display = isOverig ? 'block' : 'none';
-      if (vrijInput) vrijInput.required = isOverig;
-    }
+  function selecteerOntvangerDropdown(sel) {
+    document.getElementById('ontvanger_keuze_input').value = sel.value;
+    document.querySelectorAll('.ontvanger-snelknop').forEach(function(b) {
+      b.classList.remove('ontvanger-snelknop-actief');
+    });
+  }
 
-    if (keuze) {
-      keuze.addEventListener('change', updateVrij);
-      updateVrij();
+  document.getElementById('uitgifte-form').addEventListener('submit', function(e) {
+    if (!document.getElementById('ontvanger_keuze_input').value) {
+      e.preventDefault();
+      alert('Selecteer een ontvanger voordat je het formulier verstuurt.');
     }
-  })();
+  });
 </script>
 {% endblock %}
