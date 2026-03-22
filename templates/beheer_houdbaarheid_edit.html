@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Houdbaarheid bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Bewerken: {{ record.product.name }} + {{ record.locatie.name }}</h1>
+    <p><a href="/beheer/houdbaarheid">Houdbaarheid</a> &rsaquo; Bewerken</p>
+  </div>
+</div>
+
+<main>
+  <div class="kaart" style="max-width:480px;">
+    <form method="post" action="/beheer/houdbaarheid/edit/{{ record.id }}">
+      <div class="veld">
+        <label>Product</label>
+        <input type="text" value="{{ record.product.name }}" disabled>
+      </div>
+      <div class="veld">
+        <label>Bewaarmethode</label>
+        <input type="text" value="{{ record.locatie.name }}" disabled>
+      </div>
+      <div class="veld">
+        <label for="houdbaarheid_maanden">Houdbaarheid (maanden) <span style="color:var(--rood)">*</span></label>
+        <input type="number" id="houdbaarheid_maanden" name="houdbaarheid_maanden"
+               value="{{ record.houdbaarheid_maanden }}" min="1" step="1" required>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/beheer/houdbaarheid" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+
+    <hr style="margin:24px 0; border:none; border-top:1px solid #e9ecef;">
+
+    <form method="post" action="/beheer/houdbaarheid/delete/{{ record.id }}"
+          onsubmit="return confirm('Weet je zeker dat je de houdbaarheid voor {{ record.product.name }} + {{ record.locatie.name }} wilt verwijderen?')">
+      <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+    </form>
+  </div>
+</main>
+{% endblock %}

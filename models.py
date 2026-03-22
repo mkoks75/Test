@@ -108,3 +108,16 @@ class Uitgifte(Base):
 
     product = relationship("Product", back_populates="uitgiftes")
     location = relationship("Location", back_populates="uitgiftes")
+
+
+class ProductHoudbaarheid(Base):
+    __tablename__ = "product_houdbaarheid"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    locatie_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    houdbaarheid_maanden = Column(Integer, nullable=False)
+    actief = Column(Boolean, default=True, nullable=False)
+
+    product = relationship("Product")
+    locatie = relationship("Location")

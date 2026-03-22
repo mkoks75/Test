@@ -21,6 +21,13 @@
         <a href="/admin" class="btn btn-secundair">Annuleren</a>
       </div>
     </form>
+
+    <hr style="margin:24px 0; border:none; border-top:1px solid #e9ecef;">
+
+    <form method="post" action="/admin/location/{{ location.id }}/delete"
+          onsubmit="return confirm('Weet je zeker dat je locatie \'{{ location.name }}\' wilt verwijderen?')">
+      <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+    </form>
   </div>
 </main>
 {% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Houdbaarheid per product - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Houdbaarheid per product</h1>
+    <p><a href="/admin">Beheer</a> &rsaquo; Houdbaarheid per product</p>
+  </div>
+</div>
+
+<main>
+  {% if success == 'toegevoegd' %}
+  <div class="melding melding-succes">Houdbaarheid succesvol toegevoegd.</div>
+  {% elif success == 'bijgewerkt' %}
+  <div class="melding melding-succes">Houdbaarheid succesvol bijgewerkt.</div>
+  {% elif success == 'verwijderd' %}
+  <div class="melding melding-succes">Houdbaarheid succesvol verwijderd.</div>
+  {% endif %}
+
+  {% if error == 'dubbel' %}
+  <div class="melding melding-fout">Deze combinatie van product en bewaarmethode bestaat al.</div>
+  {% elif error == 'ongeldig' %}
+  <div class="melding melding-fout">Houdbaarheid moet minimaal 1 maand zijn.</div>
+  {% endif %}
+
+  <!-- Toevoegen formulier -->
+  <div class="kaart" style="margin-bottom:24px;">
+    <h2 style="margin-top:0;">Nieuwe combinatie toevoegen</h2>
+    <form method="post" action="/beheer/houdbaarheid/add" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+      <div class="veld" style="flex:2; min-width:160px;">
+        <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
+        <select id="product_id" name="product_id" required>
+          <option value="">-- Kies product --</option>
+          {% for p in producten %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld" style="flex:2; min-width:160px;">
+        <label for="locatie_id">Bewaarmethode <span style="color:var(--rood)">*</span></label>
+        <select id="locatie_id" name="locatie_id" required>
+          <option value="">-- Kies bewaarmethode --</option>
+          {% for l in locaties %}
+          <option value="{{ l.id }}">{{ l.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="veld" style="flex:1; min-width:120px;">
+        <label for="houdbaarheid_maanden">Houdbaarheid (maanden) <span style="color:var(--rood)">*</span></label>
+        <input type="number" id="houdbaarheid_maanden" name="houdbaarheid_maanden" min="1" step="1" required placeholder="bijv. 5">
+      </div>
+      <button type="submit" class="btn btn-primair btn-klein">Toevoegen</button>
+    </form>
+  </div>
+
+  <!-- Overzichtstabel -->
+  <div class="kaart" style="padding:0; overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Bewaarmethode</th>
+          <th>Houdbaarheid (maanden)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td>{{ r.product.name }}</td>
+          <td>{{ r.locatie.name }}</td>
+          <td>{{ r.houdbaarheid_maanden }}</td>
+          <td>
+            <a href="/beheer/houdbaarheid/edit/{{ r.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="geen-data">Nog geen houdbaarheidsduren ingesteld.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}

@@ -28,6 +28,7 @@
         <a href="/admin" {% if request.url.path == '/admin' %}class="actief"{% endif %}>Producten &amp; Locaties</a>
         <a href="/admin#ontvangers">Ontvangers</a>
         <a href="/admin#eenheden">Eenheden</a>
+        <a href="/beheer/houdbaarheid" {% if request.url.path == '/beheer/houdbaarheid' or request.url.path.startswith('/beheer/houdbaarheid/') %}class="actief"{% endif %}>Houdbaarheid</a>
         <a href="/beheer/geschiedenis" {% if request.url.path == '/beheer/geschiedenis' and request.query_params.get('tab') != 'uitgiftes' %}class="actief"{% elif request.url.path.startswith('/beheer/uitgifte') %}class="actief"{% endif %}>Voorraad &amp; Uitgiftes</a>
         <a href="/account" {% if request.url.path == '/account' %}class="actief"{% endif %}>Account</a>
       </div>

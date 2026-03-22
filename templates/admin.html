@@ -103,10 +103,6 @@
                   <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
                 </form>
                 {% endif %}
-                <form method="post" action="/admin/product/{{ p.id }}/delete" style="display:inline;">
-                  <button type="submit" class="btn btn-gevaar btn-klein"
-                    onclick="return confirm('Product \'{{ p.name }}\' definitief verwijderen?')">Verwijderen</button>
-                </form>
               </td>
             </tr>
             {% else %}
@@ -163,10 +159,6 @@
                   <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
                 </form>
                 {% endif %}
-                <form method="post" action="/admin/location/{{ l.id }}/delete" style="display:inline;">
-                  <button type="submit" class="btn btn-gevaar btn-klein"
-                    onclick="return confirm('Locatie \'{{ l.name }}\' definitief verwijderen?')">Verwijderen</button>
-                </form>
               </td>
             </tr>
             {% else %}
@@ -225,10 +217,6 @@
                 <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
               </form>
               {% endif %}
-              <form method="post" action="/admin/ontvanger/{{ o.id }}/delete" style="display:inline;">
-                <button type="submit" class="btn btn-gevaar btn-klein"
-                  onclick="return confirm('Ontvanger \'{{ o.naam }}\' definitief verwijderen?')">Verwijderen</button>
-              </form>
             </td>
           </tr>
           {% else %}
@@ -293,10 +281,6 @@
                 <button type="submit" class="btn btn-waarschuw btn-klein">Activeren</button>
               </form>
               {% endif %}
-              <form method="post" action="/admin/eenheid/{{ e.id }}/delete" style="display:inline;">
-                <button type="submit" class="btn btn-gevaar btn-klein"
-                  onclick="return confirm('Eenheid \'{{ e.naam }}\' definitief verwijderen?')">Verwijderen</button>
-              </form>
             </td>
           </tr>
           {% else %}

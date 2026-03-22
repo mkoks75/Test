@@ -87,6 +87,21 @@ async def startup():
         except Exception:
             pass
 
+        # Maak product_houdbaarheid tabel aan indien nog niet aanwezig
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS product_houdbaarheid (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER NOT NULL REFERENCES products(id),
+                    locatie_id INTEGER NOT NULL REFERENCES locations(id),
+                    houdbaarheid_maanden INTEGER NOT NULL,
+                    actief BOOLEAN NOT NULL DEFAULT 1
+                )
+            """))
+            conn.commit()
+        except Exception:
+            pass
+
     # Standaard eenheden aanmaken als de tabel leeg is
     db = database.SessionLocal()
     try:
@@ -1583,6 +1598,165 @@ async def admin_delete_eenheid(eenheid_id: int, request: Request, db: Session = 
     db.delete(eenheid)
     db.commit()
     return RedirectResponse("/admin?success=eenheid_deleted", status_code=302)
+
+
+# ── Houdbaarheid beheer ────────────────────────────────────────────────────────
+
+import calendar as _calendar
+
+def _add_months(dt: datetime.date, months: int) -> datetime.date:
+    month = dt.month - 1 + months
+    year = dt.year + month // 12
+    month = month % 12 + 1
+    day = min(dt.day, _calendar.monthrange(year, month)[1])
+    return datetime.date(year, month, day)
+
+
+@app.get("/api/houdbaarheid")
+async def api_houdbaarheid(
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = None,
+    locatie_id: int = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    if not product_id or not locatie_id:
+        return JSONResponse({"gevonden": False})
+
+    record = db.query(models.ProductHoudbaarheid).filter(
+        models.ProductHoudbaarheid.product_id == product_id,
+        models.ProductHoudbaarheid.locatie_id == locatie_id,
+        models.ProductHoudbaarheid.actief == True,
+    ).first()
+
+    if not record:
+        return JSONResponse({"gevonden": False})
+
+    houdbaar_tot = _add_months(datetime.date.today(), record.houdbaarheid_maanden)
+    return JSONResponse({
+        "gevonden": True,
+        "maanden": record.houdbaarheid_maanden,
+        "houdbaar_tot": houdbaar_tot.isoformat(),
+    })
+
+
+@app.get("/beheer/houdbaarheid")
+async def beheer_houdbaarheid(
+    request: Request,
+    db: Session = Depends(get_db),
+    success: str = None,
+    error: str = None,
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    records = (
+        db.query(models.ProductHoudbaarheid)
+        .join(models.Product, models.ProductHoudbaarheid.product_id == models.Product.id)
+        .join(models.Location, models.ProductHoudbaarheid.locatie_id == models.Location.id)
+        .order_by(models.Product.name, models.Location.name)
+        .all()
+    )
+    producten = db.query(models.Product).filter(models.Product.active == True).order_by(models.Product.name).all()
+    locaties = db.query(models.Location).filter(models.Location.active == True).order_by(models.Location.name).all()
+
+    return templates.TemplateResponse(
+        "beheer_houdbaarheid.html",
+        {
+            "request": request,
+            "user": user,
+            "records": records,
+            "producten": producten,
+            "locaties": locaties,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+@app.post("/beheer/houdbaarheid/add")
+async def beheer_houdbaarheid_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    product_id: int = Form(...),
+    locatie_id: int = Form(...),
+    houdbaarheid_maanden: int = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    # Controleer op dubbele combinatie
+    bestaand = db.query(models.ProductHoudbaarheid).filter(
+        models.ProductHoudbaarheid.product_id == product_id,
+        models.ProductHoudbaarheid.locatie_id == locatie_id,
+    ).first()
+    if bestaand:
+        return RedirectResponse("/beheer/houdbaarheid?error=dubbel", status_code=302)
+
+    if houdbaarheid_maanden < 1:
+        return RedirectResponse("/beheer/houdbaarheid?error=ongeldig", status_code=302)
+
+    record = models.ProductHoudbaarheid(
+        product_id=product_id,
+        locatie_id=locatie_id,
+        houdbaarheid_maanden=houdbaarheid_maanden,
+        actief=True,
+    )
+    db.add(record)
+    db.commit()
+    return RedirectResponse("/beheer/houdbaarheid?success=toegevoegd", status_code=302)
+
+
+@app.get("/beheer/houdbaarheid/edit/{record_id}")
+async def beheer_houdbaarheid_edit(record_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    record = db.query(models.ProductHoudbaarheid).filter(models.ProductHoudbaarheid.id == record_id).first()
+    if not record:
+        return RedirectResponse("/beheer/houdbaarheid", status_code=302)
+
+    return templates.TemplateResponse(
+        "beheer_houdbaarheid_edit.html",
+        {"request": request, "user": user, "record": record},
+    )
+
+
+@app.post("/beheer/houdbaarheid/edit/{record_id}")
+async def beheer_houdbaarheid_edit_post(
+    record_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    houdbaarheid_maanden: int = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    record = db.query(models.ProductHoudbaarheid).filter(models.ProductHoudbaarheid.id == record_id).first()
+    if record:
+        record.houdbaarheid_maanden = houdbaarheid_maanden
+        db.commit()
+    return RedirectResponse("/beheer/houdbaarheid?success=bijgewerkt", status_code=302)
+
+
+@app.post("/beheer/houdbaarheid/delete/{record_id}")
+async def beheer_houdbaarheid_delete(record_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    record = db.query(models.ProductHoudbaarheid).filter(models.ProductHoudbaarheid.id == record_id).first()
+    if record:
+        db.delete(record)
+        db.commit()
+    return RedirectResponse("/beheer/houdbaarheid?success=verwijderd", status_code=302)
 
 
 # ── QR Scan lookup ─────────────────────────────────────────────────────────────
