@@ -1048,7 +1048,7 @@ footer {
   background: #fff;
   color: var(--groen);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1058,9 +1058,10 @@ footer {
   background: #e8f5ee;
 }
 .ontvanger-snelknop-actief {
-  background: var(--groen) !important;
+  background: #2D6A4F !important;
   color: #fff !important;
-  border-color: var(--groen) !important;
+  border: none !important;
+  transform: scale(1.02);
 }
 
 /* Autocomplete suggesties dropdown */

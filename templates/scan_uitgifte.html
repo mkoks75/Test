@@ -52,6 +52,7 @@
           <button type="button"
                   class="ontvanger-snelknop"
                   data-id="{{ o.id }}"
+                  data-naam="{{ o.naam }}"
                   onclick="selecteerOntvanger({{ o.id }}, this)">
             &#128100; {{ o.naam }}
           </button>
@@ -61,7 +62,7 @@
         <!-- Andere ontvanger dropdown -->
         <div>
           <label for="ontvanger_overig" style="font-size:.9rem; color:#6c757d;">Of kies een andere ontvanger:</label>
-          <select id="ontvanger_overig" onchange="selecteerOntvangerDropdown(this)"
+          <select id="ontvanger_overig" onfocus="deselecteerKnoppen()" onchange="selecteerOntvangerDropdown(this)"
                   style="min-height:48px; font-size:1rem; width:100%; margin-top:6px;">
             <option value="">-- Andere ontvanger --</option>
             {% for o in ontvangers_overig %}
@@ -101,16 +102,27 @@
     document.getElementById('ontvanger_keuze_input').value = id;
     document.querySelectorAll('.ontvanger-snelknop').forEach(function(b) {
       b.classList.remove('ontvanger-snelknop-actief');
+      b.innerHTML = '&#128100; ' + b.dataset.naam;
     });
     btn.classList.add('ontvanger-snelknop-actief');
+    btn.innerHTML = '&#10003; ' + btn.dataset.naam;
     var dd = document.getElementById('ontvanger_overig');
     if (dd) dd.value = '';
+  }
+
+  function deselecteerKnoppen() {
+    document.querySelectorAll('.ontvanger-snelknop').forEach(function(b) {
+      b.classList.remove('ontvanger-snelknop-actief');
+      b.innerHTML = '&#128100; ' + b.dataset.naam;
+    });
+    document.getElementById('ontvanger_keuze_input').value = '';
   }
 
   function selecteerOntvangerDropdown(sel) {
     document.getElementById('ontvanger_keuze_input').value = sel.value;
     document.querySelectorAll('.ontvanger-snelknop').forEach(function(b) {
       b.classList.remove('ontvanger-snelknop-actief');
+      b.innerHTML = '&#128100; ' + b.dataset.naam;
     });
   }
 
