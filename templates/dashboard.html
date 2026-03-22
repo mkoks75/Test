@@ -43,87 +43,9 @@
     </a>
   </div>
 
-  <!-- Twee-kolom layout: hoofdinhoud + sidebar -->
+  <!-- Twee-kolom layout: fotogalerij sidebar -->
   <div class="dashboard-layout">
-
-    <!-- Hoofdinhoud -->
-    <div class="dashboard-main">
-
-      {% if inventory %}
-        <h2 style="margin-top:0;">Huidige voorraad per locatie</h2>
-        {% for locatie, producten in inventory.items() %}
-        <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 20px;">
-          <table>
-            <thead>
-              <tr>
-                <th colspan="3" style="font-size:0.95rem; text-transform:none; letter-spacing:0;">{{ locatie }}</th>
-              </tr>
-              <tr>
-                <th>Product</th>
-                <th>Eenheid</th>
-                <th style="text-align:right;">Totale hoeveelheid</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for rij in producten %}
-              <tr>
-                <td>{{ rij.product }}</td>
-                <td>{{ rij.unit }}</td>
-                <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(rij.total) }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="kaart">
-          <p class="geen-data">Nog geen oogst ingevoerd. <a href="/harvest/new">Voeg de eerste oogst toe.</a></p>
-        </div>
-      {% endif %}
-
-      {% if location_entries %}
-      <h2 style="margin-top: 32px;">Detail per locatie</h2>
-        {% for locatie, entries in location_entries.items() %}
-        <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 20px;">
-          <table>
-            <thead>
-              <tr>
-                <th colspan="4" style="font-size:0.95rem; text-transform:none; letter-spacing:0;">{{ locatie }}</th>
-              </tr>
-              <tr>
-                <th>#</th>
-                <th>Product</th>
-                <th style="text-align:right;">Hoeveelheid</th>
-                <th>Houdbaar tot</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for entry in entries %}
-              <tr {% if entry.houdbaar_tot and entry.houdbaar_tot <= today_date %}style="background:#fde8e8;"{% elif entry.houdbaar_tot and entry.houdbaar_tot <= bijna_verlopen_date %}style="background:#fff8e1;"{% endif %}>
-                <td style="color:#6c757d; font-size:.85rem;">{{ entry.volgnummer if entry.volgnummer else '—' }}</td>
-                <td>{{ entry.product.name }} <span style="color:#6c757d; font-size:.82rem;">({{ entry.product.unit }})</span></td>
-                <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(entry.quantity) }}</td>
-                <td>
-                  {% if entry.houdbaar_tot %}
-                    <span {% if entry.houdbaar_tot <= today_date %}style="color:var(--rood); font-weight:600;"{% elif entry.houdbaar_tot <= bijna_verlopen_date %}style="color:var(--oranje); font-weight:600;"{% endif %}>
-                      {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
-                    </span>
-                  {% else %}
-                    <span style="color:#adb5bd;">—</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% endfor %}
-      {% endif %}
-
-    </div>
-
-    <!-- Sidebar: fotogalerij -->
+    <div class="dashboard-main"><!-- intentionally empty --></div>
     <div class="dashboard-sidebar">
       <div class="foto-widget">
         <h3>Van het veld</h3>
@@ -135,8 +57,96 @@
         </div>
       </div>
     </div>
-
   </div><!-- /.dashboard-layout -->
+
+  <!-- Tabel 1: Bijna verlopen binnen 7 dagen -->
+  <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
+    <table>
+      <thead>
+        <tr>
+          <th colspan="6" style="font-size:1rem; text-transform:none; letter-spacing:0; color:var(--oranje, #e67e22);">
+            &#9888;&#65039; Bijna verlopen
+          </th>
+        </tr>
+        {% if bijna_verlopen_7d %}
+        <tr>
+          <th>Product</th>
+          <th>Hoeveelheid</th>
+          <th>Eenheid</th>
+          <th>Bewaarmethode</th>
+          <th>Locatie</th>
+          <th>Houdbaarheidsdatum</th>
+        </tr>
+        {% endif %}
+      </thead>
+      <tbody>
+        {% if bijna_verlopen_7d %}
+          {% for entry in bijna_verlopen_7d[:10] %}
+          <tr>
+            <td>{{ entry.product.name }}</td>
+            <td>{{ "%.2f"|format(entry.quantity) }}</td>
+            <td>{{ entry.product.eenheid.naam if entry.product.eenheid else (entry.product.unit or '—') }}</td>
+            <td>{{ entry.location.name }}</td>
+            <td>{{ entry.location.name }}</td>
+            <td style="color:var(--rood, #c0392b); font-weight:600;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</td>
+          </tr>
+          {% endfor %}
+          {% if bijna_verlopen_7d|length > 10 %}
+          <tr>
+            <td colspan="6" style="text-align:center; padding: 10px;">
+              <a href="/verlopen">Bekijk alle bijna verlopen &rarr;</a>
+            </td>
+          </tr>
+          {% endif %}
+        {% else %}
+          <tr>
+            <td colspan="6" style="color:var(--groen, #27ae60); font-weight:500; text-align:center; padding:14px;">
+              &#10003; Geen producten die binnen 7 dagen verlopen
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tabel 2: Totaaloverzicht voorraad -->
+  <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
+    <table>
+      <thead>
+        <tr>
+          <th colspan="4" style="font-size:1rem; text-transform:none; letter-spacing:0;">
+            &#128230; Totaaloverzicht voorraad
+          </th>
+        </tr>
+        {% if voorraad_totaal %}
+        <tr>
+          <th>Product</th>
+          <th style="text-align:right;">Totale hoeveelheid</th>
+          <th>Eenheid</th>
+          <th>Bewaarmethode / Locatie</th>
+        </tr>
+        {% endif %}
+      </thead>
+      <tbody>
+        {% if voorraad_totaal %}
+          {% for rij in voorraad_totaal %}
+          <tr>
+            <td>{{ rij.product }}</td>
+            <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(rij.totaal) }}</td>
+            <td>{{ rij.eenheid or '—' }}</td>
+            <td>{{ rij.locatie }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="4" style="text-align:center; padding:14px; color:#6c757d;">
+              Geen producten in voorraad
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
 </div><!-- /.dashboard-wrap -->
 
 {% endblock %}

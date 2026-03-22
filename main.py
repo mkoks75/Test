@@ -30,6 +30,7 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["now"] = datetime.datetime.now()
 
 
 @app.on_event("startup")
@@ -301,6 +302,58 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         models.HarvestEntry.houdbaar_tot <= bijna_verlopen_cutoff,
     ).scalar() or 0
 
+    # Bijna verlopen binnen 7 dagen
+    zeven_dagen = today + datetime.timedelta(days=7)
+    bijna_verlopen_7d = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+        .filter(
+            models.HarvestEntry.uitgegeven == False,
+            models.HarvestEntry.houdbaar_tot != None,
+            models.HarvestEntry.houdbaar_tot >= today,
+            models.HarvestEntry.houdbaar_tot <= zeven_dagen,
+        )
+        .order_by(models.HarvestEntry.houdbaar_tot.asc())
+        .all()
+    )
+
+    # Totaaloverzicht voorraad: groepeer per product per locatie
+    voorraad_totaal_rows = (
+        db.query(
+            models.Product.name.label("product_naam"),
+            models.Location.name.label("locatie_naam"),
+            func.sum(models.HarvestEntry.quantity).label("totaal"),
+            models.Product.unit.label("unit"),
+            models.Eenheid.naam.label("eenheid_naam"),
+        )
+        .select_from(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+        .outerjoin(models.Eenheid, models.Product.eenheid_id == models.Eenheid.id)
+        .filter(models.HarvestEntry.uitgegeven == False)
+        .group_by(
+            models.Product.id,
+            models.Product.name,
+            models.Product.unit,
+            models.Eenheid.naam,
+            models.Location.id,
+            models.Location.name,
+        )
+        .order_by(models.Product.name, models.Location.name)
+        .all()
+    )
+    voorraad_totaal = [
+        {
+            "product": r.product_naam,
+            "locatie": r.locatie_naam,
+            "totaal": r.totaal,
+            "eenheid": r.eenheid_naam or r.unit or "",
+        }
+        for r in voorraad_totaal_rows
+        if r.totaal and r.totaal > 0
+    ]
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -310,6 +363,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "location_entries": location_entries,
             "today_date": today,
             "bijna_verlopen_date": bijna_verlopen_cutoff,
+            "bijna_verlopen_7d": bijna_verlopen_7d,
+            "voorraad_totaal": voorraad_totaal,
             "stats": {
                 "total_producten": total_producten,
                 "total_locaties": total_locaties,
