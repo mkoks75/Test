@@ -183,7 +183,7 @@ body {
 .hero {
   position: relative;
   width: 100%;
-  height: 280px;
+  height: 220px;
   overflow: hidden;
   background: #1e4d38;
 }
@@ -199,7 +199,7 @@ body {
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.1);
 }
 
 .hero-content {
@@ -812,11 +812,8 @@ footer {
   }
 
   /* Hero */
-  .hero { height: 200px; }
+  .hero { height: 160px; }
   .hero-bg { background-size: cover; background-position: center; }
-  .hero-text h1 { font-size: 1.5rem; }
-  .hero-content { flex-direction: column; align-items: flex-start; gap: 8px; padding: 24px 16px; }
-  .hero-datum { text-align: left; }
 
   /* Foto galerij op mobiel */
   .foto-grid img { height: 100px; aspect-ratio: unset; }

@@ -31,8 +31,8 @@
   <div class="kaart" style="max-width:700px; margin-top:16px;" id="etiket-kaart">
     <h2 style="margin-top:0;">Etiketten ({{ entries_data|length }} stuks)</h2>
 
-    <p class="dymo-instructie">
-      Zorg dat de <strong>DYMO LabelWriter Wireless</strong> is ingesteld als standaardprinter met <strong>25 &times; 54 mm</strong> labels.
+    <p class="brother-instructie">
+      Zorg dat de <strong>Brother QL-820NWBc</strong> is ingesteld als standaardprinter met <strong>DK-22251</strong> labels (60 &times; 30 mm).
     </p>
 
     <div class="etiket-knoppen" style="margin-bottom:20px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -48,8 +48,11 @@
           <div class="plabel-links">
             <p class="plabel-naam">{{ item.entry.product.name }}</p>
             <p class="plabel-hoeveelheid">{{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
-            <p class="plabel-datum{% if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 %} datum-rood{% endif %}">THT: {% if item.entry.houdbaar_tot %}{{ item.entry.houdbaar_tot }}{% else %}&mdash;{% endif %}</p>
-            <p class="plabel-volgnr">Nr: {{ item.entry.volgnummer }}</p>
+            <p class="plabel-id">ID: {{ item.entry.id }}</p>
+            <p class="plabel-volgnr">#{{ "%04d"|format(item.entry.volgnummer) }}</p>
+            {% if item.entry.houdbaar_tot %}
+            <p class="plabel-datum datum-rood">THT: {{ item.entry.houdbaar_tot.strftime('%d-%m-%Y') }}</p>
+            {% endif %}
           </div>
           <div class="plabel-rechts">
             <div id="qr-screen-{{ item.entry.id }}" data-url="{{ item.qr_url }}"></div>
@@ -71,8 +74,11 @@
       <div class="print-links">
         <p class="print-naam">{{ item.entry.product.name }}</p>
         <p class="print-hoeveelheid">{{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
-        <p class="print-datum{% if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 %} datum-rood{% endif %}">THT: {% if item.entry.houdbaar_tot %}{{ item.entry.houdbaar_tot }}{% else %}&mdash;{% endif %}</p>
-        <p class="print-volgnr">Nr: {{ item.entry.volgnummer }}</p>
+        <p class="print-id">ID: {{ item.entry.id }}</p>
+        <p class="print-volgnr">#{{ "%04d"|format(item.entry.volgnummer) }}</p>
+        {% if item.entry.houdbaar_tot %}
+        <p class="print-datum" data-color="red">THT: {{ item.entry.houdbaar_tot.strftime('%d-%m-%Y') }}</p>
+        {% endif %}
       </div>
       <div class="print-rechts">
         <div id="qr-print-{{ item.entry.id }}" data-url="{{ item.qr_url }}"></div>
@@ -88,13 +94,13 @@
   // Genereer QR codes voor scherm en print bij laden
   document.querySelectorAll('[id^="qr-screen-"]').forEach(function(el) {
     new QRCode(el, {
-      text: el.getAttribute('data-url'), width: 120, height: 120,
+      text: el.getAttribute('data-url'), width: 220, height: 220,
       correctLevel: QRCode.CorrectLevel.M
     });
   });
   document.querySelectorAll('[id^="qr-print-"]').forEach(function(el) {
     new QRCode(el, {
-      text: el.getAttribute('data-url'), width: 200, height: 200,
+      text: el.getAttribute('data-url'), width: 300, height: 300,
       correctLevel: QRCode.CorrectLevel.M
     });
   });
@@ -105,9 +111,9 @@
       {
         naam: {{ item.entry.product.name | tojson }},
         hoeveelheid: {{ ("%.2f"|format(item.entry.quantity) ~ " " ~ (item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit)) | tojson }},
-        houdbaar: {{ ("THT: " ~ (item.entry.houdbaar_tot | string if item.entry.houdbaar_tot else "\u2014")) | tojson }},
-        houdbaarRood: {{ 'true' if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 else 'false' }},
-        volgnr: {{ ("Nr: " ~ item.entry.volgnummer) | tojson }},
+        entryId: 'ID: {{ item.entry.id }}',
+        volgnr: '#' + String({{ item.entry.volgnummer }}).padStart(4, '0'),
+        houdbaarTot: {{ (item.entry.houdbaar_tot.strftime('%d-%m-%Y') if item.entry.houdbaar_tot else '') | tojson }},
         qrId: 'qr-print-{{ item.entry.id }}'
       }{% if not loop.last %},{% endif %}
       {% endfor %}
@@ -118,39 +124,46 @@
 
     etiketten.forEach(function(e, i) {
       if (i === 0) {
-        doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [54, 25] });
+        doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [60, 30] });
       } else {
-        doc.addPage([54, 25], 'landscape');
+        doc.addPage([60, 30], 'landscape');
       }
 
       var canvas = document.querySelector('#' + e.qrId + ' canvas');
 
-      var y = 6;
+      var y = 5;
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      var lijnen = doc.splitTextToSize(e.naam, 30);
+      doc.setFontSize(9);
+      var lijnen = doc.splitTextToSize(e.naam, 34);
       var regels = lijnen.slice(0, 2);
+      doc.setTextColor(0, 0, 0);
       doc.text(regels, 2, y);
-      y += regels.length * 3.5;
+      y += regels.length * 4;
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6);
-      y += 0.5;
-      doc.text(e.hoeveelheid, 2, y);
-      y += 3;
-
-      if (e.houdbaarRood) doc.setTextColor(200, 0, 0);
-      doc.text(e.houdbaar, 2, y);
+      doc.setFontSize(7);
       doc.setTextColor(0, 0, 0);
+      doc.text(e.hoeveelheid, 2, y);
+      y += 3.2;
+
+      doc.setFontSize(6);
+      doc.setTextColor(120, 120, 120);
+      doc.text(e.entryId, 2, y);
       y += 2.8;
 
-      doc.setFontSize(5);
-      doc.setTextColor(120, 120, 120);
       doc.text(e.volgnr, 2, y);
-      doc.setTextColor(0, 0, 0);
+      y += 2.8;
+
+      if (e.houdbaarTot) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(204, 0, 0);
+        doc.text('THT: ' + e.houdbaarTot, 2, y);
+        doc.setTextColor(0, 0, 0);
+      }
 
       if (canvas) {
-        doc.addImage(canvas.toDataURL('image/png'), 'PNG', 32, 2.5, 20, 20);
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', 37, 2, 21, 21);
       }
     });
 
@@ -161,51 +174,51 @@
 </script>
 
 <style>
-  @page { size: 54mm 25mm; margin: 0; }
+  @page { size: 60mm 30mm landscape; margin: 1mm; }
 
   @media screen {
     #print-container { display: none !important; }
   }
 
   @media print {
-    .topnav, footer, .page-header, .etiket-knoppen, .dymo-instructie,
+    .topnav, footer, .page-header, .etiket-knoppen, .brother-instructie,
     #etiketten-screen, .kaart:not(#etiket-kaart), #etiket-kaart > h2,
     #etiket-kaart > p { display: none !important; }
-    body, html { margin: 0 !important; padding: 0 !important; }
+    body, html { margin: 0 !important; padding: 0 !important; background: white !important; }
     main { padding: 0 !important; margin: 0 !important; }
     #etiket-kaart { border: none !important; box-shadow: none !important;
       padding: 0 !important; margin: 0 !important; max-width: none !important; }
     #print-container { display: block !important; }
     .print-label {
-      width: 54mm; height: 25mm;
+      width: 58mm; height: 28mm;
       display: flex; flex-direction: row;
-      box-sizing: border-box; padding: 1.5mm 1mm 1.5mm 2mm; overflow: hidden;
+      box-sizing: border-box; overflow: hidden;
     }
     .pagina-einde { page-break-after: always; }
     .print-links {
-      flex: 0 0 60%; display: flex; flex-direction: column;
-      justify-content: center; overflow: hidden;
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; padding: 1mm 1mm 1mm 1.5mm; overflow: hidden;
     }
     .print-rechts {
-      flex: 0 0 40%; display: flex;
+      flex: 0 0 26mm; display: flex;
       align-items: center; justify-content: center;
     }
     .print-rechts canvas, .print-rechts img {
-      width: 20mm !important; height: 20mm !important;
+      width: 24mm !important; height: 24mm !important;
     }
     .print-naam {
-      font-size: 7pt; font-weight: bold; margin: 0 0 0.8mm 0;
+      font-size: 9pt; font-weight: bold; color: #000; margin: 0 0 0.8mm 0;
       line-height: 1.2; overflow: hidden;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     }
-    .print-hoeveelheid { font-size: 6pt; margin: 0 0 0.5mm 0; line-height: 1.15; }
-    .print-datum { font-size: 6pt; margin: 0 0 0.5mm 0; line-height: 1.15; }
-    .print-volgnr { font-size: 5pt; color: #888; margin: 0; line-height: 1.15; }
-    .datum-rood { color: red !important; }
+    .print-hoeveelheid { font-size: 7pt; color: #000; margin: 0 0 0.5mm 0; line-height: 1.15; }
+    .print-id { font-size: 6pt; color: #888; margin: 0 0 0.4mm 0; line-height: 1.15; }
+    .print-volgnr { font-size: 6pt; color: #888; margin: 0 0 0.4mm 0; line-height: 1.15; }
+    .print-datum { font-size: 8pt; font-weight: bold; color: #CC0000 !important; margin: 0; line-height: 1.2; }
   }
 
   /* Scherm preview */
-  .dymo-instructie {
+  .brother-instructie {
     font-size: 0.85rem; color: #555; margin-bottom: 14px;
     padding: 8px 12px; background: #f0f4ff;
     border-left: 3px solid #4a7cdc; border-radius: 4px;
@@ -213,24 +226,25 @@
   .preview-wrapper { overflow-x: auto; }
   .preview-label {
     display: flex; flex-direction: row;
-    width: 540px; height: 250px;
+    width: 540px; height: 270px;
     border: 2px solid #bbb; border-radius: 6px;
     background: white; overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   }
   .plabel-links {
-    flex: 0 0 60%; display: flex; flex-direction: column;
+    flex: 1; display: flex; flex-direction: column;
     justify-content: center; padding: 16px 10px 16px 24px;
   }
   .plabel-rechts {
-    flex: 0 0 40%; display: flex;
+    flex: 0 0 260px; display: flex;
     align-items: center; justify-content: center;
     background: #fafafa; border-left: 1px solid #eee;
   }
-  .plabel-naam { font-size: 1.45rem; font-weight: 700; margin: 0 0 10px 0; line-height: 1.2; }
-  .plabel-hoeveelheid { font-size: 1.05rem; margin: 0 0 6px 0; color: #333; }
-  .plabel-datum { font-size: 1.05rem; margin: 0 0 6px 0; }
-  .plabel-volgnr { font-size: 0.85rem; color: #888; margin: 0; }
-  .datum-rood { color: var(--rood) !important; font-weight: 600; }
+  .plabel-naam { font-size: 1.5rem; font-weight: 700; margin: 0 0 8px 0; line-height: 1.2; }
+  .plabel-hoeveelheid { font-size: 1rem; margin: 0 0 5px 0; color: #333; }
+  .plabel-id { font-size: 0.82rem; color: #888; margin: 0 0 3px 0; }
+  .plabel-volgnr { font-size: 0.82rem; color: #888; margin: 0 0 5px 0; }
+  .plabel-datum { font-size: 1rem; margin: 0; }
+  .datum-rood { color: #CC0000 !important; font-weight: 700; }
 </style>
 {% endblock %}

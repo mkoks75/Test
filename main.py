@@ -408,6 +408,12 @@ async def harvest_new(
         .order_by(models.Location.name)
         .all()
     )
+    eenheden = (
+        db.query(models.Eenheid)
+        .filter(models.Eenheid.actief == True)
+        .order_by(models.Eenheid.naam)
+        .all()
+    )
     today = datetime.date.today().isoformat()
 
     # Bouw een dict product_id -> eenheid naam voor JavaScript
@@ -428,6 +434,7 @@ async def harvest_new(
             "user": user,
             "products": products,
             "locations": locations,
+            "eenheden": eenheden,
             "today": today,
             "success": success == 1,
             "product_eenheden_json": json.dumps(product_eenheden),
@@ -512,6 +519,50 @@ async def harvest_new_post(
         db.commit()
         db.refresh(entry)
         return RedirectResponse(f"/harvest/confirm/{entry.id}", status_code=302)
+
+
+# ── Snel product toevoegen (AJAX) ──────────────────────────────────────────────
+
+@app.post("/product/snel-toevoegen")
+async def product_snel_toevoegen(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"detail": "Niet ingelogd"}, status_code=401)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"detail": "Ongeldige invoer"}, status_code=400)
+
+    naam = (data.get("naam") or "").strip()
+    eenheid_id = data.get("eenheid_id")
+
+    if not naam:
+        return JSONResponse({"detail": "Productnaam mag niet leeg zijn"}, status_code=400)
+    if not eenheid_id:
+        return JSONResponse({"detail": "Eenheid is verplicht"}, status_code=400)
+
+    eenheid = db.query(models.Eenheid).filter(models.Eenheid.id == eenheid_id).first()
+    if not eenheid:
+        return JSONResponse({"detail": "Eenheid niet gevonden"}, status_code=400)
+
+    product = models.Product(
+        name=naam,
+        unit=eenheid.naam,
+        eenheid_id=eenheid.id,
+        active=True,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+
+    return JSONResponse({
+        "id": product.id,
+        "naam": product.name,
+        "eenheid_id": eenheid.id,
+        "eenheid_naam": eenheid.naam,
+        "etiket_per_stuk": eenheid.etiket_per_stuk,
+    })
 
 
 # ── Bevestiging na opslaan oogst ───────────────────────────────────────────────

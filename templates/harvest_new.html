@@ -27,9 +27,37 @@
           <select id="product_id" name="product_id" required>
             <option value="">-- Kies een product --</option>
             {% for p in products %}
-            <option value="{{ p.id }}">{{ p.name }} ({{ p.eenheid.naam if p.eenheid else p.unit }})</option>
+            <option value="{{ p.id }}" data-eenheid="{{ p.eenheid.naam if p.eenheid else p.unit }}" data-per-stuk="{{ 'true' if p.eenheid and p.eenheid.etiket_per_stuk else 'false' }}">{{ p.name }} ({{ p.eenheid.naam if p.eenheid else p.unit }})</option>
             {% endfor %}
           </select>
+          <div style="margin-top:6px;">
+            <a href="#" id="nieuw-product-link" style="font-size:0.85rem; color:var(--groen); text-decoration:none;">+ Nieuw product toevoegen</a>
+          </div>
+        </div>
+
+        <!-- Inline nieuw product formulier -->
+        <div id="nieuw-product-form" class="veld volledig" style="display:none; background:#f8fdf9; border:1px solid #b7e4c7; border-radius:8px; padding:14px 16px; margin-top:-8px;">
+          <strong style="font-size:0.88rem; color:var(--groen); display:block; margin-bottom:10px;">Nieuw product toevoegen</strong>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="veld">
+              <label for="np-naam">Productnaam <span style="color:var(--rood)">*</span></label>
+              <input type="text" id="np-naam" placeholder="bijv. Witlof" autocomplete="off">
+            </div>
+            <div class="veld">
+              <label for="np-eenheid">Eenheid <span style="color:var(--rood)">*</span></label>
+              <select id="np-eenheid">
+                <option value="">-- Kies eenheid --</option>
+                {% for e in eenheden %}
+                <option value="{{ e.id }}" data-naam="{{ e.naam }}" data-per-stuk="{{ 'true' if e.etiket_per_stuk else 'false' }}">{{ e.naam }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div id="np-fout" style="display:none; color:var(--rood); font-size:0.85rem; margin-top:8px;"></div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <button type="button" id="np-opslaan" class="btn btn-primair btn-klein">Opslaan en selecteren</button>
+            <button type="button" id="np-annuleren" class="btn btn-secundair btn-klein">Annuleren</button>
+          </div>
         </div>
 
         <div class="veld">
@@ -121,5 +149,82 @@
   }
 
   document.getElementById("product_id").addEventListener("change", updateEenheid);
+
+  // ── Inline nieuw product formulier ──────────────────────────────────────────
+  document.getElementById("nieuw-product-link").addEventListener("click", function(e) {
+    e.preventDefault();
+    document.getElementById("nieuw-product-form").style.display = "block";
+    document.getElementById("np-naam").focus();
+  });
+
+  document.getElementById("np-annuleren").addEventListener("click", function() {
+    document.getElementById("nieuw-product-form").style.display = "none";
+    document.getElementById("np-naam").value = "";
+    document.getElementById("np-eenheid").value = "";
+    document.getElementById("np-fout").style.display = "none";
+  });
+
+  document.getElementById("np-opslaan").addEventListener("click", function() {
+    var naam = document.getElementById("np-naam").value.trim();
+    var eenheidSelect = document.getElementById("np-eenheid");
+    var eenheidId = eenheidSelect.value;
+    var foutDiv = document.getElementById("np-fout");
+
+    if (!naam) {
+      foutDiv.textContent = "Productnaam mag niet leeg zijn.";
+      foutDiv.style.display = "block";
+      return;
+    }
+    if (!eenheidId) {
+      foutDiv.textContent = "Kies een eenheid.";
+      foutDiv.style.display = "block";
+      return;
+    }
+    foutDiv.style.display = "none";
+
+    var btn = document.getElementById("np-opslaan");
+    btn.disabled = true;
+    btn.textContent = "Bezig...";
+
+    fetch("/product/snel-toevoegen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ naam: naam, eenheid_id: parseInt(eenheidId) })
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(d) { throw new Error(d.detail || "Fout bij opslaan"); });
+      return r.json();
+    })
+    .then(function(data) {
+      var select = document.getElementById("product_id");
+      var opt = document.createElement("option");
+      opt.value = data.id;
+      opt.textContent = data.naam + " (" + data.eenheid_naam + ")";
+      opt.setAttribute("data-eenheid", data.eenheid_naam);
+      opt.setAttribute("data-per-stuk", data.etiket_per_stuk ? "true" : "false");
+      select.appendChild(opt);
+      select.value = data.id;
+      select.dispatchEvent(new Event("change"));
+
+      document.getElementById("nieuw-product-form").style.display = "none";
+      document.getElementById("np-naam").value = "";
+      document.getElementById("np-eenheid").value = "";
+
+      var bevestiging = document.createElement("div");
+      bevestiging.className = "melding melding-succes";
+      bevestiging.style.cssText = "margin-top:8px; padding:8px 12px; font-size:0.85rem;";
+      bevestiging.textContent = "Product \u2018" + data.naam + "\u2019 toegevoegd.";
+      document.getElementById("nieuw-product-link").parentNode.appendChild(bevestiging);
+      setTimeout(function() { bevestiging.remove(); }, 3500);
+    })
+    .catch(function(err) {
+      foutDiv.textContent = err.message;
+      foutDiv.style.display = "block";
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = "Opslaan en selecteren";
+    });
+  });
 </script>
 {% endblock %}
