@@ -84,13 +84,22 @@
       <tbody>
         {% if bijna_verlopen_7d %}
           {% for entry in bijna_verlopen_7d[:10] %}
+          {% set dagen = (entry.houdbaar_tot - today_date).days %}
           <tr>
             <td>{{ entry.product.name }}</td>
             <td>{{ "%.2f"|format(entry.quantity) }}</td>
             <td>{{ entry.product.eenheid.naam if entry.product.eenheid else (entry.product.unit or '—') }}</td>
             <td>{{ entry.conserveringsmethode.naam if entry.conserveringsmethode else '—' }}</td>
             <td>{{ entry.location.name }}</td>
-            <td style="color:var(--rood, #c0392b); font-weight:600;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</td>
+            <td>
+              {% if dagen <= 7 %}
+                <span style="color:#CC0000; font-weight:600;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% elif dagen <= 14 %}
+                <span style="color:#CC0000;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% else %}
+                <span style="color:#E07B00;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
           {% if bijna_verlopen_7d|length > 10 %}

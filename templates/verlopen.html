@@ -15,30 +15,32 @@
     <table>
       <thead>
         <tr>
-          <th>ID</th>
           <th>Product</th>
+          <th>Conserveringsmethode</th>
           <th>Locatie</th>
           <th style="text-align:right;">Hoeveelheid</th>
           <th>Eenheid</th>
           <th>Houdbaar tot</th>
-          <th>Ingevoerd door</th>
         </tr>
       </thead>
       <tbody>
         {% for entry in entries %}
-        <tr {% if entry.houdbaar_tot <= today %}style="background:#fde8e8;"{% endif %}>
-          <td style="color:#6c757d; font-size:.85rem;">{{ entry.id }}</td>
+        {% set dagen = (entry.houdbaar_tot - today).days %}
+        <tr {% if dagen <= 0 %}style="background:#fde8e8;"{% endif %}>
           <td>{{ entry.product.name }}</td>
+          <td>{{ entry.conserveringsmethode.naam if entry.conserveringsmethode else '-' }}</td>
           <td>{{ entry.location.name }}</td>
           <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(entry.quantity) }}</td>
           <td>{{ entry.product.unit }}</td>
           <td>
-            <span {% if entry.houdbaar_tot <= today %}style="color:var(--rood); font-weight:700;"{% else %}style="color:var(--oranje); font-weight:600;"{% endif %}>
-              {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
-              {% if entry.houdbaar_tot <= today %} &mdash; verlopen{% endif %}
-            </span>
+            {% if dagen <= 7 %}
+              <span style="color:#CC0000; font-weight:600;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+            {% elif dagen <= 14 %}
+              <span style="color:#CC0000;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+            {% else %}
+              <span style="color:#E07B00;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+            {% endif %}
           </td>
-          <td style="color:#6c757d;">{{ entry.entered_by }}</td>
         </tr>
         {% endfor %}
       </tbody>
