@@ -43,21 +43,23 @@
     </a>
   </div>
 
-  <!-- Twee-kolom layout: fotogalerij sidebar -->
-  <div class="dashboard-layout">
-    <div class="dashboard-main"><!-- intentionally empty --></div>
-    <div class="dashboard-sidebar">
-      <div class="foto-widget">
-        <h3>Van het veld</h3>
-        <div class="foto-grid">
-          <img src="/static/images/witlof.jpeg" alt="Witlof">
-          <img src="/static/images/zaaien.jpeg" alt="Zaaien">
-          <img src="/static/images/tractor1.jpeg" alt="Tractor">
-          <img src="/static/images/tractor2.jpeg" alt="Tractor op het veld">
-        </div>
+  <!-- Fotogalerij: volle breedte tussen tegels en tabellen -->
+  <div class="foto-galerij-wrap">
+    <div class="foto-galerij-grid">
+      <div class="foto-galerij-item">
+        <img src="/static/images/witlof.jpeg" alt="Witlof">
+      </div>
+      <div class="foto-galerij-item">
+        <img src="/static/images/zaaien.jpeg" alt="Zaaien">
+      </div>
+      <div class="foto-galerij-item">
+        <img src="/static/images/tractor1.jpeg" alt="Tractor">
+      </div>
+      <div class="foto-galerij-item">
+        <img src="/static/images/tractor2.jpeg" alt="Tractor op het veld">
       </div>
     </div>
-  </div><!-- /.dashboard-layout -->
+  </div>
 
   <!-- Tabel 1: Bijna verlopen binnen 7 dagen -->
   <div class="kaart" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
@@ -73,7 +75,7 @@
           <th>Product</th>
           <th>Hoeveelheid</th>
           <th>Eenheid</th>
-          <th>Bewaarmethode</th>
+          <th>Conserveringsmethode</th>
           <th>Locatie</th>
           <th>Houdbaarheidsdatum</th>
         </tr>
@@ -86,7 +88,7 @@
             <td>{{ entry.product.name }}</td>
             <td>{{ "%.2f"|format(entry.quantity) }}</td>
             <td>{{ entry.product.eenheid.naam if entry.product.eenheid else (entry.product.unit or '—') }}</td>
-            <td>{{ entry.location.name }}</td>
+            <td>{{ entry.conserveringsmethode.naam if entry.conserveringsmethode else '—' }}</td>
             <td>{{ entry.location.name }}</td>
             <td style="color:var(--rood, #c0392b); font-weight:600;">{{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}</td>
           </tr>
@@ -121,9 +123,9 @@
         {% if voorraad_totaal %}
         <tr>
           <th>Product</th>
+          <th>Conserveringsmethode</th>
           <th style="text-align:right;">Totale hoeveelheid</th>
           <th>Eenheid</th>
-          <th>Bewaarmethode / Locatie</th>
         </tr>
         {% endif %}
       </thead>
@@ -132,9 +134,9 @@
           {% for rij in voorraad_totaal %}
           <tr>
             <td>{{ rij.product }}</td>
+            <td>{{ rij.conserveringsmethode }}</td>
             <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(rij.totaal) }}</td>
             <td>{{ rij.eenheid or '—' }}</td>
-            <td>{{ rij.locatie }}</td>
           </tr>
           {% endfor %}
         {% else %}

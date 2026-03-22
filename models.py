@@ -61,12 +61,24 @@ class Location(Base):
     uitgiftes = relationship("Uitgifte", back_populates="location")
 
 
+class Conserveringsmethode(Base):
+    __tablename__ = "conserveringsmethoden"
+
+    id = Column(Integer, primary_key=True, index=True)
+    naam = Column(String, nullable=False)
+    actief = Column(Boolean, default=True, nullable=False)
+
+    entries = relationship("HarvestEntry", back_populates="conserveringsmethode")
+    houdbaarheid_records = relationship("ProductHoudbaarheid", back_populates="conserveringsmethode")
+
+
 class HarvestEntry(Base):
     __tablename__ = "harvest_entries"
 
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    conserveringsmethode_id = Column(Integer, ForeignKey("conserveringsmethoden.id"), nullable=True)
     quantity = Column(Float, nullable=False)
     date = Column(String, nullable=False)  # ISO formaat: YYYY-MM-DD
     entered_by = Column(String, nullable=False)
@@ -82,6 +94,7 @@ class HarvestEntry(Base):
 
     product = relationship("Product", back_populates="entries")
     location = relationship("Location", back_populates="entries")
+    conserveringsmethode = relationship("Conserveringsmethode", back_populates="entries")
 
 
 class Ontvanger(Base):
@@ -115,9 +128,9 @@ class ProductHoudbaarheid(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    locatie_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    conserveringsmethode_id = Column(Integer, ForeignKey("conserveringsmethoden.id"), nullable=True)
     houdbaarheid_maanden = Column(Integer, nullable=False)
     actief = Column(Boolean, default=True, nullable=False)
 
     product = relationship("Product")
-    locatie = relationship("Location")
+    conserveringsmethode = relationship("Conserveringsmethode", back_populates="houdbaarheid_records")

@@ -56,6 +56,8 @@ async def startup():
                 conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN uitgegeven_op DATETIME"))
             if "uitgegeven_aan" not in col_names:
                 conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN uitgegeven_aan TEXT"))
+            if "conserveringsmethode_id" not in col_names:
+                conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN conserveringsmethode_id INTEGER REFERENCES conserveringsmethoden(id)"))
             conn.commit()
         except Exception:
             pass  # Tabel bestaat nog niet; create_all regelt dit
@@ -88,13 +90,13 @@ async def startup():
         except Exception:
             pass
 
-        # Maak product_houdbaarheid tabel aan indien nog niet aanwezig
+        # Maak product_houdbaarheid tabel aan / migreer naar conserveringsmethode
         try:
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS product_houdbaarheid (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     product_id INTEGER NOT NULL REFERENCES products(id),
-                    locatie_id INTEGER NOT NULL REFERENCES locations(id),
+                    conserveringsmethode_id INTEGER REFERENCES conserveringsmethoden(id),
                     houdbaarheid_maanden INTEGER NOT NULL,
                     actief BOOLEAN NOT NULL DEFAULT 1
                 )
@@ -102,6 +104,31 @@ async def startup():
             conn.commit()
         except Exception:
             pass
+
+        # Voeg conserveringsmethode_id toe aan bestaande product_houdbaarheid indien ontbreekt
+        try:
+            pragma_ph = conn.execute(text("PRAGMA table_info(product_houdbaarheid)")).fetchall()
+            ph_col_names = [row[1] for row in pragma_ph]
+            if "conserveringsmethode_id" not in ph_col_names:
+                conn.execute(text("ALTER TABLE product_houdbaarheid ADD COLUMN conserveringsmethode_id INTEGER REFERENCES conserveringsmethoden(id)"))
+            conn.commit()
+        except Exception:
+            pass
+
+    # Standaard conserveringsmethoden aanmaken als de tabel leeg is
+    db = database.SessionLocal()
+    try:
+        if db.query(models.Conserveringsmethode).count() == 0:
+            standaard_methoden = [
+                "Invriezen", "Inmaken in zuur", "Fermenteren", "Drogen",
+                "Inmaken in olie", "Konfijten", "Vacuümverpakken",
+                "Koud bewaren", "Op kamertemperatuur",
+            ]
+            for naam in standaard_methoden:
+                db.add(models.Conserveringsmethode(naam=naam, actief=True))
+            db.commit()
+    finally:
+        db.close()
 
     # Standaard eenheden aanmaken als de tabel leeg is
     db = database.SessionLocal()
@@ -318,18 +345,18 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
-    # Totaaloverzicht voorraad: groepeer per product per locatie
+    # Totaaloverzicht voorraad: groepeer per product per conserveringsmethode
     voorraad_totaal_rows = (
         db.query(
             models.Product.name.label("product_naam"),
-            models.Location.name.label("locatie_naam"),
+            models.Conserveringsmethode.naam.label("conserveringsmethode_naam"),
             func.sum(models.HarvestEntry.quantity).label("totaal"),
             models.Product.unit.label("unit"),
             models.Eenheid.naam.label("eenheid_naam"),
         )
         .select_from(models.HarvestEntry)
         .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
-        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+        .outerjoin(models.Conserveringsmethode, models.HarvestEntry.conserveringsmethode_id == models.Conserveringsmethode.id)
         .outerjoin(models.Eenheid, models.Product.eenheid_id == models.Eenheid.id)
         .filter(models.HarvestEntry.uitgegeven == False)
         .group_by(
@@ -337,16 +364,16 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             models.Product.name,
             models.Product.unit,
             models.Eenheid.naam,
-            models.Location.id,
-            models.Location.name,
+            models.HarvestEntry.conserveringsmethode_id,
+            models.Conserveringsmethode.naam,
         )
-        .order_by(models.Product.name, models.Location.name)
+        .order_by(models.Product.name, models.Conserveringsmethode.naam)
         .all()
     )
     voorraad_totaal = [
         {
             "product": r.product_naam,
-            "locatie": r.locatie_naam,
+            "conserveringsmethode": r.conserveringsmethode_naam or "Niet opgegeven",
             "totaal": r.totaal,
             "eenheid": r.eenheid_naam or r.unit or "",
         }
@@ -484,6 +511,12 @@ async def harvest_new(
         .order_by(models.Eenheid.naam)
         .all()
     )
+    conserveringsmethoden = (
+        db.query(models.Conserveringsmethode)
+        .filter(models.Conserveringsmethode.actief == True)
+        .order_by(models.Conserveringsmethode.naam)
+        .all()
+    )
     today = datetime.date.today().isoformat()
 
     # Bouw een dict product_id -> eenheid naam voor JavaScript
@@ -504,6 +537,7 @@ async def harvest_new(
             "user": user,
             "products": products,
             "locations": locations,
+            "conserveringsmethoden": conserveringsmethoden,
             "eenheden": eenheden,
             "today": today,
             "success": success == 1,
@@ -519,6 +553,7 @@ async def harvest_new_post(
     db: Session = Depends(get_db),
     product_id: int = Form(...),
     location_id: int = Form(...),
+    conserveringsmethode_id: Optional[int] = Form(default=None),
     quantity: Optional[float] = Form(None),
     date: str = Form(...),
     note: str = Form(default=""),
@@ -555,6 +590,7 @@ async def harvest_new_post(
             entry = models.HarvestEntry(
                 product_id=product_id,
                 location_id=location_id,
+                conserveringsmethode_id=conserveringsmethode_id or None,
                 quantity=1.0,
                 date=date,
                 entered_by=user,
@@ -577,6 +613,7 @@ async def harvest_new_post(
         entry = models.HarvestEntry(
             product_id=product_id,
             location_id=location_id,
+            conserveringsmethode_id=conserveringsmethode_id or None,
             quantity=effective_quantity,
             date=date,
             entered_by=user,
@@ -1672,18 +1709,18 @@ async def api_houdbaarheid(
     request: Request,
     db: Session = Depends(get_db),
     product_id: int = None,
-    locatie_id: int = None,
+    conserveringsmethode_id: int = None,
 ):
     user = get_current_user(request)
     if not user:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    if not product_id or not locatie_id:
+    if not product_id or not conserveringsmethode_id:
         return JSONResponse({"gevonden": False})
 
     record = db.query(models.ProductHoudbaarheid).filter(
         models.ProductHoudbaarheid.product_id == product_id,
-        models.ProductHoudbaarheid.locatie_id == locatie_id,
+        models.ProductHoudbaarheid.conserveringsmethode_id == conserveringsmethode_id,
         models.ProductHoudbaarheid.actief == True,
     ).first()
 
@@ -1712,12 +1749,13 @@ async def beheer_houdbaarheid(
     records = (
         db.query(models.ProductHoudbaarheid)
         .join(models.Product, models.ProductHoudbaarheid.product_id == models.Product.id)
-        .join(models.Location, models.ProductHoudbaarheid.locatie_id == models.Location.id)
-        .order_by(models.Product.name, models.Location.name)
+        .outerjoin(models.Conserveringsmethode, models.ProductHoudbaarheid.conserveringsmethode_id == models.Conserveringsmethode.id)
+        .order_by(models.Product.name, models.Conserveringsmethode.naam)
         .all()
     )
     producten = db.query(models.Product).filter(models.Product.active == True).order_by(models.Product.name).all()
-    locaties = db.query(models.Location).filter(models.Location.active == True).order_by(models.Location.name).all()
+    conserveringsmethoden = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.actief == True).order_by(models.Conserveringsmethode.naam).all()
+    alle_conserveringsmethoden = db.query(models.Conserveringsmethode).order_by(models.Conserveringsmethode.naam).all()
 
     return templates.TemplateResponse(
         "beheer_houdbaarheid.html",
@@ -1726,7 +1764,8 @@ async def beheer_houdbaarheid(
             "user": user,
             "records": records,
             "producten": producten,
-            "locaties": locaties,
+            "conserveringsmethoden": conserveringsmethoden,
+            "alle_conserveringsmethoden": alle_conserveringsmethoden,
             "success": success,
             "error": error,
         },
@@ -1738,7 +1777,7 @@ async def beheer_houdbaarheid_add(
     request: Request,
     db: Session = Depends(get_db),
     product_id: int = Form(...),
-    locatie_id: int = Form(...),
+    conserveringsmethode_id: int = Form(...),
     houdbaarheid_maanden: int = Form(...),
 ):
     user = get_current_user(request)
@@ -1748,7 +1787,7 @@ async def beheer_houdbaarheid_add(
     # Controleer op dubbele combinatie
     bestaand = db.query(models.ProductHoudbaarheid).filter(
         models.ProductHoudbaarheid.product_id == product_id,
-        models.ProductHoudbaarheid.locatie_id == locatie_id,
+        models.ProductHoudbaarheid.conserveringsmethode_id == conserveringsmethode_id,
     ).first()
     if bestaand:
         return RedirectResponse("/beheer/houdbaarheid?error=dubbel", status_code=302)
@@ -1758,7 +1797,7 @@ async def beheer_houdbaarheid_add(
 
     record = models.ProductHoudbaarheid(
         product_id=product_id,
-        locatie_id=locatie_id,
+        conserveringsmethode_id=conserveringsmethode_id,
         houdbaarheid_maanden=houdbaarheid_maanden,
         actief=True,
     )
@@ -1812,6 +1851,97 @@ async def beheer_houdbaarheid_delete(record_id: int, request: Request, db: Sessi
         db.delete(record)
         db.commit()
     return RedirectResponse("/beheer/houdbaarheid?success=verwijderd", status_code=302)
+
+
+# ── Conserveringsmethoden beheer ────────────────────────────────────────────────
+
+@app.post("/beheer/conserveringsmethode/add")
+async def beheer_conserveringsmethode_add(
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    naam = naam.strip()
+    if not naam:
+        return RedirectResponse("/beheer/houdbaarheid?error=lege_naam", status_code=302)
+
+    bestaand = db.query(models.Conserveringsmethode).filter(
+        func.lower(models.Conserveringsmethode.naam) == naam.lower()
+    ).first()
+    if bestaand:
+        return RedirectResponse("/beheer/houdbaarheid?error=dubbele_methode", status_code=302)
+
+    db.add(models.Conserveringsmethode(naam=naam, actief=True))
+    db.commit()
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_toegevoegd", status_code=302)
+
+
+@app.get("/beheer/conserveringsmethode/edit/{methode_id}")
+async def beheer_conserveringsmethode_edit(methode_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
+    if not methode:
+        return RedirectResponse("/beheer/houdbaarheid", status_code=302)
+
+    in_gebruik = db.query(models.HarvestEntry).filter(
+        models.HarvestEntry.conserveringsmethode_id == methode_id
+    ).count() > 0 or db.query(models.ProductHoudbaarheid).filter(
+        models.ProductHoudbaarheid.conserveringsmethode_id == methode_id
+    ).count() > 0
+
+    return templates.TemplateResponse(
+        "beheer_conserveringsmethode_edit.html",
+        {"request": request, "user": user, "methode": methode, "in_gebruik": in_gebruik},
+    )
+
+
+@app.post("/beheer/conserveringsmethode/edit/{methode_id}")
+async def beheer_conserveringsmethode_edit_post(
+    methode_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+    actief: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
+    if methode:
+        methode.naam = naam.strip()
+        methode.actief = actief == "on"
+        db.commit()
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_bijgewerkt", status_code=302)
+
+
+@app.post("/beheer/conserveringsmethode/delete/{methode_id}")
+async def beheer_conserveringsmethode_delete(methode_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    in_gebruik = db.query(models.HarvestEntry).filter(
+        models.HarvestEntry.conserveringsmethode_id == methode_id
+    ).count() > 0 or db.query(models.ProductHoudbaarheid).filter(
+        models.ProductHoudbaarheid.conserveringsmethode_id == methode_id
+    ).count() > 0
+
+    if in_gebruik:
+        return RedirectResponse("/beheer/houdbaarheid?error=methode_in_gebruik", status_code=302)
+
+    methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
+    if methode:
+        db.delete(methode)
+        db.commit()
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_verwijderd", status_code=302)
 
 
 # ── QR Scan lookup ─────────────────────────────────────────────────────────────

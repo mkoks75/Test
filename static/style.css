@@ -296,36 +296,33 @@ body {
   letter-spacing: .3px;
 }
 
-/* ── Foto galerij (sidebar) ── */
-.foto-widget {
-  background: var(--card);
-  border-radius: 10px;
-  padding: 18px 18px 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  border: 1px solid #eef0f2;
+/* ── Foto galerij (volle breedte) ── */
+.foto-galerij-wrap {
   margin-bottom: 24px;
 }
 
-.foto-widget h3 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--groen);
-  margin: 0 0 12px;
-}
-
-.foto-grid {
+.foto-galerij-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
 
-.foto-grid img {
+.foto-galerij-item {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.foto-galerij-item img {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: 180px;
   object-fit: cover;
-  border-radius: 7px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+  border-radius: 10px;
   display: block;
+  transition: transform 0.3s ease;
+}
+
+.foto-galerij-item img:hover {
+  transform: scale(1.03);
 }
 
 /* ── Pagina header banner (niet-dashboard pagina's) ── */
@@ -815,12 +812,12 @@ footer {
   .hero { height: 160px; }
   .hero-bg { background-size: cover; background-position: center; }
 
-  /* Foto galerij op mobiel */
-  .foto-grid img { height: 100px; aspect-ratio: unset; }
+  /* Foto galerij op mobiel: 2x2 */
+  .foto-galerij-grid { grid-template-columns: 1fr 1fr; }
+  .foto-galerij-item img { height: 120px; }
 
   /* Dashboard layout: stapelen */
   .dashboard-wrap { padding: 16px 12px 32px; }
-  .dashboard-layout { grid-template-columns: 1fr; }
   .stats-rij { grid-template-columns: 1fr 1fr; gap: 10px; }
   .tegels-rij { grid-template-columns: 1fr 1fr; gap: 10px; }
 

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Conserveringsmethode bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Bewerken: {{ methode.naam }}</h1>
+    <p><a href="/beheer/houdbaarheid">Houdbaarheid &amp; Conservering</a> &rsaquo; Conserveringsmethode bewerken</p>
+  </div>
+</div>
+
+<main>
+  <div class="kaart" style="max-width:480px;">
+    <form method="post" action="/beheer/conserveringsmethode/edit/{{ methode.id }}">
+      <div class="veld">
+        <label for="naam">Naam <span style="color:var(--rood)">*</span></label>
+        <input type="text" id="naam" name="naam" value="{{ methode.naam }}" required>
+      </div>
+      <div class="veld" style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+        <input type="checkbox" id="actief" name="actief" value="on" {% if methode.actief %}checked{% endif %} style="width:auto;">
+        <label for="actief" style="margin:0;">Actief</label>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/beheer/houdbaarheid" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+
+    <hr style="margin:24px 0; border:none; border-top:1px solid #e9ecef;">
+
+    {% if in_gebruik %}
+    <p style="color:#6c757d; font-size:0.88rem;">Deze conserveringsmethode is in gebruik en kan niet worden verwijderd.</p>
+    {% else %}
+    <form method="post" action="/beheer/conserveringsmethode/delete/{{ methode.id }}"
+          onsubmit="return confirm('Weet je zeker dat je &quot;{{ methode.naam }}&quot; wilt verwijderen?')">
+      <button type="submit" class="btn btn-gevaar">Verwijderen</button>
+    </form>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

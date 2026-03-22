@@ -61,11 +61,11 @@
         </div>
 
         <div class="veld">
-          <label for="bewaarmethode_id">Bewaarmethode</label>
-          <select id="bewaarmethode_id" name="bewaarmethode_id">
-            <option value="">-- Kies een bewaarmethode --</option>
-            {% for l in locations %}
-            <option value="{{ l.id }}">{{ l.name }}</option>
+          <label for="conserveringsmethode_id">Conserveringsmethode</label>
+          <select id="conserveringsmethode_id" name="conserveringsmethode_id">
+            <option value="">-- Kies een conserveringsmethode --</option>
+            {% for m in conserveringsmethoden %}
+            <option value="{{ m.id }}">{{ m.naam }}</option>
             {% endfor %}
           </select>
           <div id="houdbaarheid-melding" style="display:none; font-size:0.83rem; color:var(--groen); margin-top:4px;"></div>
@@ -164,24 +164,24 @@
     checkHoudbaarheid();
   });
 
-  // ── Bewaarmethode → locatie auto-fill + houdbaarheid opzoeken ───────────────
+  // ── Conserveringsmethode → houdbaarheid opzoeken ────────────────────────────
   function checkHoudbaarheid() {
     var productId = document.getElementById("product_id").value;
-    var bewaarmethodeId = document.getElementById("bewaarmethode_id").value;
+    var conserveringsmethodeId = document.getElementById("conserveringsmethode_id").value;
     var melding = document.getElementById("houdbaarheid-melding");
     var houdbaarheidInput = document.getElementById("houdbaar_tot");
 
-    if (!productId || !bewaarmethodeId) {
+    if (!productId || !conserveringsmethodeId) {
       melding.style.display = "none";
       return;
     }
 
-    fetch("/api/houdbaarheid?product_id=" + productId + "&locatie_id=" + bewaarmethodeId)
+    fetch("/api/houdbaarheid?product_id=" + productId + "&conserveringsmethode_id=" + conserveringsmethodeId)
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.gevonden) {
           houdbaarheidInput.value = data.houdbaar_tot;
-          melding.textContent = "Automatisch ingevuld op basis van bewaarmethode (" + data.maanden + " maanden)";
+          melding.textContent = "Houdbaarheidsdatum automatisch ingevuld (" + data.maanden + " maanden)";
           melding.style.display = "block";
         } else {
           melding.style.display = "none";
@@ -192,12 +192,7 @@
       });
   }
 
-  document.getElementById("bewaarmethode_id").addEventListener("change", function() {
-    var val = this.value;
-    var locatieSelect = document.getElementById("location_id");
-    if (val) {
-      locatieSelect.value = val;
-    }
+  document.getElementById("conserveringsmethode_id").addEventListener("change", function() {
     checkHoudbaarheid();
   });
 
