@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Uitgifte geregistreerd - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Uitgifte geregistreerd</h1>
+    <p>De uitgifte is succesvol opgeslagen</p>
+  </div>
+</div>
+
+<main style="max-width:560px; margin:0 auto;">
+  <div class="kaart">
+    <div class="melding melding-succes" style="margin-bottom:20px;">
+      Uitgifte succesvol geregistreerd.
+    </div>
+
+    <table style="width:100%; margin-bottom:20px;">
+      <tbody>
+        <tr><th style="text-align:left; width:140px; padding:6px 0;">Product</th><td style="padding:6px 0;"><strong>{{ entry.product.name }}</strong></td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Volgnummer</th><td style="padding:6px 0;">{{ entry.volgnummer }}</td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Locatie</th><td style="padding:6px 0;">{{ entry.location.name }}</td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Hoeveelheid</th><td style="padding:6px 0;">{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Uitgegeven aan</th><td style="padding:6px 0;"><strong>{{ ontvanger }}</strong></td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Datum</th><td style="padding:6px 0;">{{ date }}</td></tr>
+      </tbody>
+    </table>
+
+    <a href="/" class="btn btn-primair" style="min-height:52px; font-size:1rem; display:flex; align-items:center; justify-content:center;">
+      Terug naar dashboard
+    </a>
+  </div>
+</main>
+{% endblock %}

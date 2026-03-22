@@ -10,6 +10,25 @@
 </div>
 
 <main>
+  <!-- Keuze: QR scannen of handmatig -->
+  <div class="kaart" style="margin-bottom:16px;">
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      <a href="/uitgifte/scan"
+         class="btn btn-primair"
+         style="flex:1; min-width:160px; min-height:52px; font-size:1rem; display:flex; align-items:center; justify-content:center; gap:8px;">
+        &#128247; QR code scannen
+      </a>
+      <button type="button"
+              onclick="toggleHandmatig()"
+              id="btn-handmatig"
+              class="btn btn-secundair"
+              style="flex:1; min-width:160px; min-height:52px; font-size:1rem; display:flex; align-items:center; justify-content:center; gap:8px;">
+        &#9998; Handmatig invoeren
+      </button>
+    </div>
+  </div>
+
+  <div id="handmatig-formulier" style="display:{% if error %}block{% else %}none{% endif %};">
   {% if error %}
   <div class="melding melding-fout">{{ error }}</div>
   {% endif %}
@@ -85,9 +104,17 @@
     </form>
     {% endif %}
   </div>
+  </div><!-- /#handmatig-formulier -->
 </main>
 
 <script>
+  function toggleHandmatig() {
+    var form = document.getElementById('handmatig-formulier');
+    var btn = document.getElementById('btn-handmatig');
+    var zichtbaar = form.style.display !== 'none';
+    form.style.display = zichtbaar ? 'none' : 'block';
+  }
+
   (function() {
     var keuze = document.getElementById('ontvanger_keuze');
     var vrijVeld = document.getElementById('vrij-veld');

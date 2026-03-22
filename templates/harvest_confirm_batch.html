@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Oogst opgeslagen - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Oogst opgeslagen</h1>
+    <p>{{ entries_data|length }} stuks succesvol geregistreerd</p>
+  </div>
+</div>
+
+<main>
+  <div class="kaart" style="max-width:700px;">
+    <h2 style="margin-top:0;">Samenvatting</h2>
+    <table>
+      <tbody>
+        <tr><th style="text-align:left; width:160px;">Product</th><td>{{ eerste_entry.product.name }}</td></tr>
+        <tr><th style="text-align:left;">Locatie</th><td>{{ eerste_entry.location.name }}</td></tr>
+        <tr><th style="text-align:left;">Datum oogst</th><td>{{ eerste_entry.date }}</td></tr>
+        <tr><th style="text-align:left;">Houdbaar tot</th>
+          <td {% if eerste_entry.houdbaar_tot and (eerste_entry.houdbaar_tot - today).days <= 30 %}style="color:var(--rood); font-weight:600;"{% endif %}>
+            {% if eerste_entry.houdbaar_tot %}{{ eerste_entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
+          </td>
+        </tr>
+        <tr><th style="text-align:left;">Aantal stuks</th><td><strong>{{ entries_data|length }}</strong></td></tr>
+        <tr><th style="text-align:left;">Ingevoerd door</th><td>{{ eerste_entry.entered_by }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="kaart" style="max-width:700px; margin-top:16px;" id="etiket-kaart">
+    <h2 style="margin-top:0;">Etiketten ({{ entries_data|length }} stuks)</h2>
+
+    <div class="etiket-knoppen" style="margin-bottom:20px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button onclick="printAlleEtiketten()" class="btn btn-primair">Print alle {{ entries_data|length }} etiketten</button>
+      <a href="/" class="btn btn-secundair">Terug naar dashboard</a>
+    </div>
+
+    <!-- Schermweergave: scroll door etiketten -->
+    <div id="etiketten-screen" style="display:flex; flex-wrap:wrap; gap:16px;">
+      {% for item in entries_data %}
+      <div class="etiket-blok" style="min-width:280px; flex:1;">
+        <p class="etiket-product">{{ item.entry.product.name }}</p>
+        <p class="etiket-regel"><span class="etiket-label">Volgnummer:</span> {{ item.entry.volgnummer }}</p>
+        <p class="etiket-regel"><span class="etiket-label">Entry ID:</span> {{ item.entry.id }}</p>
+        <p class="etiket-regel"><span class="etiket-label">Locatie:</span> {{ item.entry.location.name }}</p>
+        <p class="etiket-regel"><span class="etiket-label">Hoeveelheid:</span> {{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
+        <p class="etiket-regel"><span class="etiket-label">Datum oogst:</span> {{ item.entry.date }}</p>
+        <p class="etiket-regel">
+          <span class="etiket-label">Houdbaar tot:</span>
+          <span class="etiket-houdbaar {% if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 %}houdbaar-verlopen{% endif %}">
+            {% if item.entry.houdbaar_tot %}{{ item.entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
+          </span>
+        </p>
+        <div id="qr-screen-{{ item.entry.id }}" style="margin-top:10px;" data-url="{{ item.qr_url }}"></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Printcontainer: alle etiketten onder elkaar -->
+  <div id="print-container" style="display:none;">
+    {% for item in entries_data %}
+    <div class="print-etiket {% if not loop.last %}pagina-einde{% endif %}">
+      <p class="etiket-product">{{ item.entry.product.name }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Volgnummer:</span> {{ item.entry.volgnummer }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Entry ID:</span> {{ item.entry.id }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Locatie:</span> {{ item.entry.location.name }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Hoeveelheid:</span> {{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
+      <p class="etiket-regel"><span class="etiket-label">Datum oogst:</span> {{ item.entry.date }}</p>
+      <p class="etiket-regel">
+        <span class="etiket-label">Houdbaar tot:</span>
+        <span class="etiket-houdbaar {% if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 %}houdbaar-verlopen{% endif %}">
+          {% if item.entry.houdbaar_tot %}{{ item.entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
+        </span>
+      </p>
+      <div id="qr-print-{{ item.entry.id }}" style="margin-top:8px;"></div>
+    </div>
+    {% endfor %}
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  // Genereer QR codes voor schermweergave
+  document.querySelectorAll('[id^="qr-screen-"]').forEach(function(el) {
+    new QRCode(el, {
+      text: el.getAttribute('data-url'),
+      width: 140,
+      height: 140,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  });
+
+  function printAlleEtiketten() {
+    var container = document.getElementById('print-container');
+    // Genereer QR codes voor print als nog niet gedaan
+    var printEls = container.querySelectorAll('[id^="qr-print-"]');
+    var klaar = 0;
+    if (printEls.length === 0) {
+      window.print();
+      return;
+    }
+
+    printEls.forEach(function(el) {
+      if (el.querySelector('canvas') || el.querySelector('img')) {
+        klaar++;
+        if (klaar === printEls.length) setTimeout(function() { window.print(); }, 200);
+        return;
+      }
+      // Haal URL op uit corresponderende scherm-QR
+      var id = el.id.replace('qr-print-', '');
+      var screenEl = document.getElementById('qr-screen-' + id);
+      var url = screenEl ? screenEl.getAttribute('data-url') : '';
+      if (url) {
+        new QRCode(el, {
+          text: url,
+          width: 130,
+          height: 130,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+      klaar++;
+      if (klaar === printEls.length) setTimeout(function() { window.print(); }, 400);
+    });
+  }
+</script>
+
+<style>
+  @media screen {
+    #print-container { display: none !important; }
+  }
+
+  @media print {
+    .topnav, footer, .etiket-knoppen, .page-header, #etiketten-screen,
+    .kaart:not(#etiket-kaart), #etiket-kaart > h2, #etiket-kaart > .etiket-knoppen {
+      display: none !important;
+    }
+    #etiket-kaart {
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      max-width: none !important;
+      margin: 0 !important;
+    }
+    body { margin: 0; padding: 0; }
+    main { padding: 0 !important; margin: 0 !important; }
+    #print-container { display: block !important; }
+    .print-etiket {
+      max-width: 62mm;
+      padding: 4mm;
+    }
+    .pagina-einde { page-break-after: always; }
+  }
+
+  .etiket-blok { border: 1px solid #dee2e6; border-radius: 8px; padding: 16px; background: #fafafa; }
+  .etiket-product { font-size: 1.3rem; font-weight: 700; margin: 0 0 8px 0; }
+  .etiket-regel { margin: 3px 0; font-size: 0.88rem; }
+  .etiket-label { font-weight: 600; }
+  .houdbaar-verlopen { color: var(--rood); font-weight: 700; }
+</style>
+{% endblock %}

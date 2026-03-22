@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}QR code scannen - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>QR code scannen</h1>
+    <p>Richt de camera op de QR code van het item</p>
+  </div>
+</div>
+
+<main style="max-width:560px; margin:0 auto;">
+  <div class="kaart">
+    <div id="scan-melding" class="melding melding-fout" style="display:none; margin-bottom:12px;"></div>
+
+    <div id="reader" style="width:100%; border-radius:8px; overflow:hidden;"></div>
+
+    <p style="text-align:center; color:#6c757d; font-size:.88rem; margin-top:12px;">
+      Scan een MountainSense QR code om het item op te zoeken
+    </p>
+
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:20px;">
+      <a href="/uitgifte/new" class="btn btn-secundair" style="min-height:52px; font-size:1rem; display:flex; align-items:center; justify-content:center; gap:8px;">
+        &#9998; Handmatig invoeren
+      </a>
+      <a href="/" class="btn btn-secundair" style="min-height:52px; font-size:1rem; display:flex; align-items:center; justify-content:center;">
+        Annuleren
+      </a>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+  var scanner = new Html5Qrcode("reader");
+  var gescand = false;
+
+  function onScanSuccess(decodedText) {
+    if (gescand) return;
+
+    // Controleer of het een geldige mountainsense.nl/scan/{id} URL is
+    var match = decodedText.match(/mountainsense\.nl\/scan\/(\d+)/);
+    if (match) {
+      gescand = true;
+      scanner.stop().then(function() {
+        window.location.href = '/scan/' + match[1];
+      }).catch(function() {
+        window.location.href = '/scan/' + match[1];
+      });
+    } else {
+      var melding = document.getElementById('scan-melding');
+      melding.textContent = 'Ongeldige QR code, probeer opnieuw';
+      melding.style.display = 'block';
+      setTimeout(function() { melding.style.display = 'none'; }, 3000);
+    }
+  }
+
+  scanner.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      qrbox: { width: 250, height: 250 }
+    },
+    onScanSuccess
+  ).catch(function(err) {
+    document.getElementById('reader').innerHTML =
+      '<p style="padding:20px; color:var(--rood); text-align:center;">Camera kon niet worden gestart. Controleer de cameratoegang in je browser.</p>';
+  });
+</script>
+{% endblock %}

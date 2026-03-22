@@ -23,6 +23,7 @@
     {% endif %}
 
     <form method="post" action="/login">
+      <input type="hidden" name="next" value="{{ next if next is defined else '/' }}">
       <div class="veld">
         <label for="username">Gebruikersnaam</label>
         <input type="text" id="username" name="username" required autofocus placeholder="boer1">

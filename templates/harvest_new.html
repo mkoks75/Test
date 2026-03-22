@@ -24,7 +24,7 @@
       <div class="form-grid">
         <div class="veld">
           <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
-          <select id="product_id" name="product_id" required onchange="updateEenheid()">
+          <select id="product_id" name="product_id" required>
             <option value="">-- Kies een product --</option>
             {% for p in products %}
             <option value="{{ p.id }}">{{ p.name }} ({{ p.eenheid.naam if p.eenheid else p.unit }})</option>
@@ -42,12 +42,17 @@
           </select>
         </div>
 
-        <div class="veld">
+        <div class="veld" id="veld-hoeveelheid">
           <label for="quantity">Hoeveelheid <span style="color:var(--rood)">*</span></label>
           <div style="display:flex; gap:8px; align-items:center;">
             <input type="number" id="quantity" name="quantity" step="0.01" min="0.01" required placeholder="bijv. 25.5" style="flex:1;">
             <span id="eenheid_label" style="font-weight:600; color:#495057; min-width:40px;"></span>
           </div>
+        </div>
+
+        <div class="veld" id="veld-aantal-stuks" style="display:none;">
+          <label for="aantal_stuks">Aantal stuks (elk krijgt eigen etiket en volgnummer) <span style="color:var(--rood)">*</span></label>
+          <input type="number" id="aantal_stuks" name="aantal_stuks" value="1" min="1" step="1" placeholder="bijv. 3">
         </div>
 
         <div class="veld">
@@ -78,16 +83,37 @@
 
 <script>
   var productEenheden = {{ product_eenheden_json | safe }};
+  var productEtiketPerStuk = {{ product_etiket_per_stuk_json | safe }};
 
   function updateEenheid() {
     var select = document.getElementById("product_id");
     var label = document.getElementById("eenheid_label");
+    var veldHoeveelheid = document.getElementById("veld-hoeveelheid");
+    var veldAantalStuks = document.getElementById("veld-aantal-stuks");
+    var qtyInput = document.getElementById("quantity");
+    var stuksInput = document.getElementById("aantal_stuks");
     var productId = select.value;
+
     if (productId && productEenheden[productId]) {
       label.textContent = productEenheden[productId];
     } else {
       label.textContent = "";
     }
+
+    var isPerStuk = productId && productEtiketPerStuk[productId];
+    if (isPerStuk) {
+      veldHoeveelheid.style.display = "none";
+      veldAantalStuks.style.display = "";
+      qtyInput.required = false;
+      stuksInput.required = true;
+    } else {
+      veldHoeveelheid.style.display = "";
+      veldAantalStuks.style.display = "none";
+      qtyInput.required = true;
+      stuksInput.required = false;
+    }
   }
+
+  document.getElementById("product_id").addEventListener("change", updateEenheid);
 </script>
 {% endblock %}

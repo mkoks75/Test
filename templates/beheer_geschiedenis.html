@@ -85,6 +85,7 @@
           <th style="text-align:right;">Hoeveelheid</th>
           <th>Eenheid</th>
           <th>Houdbaar tot</th>
+          <th>Status</th>
           <th>Ingevoerd door</th>
           <th>Gewijzigd door</th>
           <th>Notitie</th>
@@ -94,10 +95,10 @@
       </thead>
       <tbody>
         {% for e in registraties %}
-        <tr>
+        <tr {% if e.uitgegeven %}style="opacity:0.55;"{% endif %}>
           <td>{{ e.date }}</td>
           <td style="color:#6c757d;">{{ e.volgnummer or "" }}</td>
-          <td>{{ e.product.name }}</td>
+          <td {% if e.uitgegeven %}style="text-decoration:line-through; color:#6c757d;"{% endif %}>{{ e.product.name }}</td>
           <td>{{ e.location.name }}</td>
           <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(e.quantity) }}</td>
           <td>{{ e.product.unit }}</td>
@@ -106,6 +107,13 @@
               {{ e.houdbaar_tot }}
             {% else %}
               <span style="color:#adb5bd;">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if e.uitgegeven %}
+              <span style="color:#6c757d; font-size:.85rem;" title="Uitgegeven aan: {{ e.uitgegeven_aan or '' }}{% if e.uitgegeven_op %} op {{ e.uitgegeven_op.strftime('%d-%m-%Y') }}{% endif %}">Uitgegeven</span>
+            {% else %}
+              <span style="color:var(--groen); font-weight:600; font-size:.85rem;">Beschikbaar</span>
             {% endif %}
           </td>
           <td>{{ e.entered_by }}</td>
@@ -121,7 +129,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="12" class="geen-data">Geen registraties gevonden voor de geselecteerde filters.</td>
+          <td colspan="13" class="geen-data">Geen registraties gevonden voor de geselecteerde filters.</td>
         </tr>
         {% endfor %}
       </tbody>

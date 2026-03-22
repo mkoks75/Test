@@ -48,6 +48,12 @@ async def startup():
                 conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN gewijzigd_door TEXT"))
             if "gewijzigd_op" not in col_names:
                 conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN gewijzigd_op DATETIME"))
+            if "uitgegeven" not in col_names:
+                conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN uitgegeven BOOLEAN DEFAULT 0"))
+            if "uitgegeven_op" not in col_names:
+                conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN uitgegeven_op DATETIME"))
+            if "uitgegeven_aan" not in col_names:
+                conn.execute(text("ALTER TABLE harvest_entries ADD COLUMN uitgegeven_aan TEXT"))
             conn.commit()
         except Exception:
             pass  # Tabel bestaat nog niet; create_all regelt dit
@@ -133,11 +139,11 @@ async def startup():
 # ── Authenticatie ──────────────────────────────────────────────────────────────
 
 @app.get("/login")
-async def login_page(request: Request):
+async def login_page(request: Request, next: str = "/"):
     user = get_current_user(request)
     if user:
         return RedirectResponse("/", status_code=302)
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse("login.html", {"request": request, "error": None, "next": next})
 
 
 @app.post("/login")
@@ -145,17 +151,20 @@ async def login_post(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    next: str = Form(default="/"),
 ):
     user = authenticate_user(username, password)
     if not user:
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Ongeldige gebruikersnaam of wachtwoord"},
+            {"request": request, "error": "Ongeldige gebruikersnaam of wachtwoord", "next": next},
         )
     token = create_access_token(
         {"sub": username}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    response = RedirectResponse("/", status_code=302)
+    # Veiligheidscheck: alleen interne redirects toestaan
+    redirect_to = next if (next and next.startswith("/")) else "/"
+    response = RedirectResponse(redirect_to, status_code=302)
     response.set_cookie(
         "access_token", token, httponly=True, max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
@@ -222,11 +231,12 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             {"product": row.product_name, "unit": row.unit, "total": net}
         )
 
-    # Detailoverzicht per locatie: individuele entries met volgnummer en houdbaarheidsdatum
+    # Detailoverzicht per locatie: individuele entries met volgnummer en houdbaarheidsdatum (alleen niet-uitgegeven)
     entries = (
         db.query(models.HarvestEntry)
         .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
         .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+        .filter(models.HarvestEntry.uitgegeven == False)
         .order_by(models.Location.name, models.Product.name, models.HarvestEntry.volgnummer)
         .all()
     )
@@ -302,6 +312,10 @@ async def harvest_new(
         str(p.id): (p.eenheid.naam if p.eenheid else p.unit or "")
         for p in products
     }
+    product_etiket_per_stuk = {
+        str(p.id): bool(p.eenheid and p.eenheid.etiket_per_stuk)
+        for p in products
+    }
 
     return templates.TemplateResponse(
         "harvest_new.html",
@@ -313,6 +327,7 @@ async def harvest_new(
             "today": today,
             "success": success == 1,
             "product_eenheden_json": json.dumps(product_eenheden),
+            "product_etiket_per_stuk_json": json.dumps(product_etiket_per_stuk),
         },
     )
 
@@ -327,18 +342,11 @@ async def harvest_new_post(
     date: str = Form(...),
     note: str = Form(default=""),
     houdbaar_tot: str = Form(default=""),
+    aantal_stuks: int = Form(default=1),
 ):
     user = get_current_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
-
-    # Volgnummer: laatste volgnummer voor dit product + 1
-    max_volgnummer = (
-        db.query(func.max(models.HarvestEntry.volgnummer))
-        .filter(models.HarvestEntry.product_id == product_id)
-        .scalar()
-    )
-    volgnummer = (max_volgnummer or 0) + 1
 
     houdbaar_tot_date = None
     if houdbaar_tot.strip():
@@ -347,21 +355,57 @@ async def harvest_new_post(
         except ValueError:
             pass
 
-    entry = models.HarvestEntry(
-        product_id=product_id,
-        location_id=location_id,
-        quantity=quantity,
-        date=date,
-        entered_by=user,
-        note=note.strip() or None,
-        created_at=datetime.datetime.utcnow(),
-        houdbaar_tot=houdbaar_tot_date,
-        volgnummer=volgnummer,
+    # Controleer of het product etiket_per_stuk heeft
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    is_etiket_per_stuk = bool(product and product.eenheid and product.eenheid.etiket_per_stuk)
+
+    # Volgnummer startpunt: laatste volgnummer voor dit product
+    max_volgnummer = (
+        db.query(func.max(models.HarvestEntry.volgnummer))
+        .filter(models.HarvestEntry.product_id == product_id)
+        .scalar()
     )
-    db.add(entry)
-    db.commit()
-    db.refresh(entry)
-    return RedirectResponse(f"/harvest/confirm/{entry.id}", status_code=302)
+    basis_volgnummer = (max_volgnummer or 0) + 1
+
+    if is_etiket_per_stuk and aantal_stuks > 1:
+        # Maak N aparte entries aan, elk met quantity=1
+        entries = []
+        for i in range(aantal_stuks):
+            entry = models.HarvestEntry(
+                product_id=product_id,
+                location_id=location_id,
+                quantity=1.0,
+                date=date,
+                entered_by=user,
+                note=note.strip() or None,
+                created_at=datetime.datetime.utcnow(),
+                houdbaar_tot=houdbaar_tot_date,
+                volgnummer=basis_volgnummer + i,
+            )
+            db.add(entry)
+            entries.append(entry)
+        db.commit()
+        for e in entries:
+            db.refresh(e)
+        ids = ",".join(str(e.id) for e in entries)
+        return RedirectResponse(f"/harvest/confirm-batch?ids={ids}", status_code=302)
+    else:
+        # Maak 1 entry aan zoals voorheen
+        entry = models.HarvestEntry(
+            product_id=product_id,
+            location_id=location_id,
+            quantity=quantity,
+            date=date,
+            entered_by=user,
+            note=note.strip() or None,
+            created_at=datetime.datetime.utcnow(),
+            houdbaar_tot=houdbaar_tot_date,
+            volgnummer=basis_volgnummer,
+        )
+        db.add(entry)
+        db.commit()
+        db.refresh(entry)
+        return RedirectResponse(f"/harvest/confirm/{entry.id}", status_code=302)
 
 
 # ── Bevestiging na opslaan oogst ───────────────────────────────────────────────
@@ -377,14 +421,7 @@ async def harvest_confirm(entry_id: int, request: Request, db: Session = Depends
         return RedirectResponse("/", status_code=302)
 
     today = datetime.date.today()
-
-    # Bepaal aantal te printen etiketten
-    import math
-    eenheid = entry.product.eenheid if entry.product.eenheid_id else None
-    if eenheid and eenheid.etiket_per_stuk:
-        aantal_etiketten = max(1, math.ceil(entry.quantity))
-    else:
-        aantal_etiketten = 1
+    qr_url = f"https://mountainsense.nl/scan/{entry.id}"
 
     return templates.TemplateResponse(
         "harvest_confirm.html",
@@ -393,7 +430,48 @@ async def harvest_confirm(entry_id: int, request: Request, db: Session = Depends
             "user": user,
             "entry": entry,
             "today": today,
-            "aantal_etiketten": aantal_etiketten,
+            "qr_url": qr_url,
+        },
+    )
+
+
+@app.get("/harvest/confirm-batch")
+async def harvest_confirm_batch(request: Request, ids: str = "", db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    try:
+        id_list = [int(x) for x in ids.split(",") if x.strip()]
+    except ValueError:
+        return RedirectResponse("/", status_code=302)
+
+    entries = (
+        db.query(models.HarvestEntry)
+        .filter(models.HarvestEntry.id.in_(id_list))
+        .order_by(models.HarvestEntry.volgnummer)
+        .all()
+    )
+    if not entries:
+        return RedirectResponse("/", status_code=302)
+
+    today = datetime.date.today()
+    entries_data = [
+        {
+            "entry": e,
+            "qr_url": f"https://mountainsense.nl/scan/{e.id}",
+        }
+        for e in entries
+    ]
+
+    return templates.TemplateResponse(
+        "harvest_confirm_batch.html",
+        {
+            "request": request,
+            "user": user,
+            "entries_data": entries_data,
+            "today": today,
+            "eerste_entry": entries[0],
         },
     )
 
@@ -612,6 +690,7 @@ async def verlopen(request: Request, db: Session = Depends(get_db)):
         .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
         .filter(models.HarvestEntry.houdbaar_tot != None)
         .filter(models.HarvestEntry.houdbaar_tot <= cutoff)
+        .filter(models.HarvestEntry.uitgegeven == False)
         .order_by(models.HarvestEntry.houdbaar_tot.asc())
         .all()
     )
@@ -1347,6 +1426,137 @@ async def admin_delete_eenheid(eenheid_id: int, request: Request, db: Session = 
     db.delete(eenheid)
     db.commit()
     return RedirectResponse("/admin?success=eenheid_deleted", status_code=302)
+
+
+# ── QR Scan lookup ─────────────────────────────────────────────────────────────
+
+@app.get("/scan/{entry_id}")
+async def scan_entry(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(f"/login?next=/scan/{entry_id}", status_code=302)
+
+    entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
+    if not entry:
+        return templates.TemplateResponse(
+            "scan_entry.html",
+            {"request": request, "user": user, "entry": None, "not_found": True},
+        )
+
+    today = datetime.date.today()
+    return templates.TemplateResponse(
+        "scan_entry.html",
+        {
+            "request": request,
+            "user": user,
+            "entry": entry,
+            "not_found": False,
+            "today": today,
+        },
+    )
+
+
+@app.get("/scan/{entry_id}/uitgifte")
+async def scan_uitgifte_form(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(f"/login?next=/scan/{entry_id}/uitgifte", status_code=302)
+
+    entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
+    if not entry or entry.uitgegeven:
+        return RedirectResponse(f"/scan/{entry_id}", status_code=302)
+
+    ontvangers = (
+        db.query(models.Ontvanger)
+        .filter(models.Ontvanger.actief == True)
+        .order_by(models.Ontvanger.naam)
+        .all()
+    )
+    today_str = datetime.date.today().isoformat()
+    today_date = datetime.date.today()
+
+    return templates.TemplateResponse(
+        "scan_uitgifte.html",
+        {
+            "request": request,
+            "user": user,
+            "entry": entry,
+            "ontvangers": ontvangers,
+            "today": today_str,
+            "today_date": today_date,
+            "error": None,
+        },
+    )
+
+
+@app.post("/scan/{entry_id}/uitgifte")
+async def scan_uitgifte_post(
+    entry_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    ontvanger_keuze: str = Form(...),
+    ontvanger_vrij: str = Form(default=""),
+    date: str = Form(...),
+    note: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(f"/login?next=/scan/{entry_id}/uitgifte", status_code=302)
+
+    entry = db.query(models.HarvestEntry).filter(models.HarvestEntry.id == entry_id).first()
+    if not entry or entry.uitgegeven:
+        return RedirectResponse(f"/scan/{entry_id}", status_code=302)
+
+    if ontvanger_keuze == "overig":
+        ontvanger_naam = ontvanger_vrij.strip()
+    else:
+        db_ontvanger = db.query(models.Ontvanger).filter(models.Ontvanger.id == int(ontvanger_keuze)).first()
+        ontvanger_naam = db_ontvanger.naam if db_ontvanger else ontvanger_keuze
+
+    # Maak uitgifte record aan
+    uitgifte = models.Uitgifte(
+        harvest_entry_id=entry.id,
+        product_id=entry.product_id,
+        location_id=entry.location_id,
+        quantity=entry.quantity,
+        ontvanger=ontvanger_naam,
+        date=date,
+        entered_by=user,
+        note=note.strip() or None,
+        created_at=datetime.datetime.utcnow(),
+    )
+    db.add(uitgifte)
+
+    # Markeer entry als uitgegeven
+    entry.uitgegeven = True
+    entry.uitgegeven_op = datetime.datetime.utcnow()
+    entry.uitgegeven_aan = ontvanger_naam
+
+    db.commit()
+
+    return templates.TemplateResponse(
+        "scan_uitgifte_succes.html",
+        {
+            "request": request,
+            "user": user,
+            "entry": entry,
+            "ontvanger": ontvanger_naam,
+            "date": date,
+        },
+    )
+
+
+# ── QR Scanner pagina ──────────────────────────────────────────────────────────
+
+@app.get("/uitgifte/scan")
+async def uitgifte_scan(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login?next=/uitgifte/scan", status_code=302)
+    return templates.TemplateResponse(
+        "uitgifte_scan.html",
+        {"request": request, "user": user},
+    )
 
 
 # ── Uitgifte ───────────────────────────────────────────────────────────────────

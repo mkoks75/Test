@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Item details - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>Item details</h1>
+    <p>Gescand via QR code</p>
+  </div>
+</div>
+
+<main style="max-width:560px; margin:0 auto;">
+
+  {% if not_found %}
+  <div class="kaart">
+    <div class="melding melding-fout" style="margin-bottom:16px;">Item niet gevonden.</div>
+    <a href="/" class="btn btn-secundair" style="min-height:52px; display:flex; align-items:center; justify-content:center;">Terug naar dashboard</a>
+  </div>
+
+  {% else %}
+  <div class="kaart">
+    <h2 style="margin-top:0; font-size:1.5rem;">{{ entry.product.name }}</h2>
+
+    <table style="width:100%; margin-bottom:16px;">
+      <tbody>
+        <tr><th style="text-align:left; width:140px; padding:6px 0;">Volgnummer</th><td style="padding:6px 0;"><strong>{{ entry.volgnummer }}</strong></td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Entry ID</th><td style="padding:6px 0;">{{ entry.id }}</td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Locatie</th><td style="padding:6px 0;">{{ entry.location.name }}</td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Hoeveelheid</th><td style="padding:6px 0;">{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Datum oogst</th><td style="padding:6px 0;">{{ entry.date }}</td></tr>
+        <tr><th style="text-align:left; padding:6px 0;">Houdbaar tot</th>
+          <td style="padding:6px 0;">
+            {% if entry.houdbaar_tot %}
+              <span {% if entry.houdbaar_tot <= today %}style="color:var(--rood); font-weight:700;"{% elif (entry.houdbaar_tot - today).days <= 30 %}style="color:var(--oranje); font-weight:600;"{% endif %}>
+                {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
+              </span>
+            {% else %}
+              <span style="color:#adb5bd;">niet ingesteld</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr><th style="text-align:left; padding:6px 0;">Status</th>
+          <td style="padding:6px 0;">
+            {% if entry.uitgegeven %}
+              <span style="color:var(--rood); font-weight:700;">Al uitgegeven</span>
+            {% else %}
+              <span style="color:var(--groen); font-weight:700;">Beschikbaar</span>
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    {% if entry.uitgegeven %}
+    <div class="melding melding-fout" style="margin-bottom:20px;">
+      <strong>Dit item is al uitgegeven.</strong><br>
+      {% if entry.uitgegeven_op %}Uitgegeven op: {{ entry.uitgegeven_op.strftime('%d-%m-%Y %H:%M') }}<br>{% endif %}
+      {% if entry.uitgegeven_aan %}Uitgegeven aan: {{ entry.uitgegeven_aan }}{% endif %}
+    </div>
+    <a href="/" class="btn btn-secundair" style="min-height:52px; display:flex; align-items:center; justify-content:center; font-size:1rem;">Terug naar dashboard</a>
+
+    {% else %}
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+      <a href="/scan/{{ entry.id }}/uitgifte"
+         class="btn btn-primair"
+         style="min-height:52px; font-size:1.1rem; display:flex; align-items:center; justify-content:center; gap:8px;">
+        &#10003; Bevestig uitgifte
+      </a>
+      <a href="/"
+         class="btn btn-secundair"
+         style="min-height:52px; font-size:1rem; display:flex; align-items:center; justify-content:center;">
+        &#8617; Annuleren
+      </a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</main>
+{% endblock %}

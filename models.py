@@ -76,6 +76,9 @@ class HarvestEntry(Base):
     volgnummer = Column(Integer, nullable=True)
     gewijzigd_door = Column(String, nullable=True)
     gewijzigd_op = Column(DateTime, nullable=True)
+    uitgegeven = Column(Boolean, default=False, nullable=False)
+    uitgegeven_op = Column(DateTime, nullable=True)
+    uitgegeven_aan = Column(String, nullable=True)
 
     product = relationship("Product", back_populates="entries")
     location = relationship("Location", back_populates="entries")
