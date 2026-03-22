@@ -31,132 +31,206 @@
   <div class="kaart" style="max-width:700px; margin-top:16px;" id="etiket-kaart">
     <h2 style="margin-top:0;">Etiketten ({{ entries_data|length }} stuks)</h2>
 
-    <div class="etiket-knoppen" style="margin-bottom:20px; display:flex; gap:8px; flex-wrap:wrap;">
-      <button onclick="printAlleEtiketten()" class="btn btn-primair">Print alle {{ entries_data|length }} etiketten</button>
-      <a href="/" class="btn btn-secundair">Terug naar dashboard</a>
+    <p class="dymo-instructie">
+      Zorg dat de <strong>DYMO LabelWriter Wireless</strong> is ingesteld als standaardprinter met <strong>25 &times; 54 mm</strong> labels.
+    </p>
+
+    <div class="etiket-knoppen" style="margin-bottom:20px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <button onclick="window.print()" class="btn btn-primair">Print alle {{ entries_data|length }} etiketten</button>
+      <button onclick="downloadPDF()" class="btn btn-secundair">Download PDF</button>
     </div>
 
-    <!-- Schermweergave: scroll door etiketten -->
-    <div id="etiketten-screen" style="display:flex; flex-wrap:wrap; gap:16px;">
+    <!-- Schermweergave: alle etiketten als scrollbare preview -->
+    <div id="etiketten-screen">
       {% for item in entries_data %}
-      <div class="etiket-blok" style="min-width:280px; flex:1;">
-        <p class="etiket-product">{{ item.entry.product.name }}</p>
-        <p class="etiket-regel"><span class="etiket-label">Volgnummer:</span> {{ item.entry.volgnummer }}</p>
-        <p class="etiket-regel"><span class="etiket-label">Entry ID:</span> {{ item.entry.id }}</p>
-        <p class="etiket-regel"><span class="etiket-label">Locatie:</span> {{ item.entry.location.name }}</p>
-        <p class="etiket-regel"><span class="etiket-label">Hoeveelheid:</span> {{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
-        <p class="etiket-regel"><span class="etiket-label">Datum oogst:</span> {{ item.entry.date }}</p>
-        <p class="etiket-regel">
-          <span class="etiket-label">Houdbaar tot:</span>
-          <span class="etiket-houdbaar {% if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 %}houdbaar-verlopen{% endif %}">
-            {% if item.entry.houdbaar_tot %}{{ item.entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
-          </span>
-        </p>
-        <div id="qr-screen-{{ item.entry.id }}" style="margin-top:10px;" data-url="{{ item.qr_url }}"></div>
+      <div class="preview-wrapper" style="margin-bottom:12px;">
+        <div class="preview-label">
+          <div class="plabel-links">
+            <p class="plabel-naam">{{ item.entry.product.name }}</p>
+            <p class="plabel-hoeveelheid">{{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
+            <p class="plabel-datum{% if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 %} datum-rood{% endif %}">THT: {% if item.entry.houdbaar_tot %}{{ item.entry.houdbaar_tot }}{% else %}&mdash;{% endif %}</p>
+            <p class="plabel-volgnr">Nr: {{ item.entry.volgnummer }}</p>
+          </div>
+          <div class="plabel-rechts">
+            <div id="qr-screen-{{ item.entry.id }}" data-url="{{ item.qr_url }}"></div>
+          </div>
+        </div>
       </div>
       {% endfor %}
     </div>
+
+    <div class="etiket-knoppen" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <a href="/" class="btn btn-secundair">Terug naar dashboard</a>
+    </div>
   </div>
 
-  <!-- Printcontainer: alle etiketten onder elkaar -->
+  <!-- Printcontainer: alle etiketten, elk op eigen pagina -->
   <div id="print-container" style="display:none;">
     {% for item in entries_data %}
-    <div class="print-etiket {% if not loop.last %}pagina-einde{% endif %}">
-      <p class="etiket-product">{{ item.entry.product.name }}</p>
-      <p class="etiket-regel"><span class="etiket-label">Volgnummer:</span> {{ item.entry.volgnummer }}</p>
-      <p class="etiket-regel"><span class="etiket-label">Entry ID:</span> {{ item.entry.id }}</p>
-      <p class="etiket-regel"><span class="etiket-label">Locatie:</span> {{ item.entry.location.name }}</p>
-      <p class="etiket-regel"><span class="etiket-label">Hoeveelheid:</span> {{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
-      <p class="etiket-regel"><span class="etiket-label">Datum oogst:</span> {{ item.entry.date }}</p>
-      <p class="etiket-regel">
-        <span class="etiket-label">Houdbaar tot:</span>
-        <span class="etiket-houdbaar {% if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 %}houdbaar-verlopen{% endif %}">
-          {% if item.entry.houdbaar_tot %}{{ item.entry.houdbaar_tot }}{% else %}niet ingesteld{% endif %}
-        </span>
-      </p>
-      <div id="qr-print-{{ item.entry.id }}" style="margin-top:8px;"></div>
+    <div class="print-label{% if not loop.last %} pagina-einde{% endif %}">
+      <div class="print-links">
+        <p class="print-naam">{{ item.entry.product.name }}</p>
+        <p class="print-hoeveelheid">{{ "%.2f"|format(item.entry.quantity) }} {{ item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit }}</p>
+        <p class="print-datum{% if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 %} datum-rood{% endif %}">THT: {% if item.entry.houdbaar_tot %}{{ item.entry.houdbaar_tot }}{% else %}&mdash;{% endif %}</p>
+        <p class="print-volgnr">Nr: {{ item.entry.volgnummer }}</p>
+      </div>
+      <div class="print-rechts">
+        <div id="qr-print-{{ item.entry.id }}" data-url="{{ item.qr_url }}"></div>
+      </div>
     </div>
     {% endfor %}
   </div>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-  // Genereer QR codes voor schermweergave
+  // Genereer QR codes voor scherm en print bij laden
   document.querySelectorAll('[id^="qr-screen-"]').forEach(function(el) {
     new QRCode(el, {
-      text: el.getAttribute('data-url'),
-      width: 140,
-      height: 140,
+      text: el.getAttribute('data-url'), width: 120, height: 120,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  });
+  document.querySelectorAll('[id^="qr-print-"]').forEach(function(el) {
+    new QRCode(el, {
+      text: el.getAttribute('data-url'), width: 200, height: 200,
       correctLevel: QRCode.CorrectLevel.M
     });
   });
 
-  function printAlleEtiketten() {
-    var container = document.getElementById('print-container');
-    // Genereer QR codes voor print als nog niet gedaan
-    var printEls = container.querySelectorAll('[id^="qr-print-"]');
-    var klaar = 0;
-    if (printEls.length === 0) {
-      window.print();
-      return;
-    }
+  function downloadPDF() {
+    var etiketten = [
+      {% for item in entries_data %}
+      {
+        naam: {{ item.entry.product.name | tojson }},
+        hoeveelheid: {{ ("%.2f"|format(item.entry.quantity) ~ " " ~ (item.entry.product.eenheid.naam if item.entry.product.eenheid else item.entry.product.unit)) | tojson }},
+        houdbaar: {{ ("THT: " ~ (item.entry.houdbaar_tot | string if item.entry.houdbaar_tot else "\u2014")) | tojson }},
+        houdbaarRood: {{ 'true' if item.entry.houdbaar_tot and (item.entry.houdbaar_tot - today).days <= 30 else 'false' }},
+        volgnr: {{ ("Nr: " ~ item.entry.volgnummer) | tojson }},
+        qrId: 'qr-print-{{ item.entry.id }}'
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
 
-    printEls.forEach(function(el) {
-      if (el.querySelector('canvas') || el.querySelector('img')) {
-        klaar++;
-        if (klaar === printEls.length) setTimeout(function() { window.print(); }, 200);
-        return;
+    var { jsPDF } = window.jspdf;
+    var doc = null;
+
+    etiketten.forEach(function(e, i) {
+      if (i === 0) {
+        doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [54, 25] });
+      } else {
+        doc.addPage([54, 25], 'landscape');
       }
-      // Haal URL op uit corresponderende scherm-QR
-      var id = el.id.replace('qr-print-', '');
-      var screenEl = document.getElementById('qr-screen-' + id);
-      var url = screenEl ? screenEl.getAttribute('data-url') : '';
-      if (url) {
-        new QRCode(el, {
-          text: url,
-          width: 130,
-          height: 130,
-          correctLevel: QRCode.CorrectLevel.M
-        });
+
+      var canvas = document.querySelector('#' + e.qrId + ' canvas');
+
+      var y = 6;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      var lijnen = doc.splitTextToSize(e.naam, 30);
+      var regels = lijnen.slice(0, 2);
+      doc.text(regels, 2, y);
+      y += regels.length * 3.5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      y += 0.5;
+      doc.text(e.hoeveelheid, 2, y);
+      y += 3;
+
+      if (e.houdbaarRood) doc.setTextColor(200, 0, 0);
+      doc.text(e.houdbaar, 2, y);
+      doc.setTextColor(0, 0, 0);
+      y += 2.8;
+
+      doc.setFontSize(5);
+      doc.setTextColor(120, 120, 120);
+      doc.text(e.volgnr, 2, y);
+      doc.setTextColor(0, 0, 0);
+
+      if (canvas) {
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', 32, 2.5, 20, 20);
       }
-      klaar++;
-      if (klaar === printEls.length) setTimeout(function() { window.print(); }, 400);
     });
+
+    var datum = new Date().toISOString().slice(0, 10);
+    var naam = etiketten[0].naam.replace(/[^a-zA-Z0-9]/g, '-');
+    doc.save('etiket-' + naam + '-' + datum + '.pdf');
   }
 </script>
 
 <style>
+  @page { size: 54mm 25mm; margin: 0; }
+
   @media screen {
     #print-container { display: none !important; }
   }
 
   @media print {
-    .topnav, footer, .etiket-knoppen, .page-header, #etiketten-screen,
-    .kaart:not(#etiket-kaart), #etiket-kaart > h2, #etiket-kaart > .etiket-knoppen {
-      display: none !important;
-    }
-    #etiket-kaart {
-      border: none !important;
-      box-shadow: none !important;
-      padding: 0 !important;
-      max-width: none !important;
-      margin: 0 !important;
-    }
-    body { margin: 0; padding: 0; }
+    .topnav, footer, .page-header, .etiket-knoppen, .dymo-instructie,
+    #etiketten-screen, .kaart:not(#etiket-kaart), #etiket-kaart > h2,
+    #etiket-kaart > p { display: none !important; }
+    body, html { margin: 0 !important; padding: 0 !important; }
     main { padding: 0 !important; margin: 0 !important; }
+    #etiket-kaart { border: none !important; box-shadow: none !important;
+      padding: 0 !important; margin: 0 !important; max-width: none !important; }
     #print-container { display: block !important; }
-    .print-etiket {
-      max-width: 62mm;
-      padding: 4mm;
+    .print-label {
+      width: 54mm; height: 25mm;
+      display: flex; flex-direction: row;
+      box-sizing: border-box; padding: 1.5mm 1mm 1.5mm 2mm; overflow: hidden;
     }
     .pagina-einde { page-break-after: always; }
+    .print-links {
+      flex: 0 0 60%; display: flex; flex-direction: column;
+      justify-content: center; overflow: hidden;
+    }
+    .print-rechts {
+      flex: 0 0 40%; display: flex;
+      align-items: center; justify-content: center;
+    }
+    .print-rechts canvas, .print-rechts img {
+      width: 20mm !important; height: 20mm !important;
+    }
+    .print-naam {
+      font-size: 7pt; font-weight: bold; margin: 0 0 0.8mm 0;
+      line-height: 1.2; overflow: hidden;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .print-hoeveelheid { font-size: 6pt; margin: 0 0 0.5mm 0; line-height: 1.15; }
+    .print-datum { font-size: 6pt; margin: 0 0 0.5mm 0; line-height: 1.15; }
+    .print-volgnr { font-size: 5pt; color: #888; margin: 0; line-height: 1.15; }
+    .datum-rood { color: red !important; }
   }
 
-  .etiket-blok { border: 1px solid #dee2e6; border-radius: 8px; padding: 16px; background: #fafafa; }
-  .etiket-product { font-size: 1.3rem; font-weight: 700; margin: 0 0 8px 0; }
-  .etiket-regel { margin: 3px 0; font-size: 0.88rem; }
-  .etiket-label { font-weight: 600; }
-  .houdbaar-verlopen { color: var(--rood); font-weight: 700; }
+  /* Scherm preview */
+  .dymo-instructie {
+    font-size: 0.85rem; color: #555; margin-bottom: 14px;
+    padding: 8px 12px; background: #f0f4ff;
+    border-left: 3px solid #4a7cdc; border-radius: 4px;
+  }
+  .preview-wrapper { overflow-x: auto; }
+  .preview-label {
+    display: flex; flex-direction: row;
+    width: 540px; height: 250px;
+    border: 2px solid #bbb; border-radius: 6px;
+    background: white; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+  .plabel-links {
+    flex: 0 0 60%; display: flex; flex-direction: column;
+    justify-content: center; padding: 16px 10px 16px 24px;
+  }
+  .plabel-rechts {
+    flex: 0 0 40%; display: flex;
+    align-items: center; justify-content: center;
+    background: #fafafa; border-left: 1px solid #eee;
+  }
+  .plabel-naam { font-size: 1.45rem; font-weight: 700; margin: 0 0 10px 0; line-height: 1.2; }
+  .plabel-hoeveelheid { font-size: 1.05rem; margin: 0 0 6px 0; color: #333; }
+  .plabel-datum { font-size: 1.05rem; margin: 0 0 6px 0; }
+  .plabel-volgnr { font-size: 0.85rem; color: #888; margin: 0; }
+  .datum-rood { color: var(--rood) !important; font-weight: 600; }
 </style>
 {% endblock %}
