@@ -115,6 +115,32 @@ async def startup():
         except Exception:
             pass
 
+        # Verwijder locatie_id uit product_houdbaarheid (SQLite: tabel herbouwen)
+        try:
+            pragma_ph2 = conn.execute(text("PRAGMA table_info(product_houdbaarheid)")).fetchall()
+            ph_col_names2 = [row[1] for row in pragma_ph2]
+            if "locatie_id" in ph_col_names2:
+                conn.execute(text("""
+                    CREATE TABLE product_houdbaarheid_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        product_id INTEGER NOT NULL REFERENCES products(id),
+                        conserveringsmethode_id INTEGER REFERENCES conserveringsmethoden(id),
+                        houdbaarheid_maanden INTEGER NOT NULL,
+                        actief BOOLEAN NOT NULL DEFAULT 1
+                    )
+                """))
+                conn.execute(text("""
+                    INSERT INTO product_houdbaarheid_new
+                        (id, product_id, conserveringsmethode_id, houdbaarheid_maanden, actief)
+                    SELECT id, product_id, conserveringsmethode_id, houdbaarheid_maanden, actief
+                    FROM product_houdbaarheid
+                """))
+                conn.execute(text("DROP TABLE product_houdbaarheid"))
+                conn.execute(text("ALTER TABLE product_houdbaarheid_new RENAME TO product_houdbaarheid"))
+                conn.commit()
+        except Exception as e:
+            print(f"Migratie product_houdbaarheid: {e}")
+
     # Standaard conserveringsmethoden aanmaken als de tabel leeg is
     db = database.SessionLocal()
     try:
