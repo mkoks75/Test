@@ -10,6 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 import bcrypt
+from typing import Optional
 from fastapi import FastAPI, Request, Depends, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -410,7 +411,7 @@ async def harvest_new_post(
     db: Session = Depends(get_db),
     product_id: int = Form(...),
     location_id: int = Form(...),
-    quantity: float = Form(...),
+    quantity: Optional[float] = Form(None),
     date: str = Form(...),
     note: str = Form(default=""),
     houdbaar_tot: str = Form(default=""),
@@ -463,10 +464,12 @@ async def harvest_new_post(
         return RedirectResponse(f"/harvest/confirm-batch?ids={ids}", status_code=302)
     else:
         # Maak 1 entry aan zoals voorheen
+        # Bij etiket_per_stuk met 1 stuk: quantity=1 als er geen waarde is
+        effective_quantity = quantity if quantity is not None else (1.0 if is_etiket_per_stuk else None)
         entry = models.HarvestEntry(
             product_id=product_id,
             location_id=location_id,
-            quantity=quantity,
+            quantity=effective_quantity,
             date=date,
             entered_by=user,
             note=note.strip() or None,

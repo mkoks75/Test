@@ -49,6 +49,7 @@
             <span id="eenheid_label" style="font-weight:600; color:#495057; min-width:40px;"></span>
           </div>
         </div>
+        <input type="hidden" id="quantity-hidden" name="quantity" value="1" disabled>
 
         <div class="veld" id="veld-aantal-stuks" style="display:none;">
           <label for="aantal_stuks">Aantal stuks (elk krijgt eigen etiket en volgnummer) <span style="color:var(--rood)">*</span></label>
@@ -91,6 +92,7 @@
     var veldHoeveelheid = document.getElementById("veld-hoeveelheid");
     var veldAantalStuks = document.getElementById("veld-aantal-stuks");
     var qtyInput = document.getElementById("quantity");
+    var qtyHidden = document.getElementById("quantity-hidden");
     var stuksInput = document.getElementById("aantal_stuks");
     var productId = select.value;
 
@@ -105,11 +107,15 @@
       veldHoeveelheid.style.display = "none";
       veldAantalStuks.style.display = "";
       qtyInput.required = false;
+      qtyInput.disabled = true;
+      qtyHidden.disabled = false;
       stuksInput.required = true;
     } else {
       veldHoeveelheid.style.display = "";
       veldAantalStuks.style.display = "none";
       qtyInput.required = true;
+      qtyInput.disabled = false;
+      qtyHidden.disabled = true;
       stuksInput.required = false;
     }
   }
