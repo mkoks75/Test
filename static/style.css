@@ -602,6 +602,52 @@ textarea { resize: vertical; min-height: 80px; }
   padding-top: 1.5rem;
 }
 
+/* ── Tabelkop met + knop ── */
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.table-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.btn-add-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2D6A4F;
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-add-inline:hover {
+  background: #235c42;
+}
+
+/* ── Inline toevoegformulier ── */
+.inline-add-form {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  max-width: 480px;
+}
+
 .form-delete .btn,
 .form-delete button {
   width: 100%;

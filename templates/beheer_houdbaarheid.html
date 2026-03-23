@@ -5,25 +5,125 @@
 <div class="page-header">
   <div class="page-header-inner">
     <h1>Houdbaarheid &amp; Conservering</h1>
-    <p>Overzicht van alle bewaartermijnen per product + conserveringsmethode</p>
+    <p>Conserveringsmethoden en bewaartermijnen per product beheren</p>
   </div>
 </div>
 
 <main>
-  {% if success == 'bijgewerkt' %}
+  {% if success == 'methode_toegevoegd' %}
+  <div class="melding melding-succes">Conserveringsmethode succesvol toegevoegd.</div>
+  {% elif success == 'methode_bijgewerkt' %}
+  <div class="melding melding-succes">Conserveringsmethode succesvol bijgewerkt.</div>
+  {% elif success == 'methode_verwijderd' %}
+  <div class="melding melding-succes">Conserveringsmethode succesvol verwijderd.</div>
+  {% elif success == 'toegevoegd' %}
+  <div class="melding melding-succes">Bewaartermijn succesvol toegevoegd.</div>
+  {% elif success == 'bijgewerkt' %}
   <div class="melding melding-succes">Bewaartermijn succesvol bijgewerkt.</div>
   {% elif success == 'verwijderd' %}
   <div class="melding melding-succes">Bewaartermijn succesvol verwijderd.</div>
   {% endif %}
 
-  {% if error == 'ongeldig' %}
+  {% if error == 'dubbele_methode' %}
+  <div class="melding melding-fout">Er bestaat al een conserveringsmethode met deze naam.</div>
+  {% elif error == 'lege_naam' %}
+  <div class="melding melding-fout">Naam mag niet leeg zijn.</div>
+  {% elif error == 'methode_in_gebruik' %}
+  <div class="melding melding-fout">Deze conserveringsmethode is in gebruik en kan niet worden verwijderd.</div>
+  {% elif error == 'ongeldig' %}
   <div class="melding melding-fout">Houdbaarheid moet minimaal 1 maand zijn.</div>
+  {% elif error == 'dubbel' %}
+  <div class="melding melding-fout">Voor deze combinatie van product en conserveringsmethode bestaat al een bewaartermijn.</div>
   {% endif %}
 
-  <p style="font-size:0.88rem; color:#6c757d; margin-bottom:16px;">
-    Om een nieuwe bewaartermijn toe te voegen, ga naar
-    <a href="/beheer/producten">Producten</a> en open het gewenste product.
-  </p>
+  <!-- SECTIE 1: Conserveringsmethoden -->
+  <div class="table-header">
+    <h3>Conserveringsmethoden</h3>
+    <button class="btn-add-inline" onclick="toggleForm('form-conservering')" title="Nieuwe conserveringsmethode toevoegen">+</button>
+  </div>
+
+  <div id="form-conservering" class="inline-add-form" style="display:none;">
+    <form method="post" action="/beheer/conservering/add">
+      <div class="form-group">
+        <label for="methode_naam">Naam <span style="color:var(--rood)">*</span></label>
+        <input type="text" id="methode_naam" name="naam" required placeholder="bijv. Invriezen">
+      </div>
+      <div class="form-actions" style="margin-top:0.75rem;">
+        <button type="submit" class="btn btn-primair">Toevoegen</button>
+        <button type="button" class="btn btn-secundair" onclick="toggleForm('form-conservering')">Annuleren</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="kaart" style="padding:0; overflow:hidden; margin-bottom:32px;">
+    <table>
+      <thead>
+        <tr>
+          <th>Naam</th>
+          <th>Actief</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in methoden %}
+        <tr>
+          <td>{{ m.naam }}</td>
+          <td>
+            {% if m.actief %}
+              <span class="badge badge-actief">Actief</span>
+            {% else %}
+              <span class="badge badge-inactief">Inactief</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/beheer/conservering/edit/{{ m.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="3" class="geen-data">Nog geen conserveringsmethoden aangemaakt.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECTIE 2: Bewaartermijnen per product -->
+  <div class="table-header">
+    <h3>Bewaartermijnen per product</h3>
+    <button class="btn-add-inline" onclick="toggleForm('form-houdbaarheid')" title="Nieuwe bewaartermijn toevoegen">+</button>
+  </div>
+
+  <div id="form-houdbaarheid" class="inline-add-form" style="display:none;">
+    <form method="post" action="/beheer/houdbaarheid/add">
+      <div class="form-group">
+        <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
+        <select id="product_id" name="product_id" required>
+          <option value="">— Kies een product —</option>
+          {% for p in producten %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="conserveringsmethode_id">Conserveringsmethode <span style="color:var(--rood)">*</span></label>
+        <select id="conserveringsmethode_id" name="conserveringsmethode_id" required>
+          <option value="">— Kies een methode —</option>
+          {% for m in methoden %}
+          <option value="{{ m.id }}">{{ m.naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="houdbaarheid_maanden">Houdbaarheid (maanden) <span style="color:var(--rood)">*</span></label>
+        <input type="number" id="houdbaarheid_maanden" name="houdbaarheid_maanden" min="1" step="1" required placeholder="bijv. 12">
+      </div>
+      <div class="form-actions" style="margin-top:0.75rem;">
+        <button type="submit" class="btn btn-primair">Toevoegen</button>
+        <button type="button" class="btn btn-secundair" onclick="toggleForm('form-houdbaarheid')">Annuleren</button>
+      </div>
+    </form>
+  </div>
 
   <div class="kaart" style="padding:0; overflow:hidden;">
     <table>
@@ -31,7 +131,7 @@
         <tr>
           <th>Product</th>
           <th>Conserveringsmethode</th>
-          <th>Houdbaarheid (maanden)</th>
+          <th>Maanden</th>
           <th></th>
         </tr>
       </thead>
@@ -54,4 +154,15 @@
     </table>
   </div>
 </main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleForm(id) {
+  var el = document.getElementById(id);
+  if (el) {
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+}
+</script>
 {% endblock %}

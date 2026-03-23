@@ -1734,12 +1734,17 @@ async def beheer_houdbaarheid(
         .all()
     )
 
+    methoden = db.query(models.Conserveringsmethode).order_by(models.Conserveringsmethode.naam).all()
+    producten = db.query(models.Product).order_by(models.Product.name).all()
+
     return templates.TemplateResponse(
         "beheer_houdbaarheid.html",
         {
             "request": request,
             "user": user,
             "records": records,
+            "methoden": methoden,
+            "producten": producten,
             "success": success,
             "error": error,
         },
@@ -1841,17 +1846,17 @@ async def beheer_conserveringsmethode_add(
 
     naam = naam.strip()
     if not naam:
-        return RedirectResponse("/beheer/conservering?error=lege_naam", status_code=302)
+        return RedirectResponse("/beheer/houdbaarheid?error=lege_naam", status_code=302)
 
     bestaand = db.query(models.Conserveringsmethode).filter(
         func.lower(models.Conserveringsmethode.naam) == naam.lower()
     ).first()
     if bestaand:
-        return RedirectResponse("/beheer/conservering?error=dubbele_methode", status_code=302)
+        return RedirectResponse("/beheer/houdbaarheid?error=dubbele_methode", status_code=302)
 
     db.add(models.Conserveringsmethode(naam=naam, actief=True))
     db.commit()
-    return RedirectResponse("/beheer/conservering?success=methode_toegevoegd", status_code=302)
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_toegevoegd", status_code=302)
 
 
 @app.get("/beheer/conserveringsmethode/edit/{methode_id}")
@@ -1876,7 +1881,7 @@ async def beheer_conserveringsmethode_edit_post(
         methode.naam = naam.strip()
         methode.actief = actief == "on"
         db.commit()
-    return RedirectResponse("/beheer/conservering?success=methode_bijgewerkt", status_code=302)
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_bijgewerkt", status_code=302)
 
 
 @app.post("/beheer/conserveringsmethode/delete/{methode_id}")
@@ -1892,13 +1897,13 @@ async def beheer_conserveringsmethode_delete(methode_id: int, request: Request, 
     ).count() > 0
 
     if in_gebruik:
-        return RedirectResponse("/beheer/conservering?error=methode_in_gebruik", status_code=302)
+        return RedirectResponse("/beheer/houdbaarheid?error=methode_in_gebruik", status_code=302)
 
     methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
     if methode:
         db.delete(methode)
         db.commit()
-    return RedirectResponse("/beheer/conservering?success=methode_verwijderd", status_code=302)
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_verwijderd", status_code=302)
 
 
 # ── QR Scan lookup ─────────────────────────────────────────────────────────────
@@ -3227,26 +3232,16 @@ async def beheer_eenheden_delete(eenheid_id: int, request: Request, db: Session 
 @app.get("/beheer/conservering")
 async def beheer_conservering(
     request: Request,
-    db: Session = Depends(get_db),
     success: str = None,
     error: str = None,
 ):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-
-    methoden = db.query(models.Conserveringsmethode).order_by(models.Conserveringsmethode.naam).all()
-
-    return templates.TemplateResponse(
-        "beheer_conservering.html",
-        {
-            "request": request,
-            "user": user,
-            "methoden": methoden,
-            "success": success,
-            "error": error,
-        },
-    )
+    params = {}
+    if success:
+        params["success"] = success
+    if error:
+        params["error"] = error
+    qs = ("?" + "&".join(f"{k}={v}" for k, v in params.items())) if params else ""
+    return RedirectResponse(f"/beheer/houdbaarheid{qs}", status_code=302)
 
 
 @app.post("/beheer/conservering/add")
@@ -3261,17 +3256,17 @@ async def beheer_conservering_add(
 
     naam = naam.strip()
     if not naam:
-        return RedirectResponse("/beheer/conservering?error=lege_naam", status_code=302)
+        return RedirectResponse("/beheer/houdbaarheid?error=lege_naam", status_code=302)
 
     bestaand = db.query(models.Conserveringsmethode).filter(
         func.lower(models.Conserveringsmethode.naam) == naam.lower()
     ).first()
     if bestaand:
-        return RedirectResponse("/beheer/conservering?error=dubbele_methode", status_code=302)
+        return RedirectResponse("/beheer/houdbaarheid?error=dubbele_methode", status_code=302)
 
     db.add(models.Conserveringsmethode(naam=naam, actief=True))
     db.commit()
-    return RedirectResponse("/beheer/conservering?success=methode_toegevoegd", status_code=302)
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_toegevoegd", status_code=302)
 
 
 @app.get("/beheer/conservering/edit/{methode_id}")
@@ -3282,7 +3277,7 @@ async def beheer_conservering_edit(methode_id: int, request: Request, db: Sessio
 
     methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
     if not methode:
-        return RedirectResponse("/beheer/conservering", status_code=302)
+        return RedirectResponse("/beheer/houdbaarheid", status_code=302)
 
     in_gebruik = (
         db.query(models.HarvestEntry).filter(models.HarvestEntry.conserveringsmethode_id == methode_id).count() > 0
@@ -3312,7 +3307,7 @@ async def beheer_conservering_edit_post(
         methode.naam = naam.strip()
         methode.actief = actief == "on"
         db.commit()
-    return RedirectResponse("/beheer/conservering?success=methode_bijgewerkt", status_code=302)
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_bijgewerkt", status_code=302)
 
 
 @app.post("/beheer/conservering/delete/{methode_id}")
@@ -3327,13 +3322,13 @@ async def beheer_conservering_delete(methode_id: int, request: Request, db: Sess
     )
 
     if in_gebruik:
-        return RedirectResponse("/beheer/conservering?error=methode_in_gebruik", status_code=302)
+        return RedirectResponse("/beheer/houdbaarheid?error=methode_in_gebruik", status_code=302)
 
     methode = db.query(models.Conserveringsmethode).filter(models.Conserveringsmethode.id == methode_id).first()
     if methode:
         db.delete(methode)
         db.commit()
-    return RedirectResponse("/beheer/conservering?success=methode_verwijderd", status_code=302)
+    return RedirectResponse("/beheer/houdbaarheid?success=methode_verwijderd", status_code=302)
 
 
 # ── API: Houdbaarheid inline toevoegen ──────────────────────────────────────────
