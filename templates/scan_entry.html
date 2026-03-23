@@ -21,14 +21,15 @@
   <div class="kaart">
     <h2 style="margin-top:0; font-size:1.5rem;">{{ entry.product.name }}</h2>
 
-    <table style="width:100%; margin-bottom:16px;">
+    <div class="item-samenvatting" style="margin-bottom:16px;">
+    <table>
       <tbody>
-        <tr><th style="text-align:left; width:140px; padding:6px 0;">Entry ID</th><td style="padding:6px 0;"><strong>{{ entry.id }}</strong></td></tr>
-        <tr><th style="text-align:left; padding:6px 0;">Locatie</th><td style="padding:6px 0;">{{ entry.location.name }}</td></tr>
-        <tr><th style="text-align:left; padding:6px 0;">Hoeveelheid</th><td style="padding:6px 0;">{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</td></tr>
-        <tr><th style="text-align:left; padding:6px 0;">Datum oogst</th><td style="padding:6px 0;">{{ entry.date }}</td></tr>
-        <tr><th style="text-align:left; padding:6px 0;">Houdbaar tot</th>
-          <td style="padding:6px 0;">
+        <tr><th>Entry ID</th><td><strong>{{ entry.id }}</strong></td></tr>
+        <tr><th>Locatie</th><td>{{ entry.location.name }}</td></tr>
+        <tr><th>Hoeveelheid</th><td>{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</td></tr>
+        <tr><th>Datum oogst</th><td>{{ entry.date }}</td></tr>
+        <tr><th>Houdbaar tot</th>
+          <td>
             {% if entry.houdbaar_tot %}
               <span {% if entry.houdbaar_tot <= today %}style="color:var(--rood); font-weight:700;"{% elif (entry.houdbaar_tot - today).days <= 30 %}style="color:var(--oranje); font-weight:600;"{% endif %}>
                 {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
@@ -38,8 +39,8 @@
             {% endif %}
           </td>
         </tr>
-        <tr><th style="text-align:left; padding:6px 0;">Status</th>
-          <td style="padding:6px 0;">
+        <tr><th>Status</th>
+          <td>
             {% if entry.uitgegeven %}
               <span style="color:var(--rood); font-weight:700;">Al uitgegeven</span>
             {% else %}
@@ -49,6 +50,7 @@
         </tr>
       </tbody>
     </table>
+    </div>
 
     {% if entry.uitgegeven %}
     <div class="melding melding-fout" style="margin-bottom:20px;">

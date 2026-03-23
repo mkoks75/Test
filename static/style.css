@@ -398,6 +398,26 @@ tr:last-child td { border-bottom: none; }
 tr:nth-child(even) td { background: #fafbfc; }
 tr:hover td { background: #f0faf5; }
 
+/* ── Item samenvatting tabel ── */
+.item-samenvatting {
+  border-radius: 8px;
+  overflow: hidden;
+}
+.item-samenvatting th {
+  max-width: 140px;
+  min-width: 100px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+.item-samenvatting td {
+  padding: 0.4rem 0.75rem 0.4rem 1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+.item-samenvatting tr:last-child td {
+  border-bottom: none;
+}
+
 .locatie-kop td {
   background: var(--groen-licht-bg);
   font-weight: 600;

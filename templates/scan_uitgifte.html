@@ -16,16 +16,16 @@
 
   <div class="kaart" style="margin-bottom:16px;">
     <h3 style="margin-top:0;">Item samenvatting</h3>
-    <table style="width:100%;">
+    <div class="item-samenvatting">
+    <table>
       <tbody>
-        <tr><th style="text-align:left; width:140px; padding:4px 0;">Product</th><td style="padding:4px 0;"><strong>{{ entry.product.name }}</strong></td></tr>
-        <tr><th style="text-align:left; padding:4px 0;">Volgnummer</th><td style="padding:4px 0;">{{ entry.volgnummer }}</td></tr>
-        <tr><th style="text-align:left; padding:4px 0;">Entry ID</th><td style="padding:4px 0;">{{ entry.id }}</td></tr>
-        <tr><th style="text-align:left; padding:4px 0;">Locatie</th><td style="padding:4px 0;">{{ entry.location.name }}</td></tr>
-        <tr><th style="text-align:left; padding:4px 0;">Hoeveelheid</th><td style="padding:4px 0;">{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</td></tr>
+        <tr><th>Product</th><td><strong>{{ entry.product.name }}</strong></td></tr>
+        <tr><th>Entry ID</th><td>{{ entry.id }}</td></tr>
+        <tr><th>Locatie</th><td>{{ entry.location.name }}</td></tr>
+        <tr><th>Hoeveelheid</th><td>{{ "%.2f"|format(entry.quantity) }} {{ entry.product.eenheid.naam if entry.product.eenheid else entry.product.unit }}</td></tr>
         {% if entry.houdbaar_tot %}
-        <tr><th style="text-align:left; padding:4px 0;">Houdbaar tot</th>
-          <td style="padding:4px 0;">
+        <tr><th>Houdbaar tot</th>
+          <td>
             <span {% if entry.houdbaar_tot and (entry.houdbaar_tot - today_date).days <= 30 %}style="color:var(--rood); font-weight:600;"{% endif %}>
               {{ entry.houdbaar_tot.strftime('%d-%m-%Y') }}
             </span>
@@ -34,6 +34,7 @@
         {% endif %}
       </tbody>
     </table>
+    </div>
   </div>
 
   <div class="kaart">
