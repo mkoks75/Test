@@ -21,7 +21,7 @@
       <p class="melding melding-fout">Geen actieve locaties beschikbaar. <a href="/beheer/locaties">Voeg eerst een locatie toe.</a></p>
     {% else %}
     <form method="post" action="/harvest/new">
-      <div class="form-container" style="max-width:600px;">
+      <div class="form-container">
         <div class="form-group">
           <label for="product_id">Product <span style="color:var(--rood)">*</span></label>
           <select id="product_id" name="product_id" required>
@@ -125,13 +125,13 @@
           <label for="note">Notitie (optioneel)</label>
           <textarea id="note" name="note" placeholder="Eventuele opmerkingen..." rows="3"></textarea>
         </div>
-      </div>
 
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primair">Opslaan</button>
-        <a href="/" class="btn btn-secundair">Annuleren</a>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primair">Opslaan</button>
+          <a href="/" class="btn btn-secundair">Annuleren</a>
+        </div>
+        <p style="font-size:0.875rem; color:#6c757d; margin:0.5rem 0 0 0;">Ingevoerd als: <strong>{{ user }}</strong></p>
       </div>
-      <p style="font-size:.82rem; color:#6c757d; margin-top:0.5rem;">Ingevoerd als: <strong>{{ user }}</strong></p>
     </form>
     {% endif %}
   </div>
