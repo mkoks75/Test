@@ -68,18 +68,18 @@
   var qrUrl = {{ qr_url | tojson }};
 
   new QRCode(document.getElementById("qr-preview"), {
-    text: qrUrl, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M
+    text: qrUrl, width: 165, height: 165, correctLevel: QRCode.CorrectLevel.M
   });
 
   new QRCode(document.getElementById("qr-print"), {
-    text: qrUrl, width: 300, height: 300, correctLevel: QRCode.CorrectLevel.M
+    text: qrUrl, width: 225, height: 225, correctLevel: QRCode.CorrectLevel.M
   });
 
   function downloadPDF() {
     var canvas = document.querySelector('#qr-print canvas');
     if (!canvas) { alert('QR code nog niet geladen, probeer opnieuw.'); return; }
     var { jsPDF } = window.jspdf;
-    var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [62, 80] });
+    var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [62, 70] });
 
     var naam = {{ entry.product.name | tojson }};
     var entryId = 'ID: {{ entry.id }}';
@@ -89,7 +89,7 @@
     var houdbaarTot = {{ (entry.houdbaar_tot.strftime('%d-%m-%Y') if entry.houdbaar_tot else '') | tojson }};
 
     // QR code gecentreerd bovenaan
-    var qrSize = 40;
+    var qrSize = 30;
     var qrX = (62 - qrSize) / 2;
     doc.addImage(canvas.toDataURL('image/png'), 'PNG', qrX, 2, qrSize, qrSize);
     var y = qrSize + 5;
@@ -106,7 +106,7 @@
     // Entry ID, 8pt
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(0, 0, 0);
     doc.text(entryId, 31, y, { align: 'center' });
     y += 4;
 
@@ -135,7 +135,7 @@
 
     // Conserveringsmethode, 8pt
     if (methode) {
-      doc.setTextColor(80, 80, 80);
+      doc.setTextColor(0, 0, 0);
       doc.text(methode, 31, y, { align: 'center' });
     }
 
@@ -145,7 +145,7 @@
 </script>
 
 <style>
-  @page { size: 62mm auto; margin: 2mm; }
+  @page { size: 62mm auto; margin: 1.5mm; }
 
   @media screen {
     #print-container { display: none !important; }
@@ -160,7 +160,7 @@
       padding: 0 !important; margin: 0 !important; max-width: none !important; }
     #print-container { display: block !important; }
     .print-label {
-      width: 58mm; height: auto; min-height: 30mm;
+      width: 58mm; height: auto; min-height: 25mm;
       display: flex; flex-direction: column; align-items: center;
       text-align: center; box-sizing: border-box; overflow: hidden;
     }
@@ -168,17 +168,17 @@
       display: flex; align-items: center; justify-content: center; margin-bottom: 1mm;
     }
     .print-rechts canvas, .print-rechts img {
-      width: 40mm !important; height: 40mm !important;
+      width: 30mm !important; height: 30mm !important;
     }
     .print-naam {
       font-size: 11pt; font-weight: bold; color: #000; margin: 0 0 0.8mm 0;
       line-height: 1.2; text-align: center;
     }
-    .print-id { font-size: 8pt; color: #888; margin: 0 0 0.4mm 0; line-height: 1.15; text-align: center; }
+    .print-id { font-size: 8pt; color: #000; margin: 0 0 0.4mm 0; line-height: 1.15; text-align: center; }
     .print-hoeveelheid { font-size: 9pt; color: #000; margin: 0 0 0.5mm 0; line-height: 1.15; text-align: center; }
     .print-datum { font-size: 10pt; font-weight: bold; color: #CC0000 !important; margin: 0 0 0.4mm 0; line-height: 1.2; text-align: center; }
     .print-locatie { font-size: 8pt; color: #000; margin: 0 0 0.4mm 0; line-height: 1.15; text-align: center; }
-    .print-methode { font-size: 8pt; color: #555; margin: 0 0 0.4mm 0; line-height: 1.15; text-align: center; }
+    .print-methode { font-size: 8pt; color: #000; margin: 0 0 0.4mm 0; line-height: 1.15; text-align: center; }
   }
 
   /* Scherm preview */
@@ -201,11 +201,11 @@
     margin-bottom: 8px;
   }
   .plabel-naam { font-size: 1.2rem; font-weight: 700; margin: 0 0 4px 0; line-height: 1.2; }
-  .plabel-id { font-size: 0.78rem; color: #888; margin: 0 0 3px 0; }
-  .plabel-hoeveelheid { font-size: 0.95rem; margin: 0 0 4px 0; color: #333; }
+  .plabel-id { font-size: 0.78rem; color: #000; margin: 0 0 3px 0; }
+  .plabel-hoeveelheid { font-size: 0.95rem; margin: 0 0 4px 0; color: #000; }
   .plabel-datum { font-size: 0.95rem; margin: 0 0 4px 0; }
-  .plabel-locatie { font-size: 0.78rem; color: #333; margin: 0 0 3px 0; }
-  .plabel-methode { font-size: 0.78rem; color: #555; margin: 0 0 3px 0; }
+  .plabel-locatie { font-size: 0.78rem; color: #000; margin: 0 0 3px 0; }
+  .plabel-methode { font-size: 0.78rem; color: #000; margin: 0 0 3px 0; }
   .datum-rood { color: #CC0000 !important; font-weight: 700; }
 </style>
 {% endblock %}
