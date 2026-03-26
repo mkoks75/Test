@@ -355,6 +355,21 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         models.HarvestEntry.houdbaar_tot <= bijna_verlopen_cutoff,
     ).scalar() or 0
 
+    # Urgent: verlopen binnen 3 dagen
+    drie_dagen = today + datetime.timedelta(days=3)
+    urgent_items = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .filter(
+            models.HarvestEntry.uitgegeven == False,
+            models.HarvestEntry.houdbaar_tot != None,
+            models.HarvestEntry.houdbaar_tot >= today,
+            models.HarvestEntry.houdbaar_tot <= drie_dagen,
+        )
+        .order_by(models.HarvestEntry.houdbaar_tot.asc())
+        .all()
+    )
+
     # Bijna verlopen binnen 7 dagen
     zeven_dagen = today + datetime.timedelta(days=7)
     bijna_verlopen_7d = (
@@ -417,6 +432,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "today_date": today,
             "bijna_verlopen_date": bijna_verlopen_cutoff,
             "bijna_verlopen_7d": bijna_verlopen_7d,
+            "urgent_items": urgent_items,
             "voorraad_totaal": voorraad_totaal,
             "stats": {
                 "total_producten": total_producten,
