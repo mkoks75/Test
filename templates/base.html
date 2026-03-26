@@ -19,6 +19,7 @@
   <div class="nav-links">
     <a href="/" {% if request.url.path == '/' %}class="actief"{% endif %}>Dashboard</a>
     <a href="/harvest/new" {% if request.url.path == '/harvest/new' %}class="actief"{% endif %}>Voorraad registreren</a>
+    <a href="/winkel" {% if request.url.path == '/winkel' %}class="actief"{% endif %}>&#128722; Winkelvoorraad</a>
     <a href="/uitgifte/new" {% if request.url.path == '/uitgifte/new' %}class="actief"{% endif %}>Uitgifte registreren</a>
     <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>Bijna verlopen</a>
     <div class="nav-dropdown {% if request.url.path.startswith('/beheer') or request.url.path == '/account' %}actief{% endif %}">

@@ -134,3 +134,45 @@ class ProductHoudbaarheid(Base):
 
     product = relationship("Product")
     conserveringsmethode = relationship("Conserveringsmethode", back_populates="houdbaarheid_records")
+
+
+class ShopItem(Base):
+    __tablename__ = "shop_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    barcode = Column(String, nullable=True)
+    name = Column(String, nullable=False)
+    brand = Column(String, nullable=True)
+    quantity_per_unit = Column(Float, default=1)
+    unit = Column(String, default="stuks")
+    image_url = Column(String, nullable=True)
+    owner = Column(String, nullable=False)
+    stock = Column(Integer, default=0)
+    houdbaar_tot = Column(Date, nullable=True)
+    date_added = Column(Date, default=datetime.date.today)
+    entered_by = Column(String, nullable=False)
+
+
+class ShopUitgifte(Base):
+    __tablename__ = "shop_uitgiftes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    shop_item_id = Column(Integer, ForeignKey("shop_items.id"), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    date = Column(Date, default=datetime.date.today)
+    entered_by = Column(String, nullable=False)
+
+    shop_item = relationship("ShopItem")
+
+
+class ProductCache(Base):
+    __tablename__ = "product_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    barcode = Column(String, nullable=False, unique=True, index=True)
+    name = Column(String, nullable=True)
+    brand = Column(String, nullable=True)
+    quantity = Column(Float, nullable=True)
+    unit = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)
+    cached_at = Column(DateTime, default=datetime.datetime.utcnow)

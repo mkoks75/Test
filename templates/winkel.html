@@ -1,0 +1,570 @@
+{% extends "base.html" %}
+{% block title %}Winkelvoorraad - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#128722; Winkelvoorraad</h1>
+    <p>Beheer je persoonlijke winkelinkopen en houdbaarheidsdatums</p>
+  </div>
+</div>
+
+<main>
+
+{% if success %}
+<div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;color:#155724;">
+  &#10003; {{ success }}
+</div>
+{% endif %}
+{% if error %}
+<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;color:#721c24;">
+  &#9888; {{ error }}
+</div>
+{% endif %}
+
+<!-- ── Scannen / Toevoegen ── -->
+<div class="kaart" style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1rem;margin-bottom:1rem;">Product toevoegen</h2>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+    <button id="btn-scan" class="btn btn-primary" onclick="openScannerToevoegen()" type="button">
+      &#128247; Scan barcode
+    </button>
+    <a href="#" onclick="toggleHandmatig();return false;" style="font-size:.9rem;">handmatig invoeren</a>
+  </div>
+
+  <!-- Scanner overlay -->
+  <div id="scanner-overlay-toevoegen" style="display:none;margin-bottom:1rem;">
+    <video id="video-toevoegen" style="width:100%;max-width:400px;border-radius:8px;background:#000;" autoplay muted playsinline></video>
+    <div style="margin-top:.5rem;">
+      <button type="button" onclick="stopScannerToevoegen()" style="font-size:.85rem;padding:.3rem .75rem;">&#10005; Sluiten</button>
+    </div>
+  </div>
+
+  <!-- Formulier -->
+  <div id="formulier-toevoegen" style="display:none;">
+    <div id="product-foto-wrap" style="display:none;margin-bottom:.75rem;">
+      <img id="product-foto" src="" alt="Productfoto" style="height:80px;border-radius:6px;border:1px solid #dee2e6;">
+    </div>
+    <div id="niet-gevonden-melding" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.5rem .75rem;margin-bottom:.75rem;font-size:.9rem;">
+      Product niet gevonden — vul handmatig in
+    </div>
+    <form id="form-toevoegen" onsubmit="submitToevoegen(event)">
+      <input type="hidden" id="f-barcode" name="barcode">
+      <div style="display:grid;gap:.75rem;">
+        <div>
+          <label style="font-size:.85rem;font-weight:500;">Productnaam *</label>
+          <input type="text" id="f-name" name="name" required style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div>
+            <label style="font-size:.85rem;font-weight:500;">Merk</label>
+            <input type="text" id="f-brand" name="brand" style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+          </div>
+          <div>
+            <label style="font-size:.85rem;font-weight:500;">Inhoud per verpakking</label>
+            <div style="display:flex;gap:.4rem;">
+              <input type="number" id="f-qty" name="quantity_per_unit" value="1" min="0" step="any" style="width:80px;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+              <select id="f-unit" name="unit" style="flex:1;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+                <option value="stuks">stuks</option>
+                <option value="g">g</option>
+                <option value="ml">ml</option>
+                <option value="kg">kg</option>
+                <option value="l">l</option>
+                <option value="cl">cl</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div>
+            <label style="font-size:.85rem;font-weight:500;">Aantal stuks *</label>
+            <input type="number" id="f-stock" name="stock" value="1" min="1" required style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+          </div>
+          <div>
+            <label style="font-size:.85rem;font-weight:500;">THT datum</label>
+            <input type="date" id="f-tht" name="houdbaar_tot" style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+          </div>
+        </div>
+        <div>
+          <button type="submit" class="btn btn-primary">&#43; Toevoegen aan voorraad</button>
+          <button type="button" onclick="resetFormulier()" style="margin-left:.5rem;font-size:.85rem;padding:.4rem .8rem;">Annuleren</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Zoekbalk ── -->
+<div class="kaart" style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1rem;margin-bottom:.75rem;">Zoeken in voorraad</h2>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
+    <input type="text" id="winkel-zoek" placeholder="Zoek op naam of merk..."
+           style="flex:1;min-width:200px;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;"
+           oninput="winkelZoek(this.value)">
+    <label style="font-size:.85rem;display:flex;align-items:center;gap:.3rem;white-space:nowrap;">
+      <input type="checkbox" id="zoek-andere" onchange="winkelZoek(document.getElementById('winkel-zoek').value)">
+      Zoek ook in voorraad van <strong id="andere-naam">...</strong>
+    </label>
+  </div>
+  <div id="zoek-resultaten-winkel" style="margin-top:.75rem;"></div>
+</div>
+
+<!-- ── Uitgifte via barcode scan ── -->
+<div class="kaart" style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1rem;margin-bottom:.75rem;">Uitgifte via barcode</h2>
+  <button type="button" class="btn" onclick="openScannerUitgifte()" style="background:#2980b9;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;">
+    &#128247; Scan voor uitgifte
+  </button>
+  <div id="scanner-overlay-uitgifte" style="display:none;margin-top:1rem;">
+    <video id="video-uitgifte" style="width:100%;max-width:400px;border-radius:8px;background:#000;" autoplay muted playsinline></video>
+    <div style="margin-top:.5rem;">
+      <button type="button" onclick="stopScannerUitgifte()" style="font-size:.85rem;padding:.3rem .75rem;">&#10005; Sluiten</button>
+    </div>
+  </div>
+  <div id="uitgifte-keuze" style="display:none;margin-top:1rem;"></div>
+  <div id="uitgifte-bevestiging" style="display:none;margin-top:1rem;"></div>
+</div>
+
+<!-- ── Mijn winkelvoorraad ── -->
+<div class="kaart" style="padding:0;overflow:hidden;margin-bottom:1.5rem;">
+  <table id="winkel-tabel">
+    <thead>
+      <tr>
+        <th colspan="6" style="font-size:1rem;text-transform:none;letter-spacing:0;">
+          &#128722; Mijn winkelvoorraad
+        </th>
+      </tr>
+      {% if items %}
+      <tr>
+        <th style="width:48px;"></th>
+        <th>Product</th>
+        <th>Merk</th>
+        <th>THT</th>
+        <th style="text-align:right;">Stuks</th>
+        <th>Acties</th>
+      </tr>
+      {% endif %}
+    </thead>
+    <tbody>
+      {% if items %}
+        {% for item in items %}
+        {% set dag_info = (item.houdbaar_tot - today).days if item.houdbaar_tot else None %}
+        <tr id="rij-{{ item.id }}"
+          {% if dag_info is not none and dag_info <= 0 %}style="background:#fde8e8;"
+          {% elif dag_info is not none and dag_info <= 30 %}style="background:#fff3cd;"
+          {% endif %}>
+          <td style="padding:4px 8px;">
+            {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="" style="height:36px;width:36px;object-fit:cover;border-radius:4px;">
+            {% else %}
+            <span style="display:inline-block;width:36px;height:36px;background:#e9ecef;border-radius:4px;"></span>
+            {% endif %}
+          </td>
+          <td><strong>{{ item.name }}</strong></td>
+          <td style="color:#6c757d;">{{ item.brand or '—' }}</td>
+          <td>
+            {% if item.houdbaar_tot %}
+              {% if dag_info <= 7 %}
+                <span style="color:#CC0000;font-weight:600;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% elif dag_info <= 14 %}
+                <span style="color:#CC0000;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% elif dag_info <= 30 %}
+                <span style="color:#E07B00;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% else %}
+                {{ item.houdbaar_tot.strftime('%d-%m-%Y') }}
+              {% endif %}
+            {% else %}
+              <span style="color:#adb5bd;">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;font-weight:600;">{{ item.stock }}</td>
+          <td style="white-space:nowrap;">
+            <button type="button"
+              onclick="uitgifte({{ item.id }}, '{{ item.name|replace("'", "\\'") }}', {{ item.stock }})"
+              style="font-size:.8rem;padding:.2rem .5rem;background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.25rem;">
+              &minus;1
+            </button>
+            <button type="button"
+              onclick="openBewerken({{ item.id }}, {{ item.name|tojson }}, {{ (item.brand or '')|tojson }}, {{ item.stock }}, {{ (item.houdbaar_tot.isoformat() if item.houdbaar_tot else '')|tojson }})"
+              style="font-size:.8rem;padding:.2rem .5rem;background:#f39c12;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.25rem;">
+              &#9999;
+            </button>
+            {% if item.stock == 0 %}
+            <button type="button"
+              onclick="verwijder({{ item.id }}, '{{ item.name|replace("'", "\\'") }}')"
+              style="font-size:.8rem;padding:.2rem .5rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;">
+              &#10005;
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center;padding:2rem;color:#6c757d;">
+            Nog geen winkelproducten toegevoegd.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Bewerk modal -->
+<div id="bewerk-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:1.5rem;width:min(480px,95vw);max-height:90vh;overflow-y:auto;">
+    <h3 style="margin-bottom:1rem;font-size:1rem;">Item bewerken</h3>
+    <form id="form-bewerken" onsubmit="submitBewerken(event)">
+      <input type="hidden" id="b-id">
+      <div style="display:grid;gap:.75rem;">
+        <div>
+          <label style="font-size:.85rem;font-weight:500;">Productnaam *</label>
+          <input type="text" id="b-name" required style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+        </div>
+        <div>
+          <label style="font-size:.85rem;font-weight:500;">Merk</label>
+          <input type="text" id="b-brand" style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div>
+            <label style="font-size:.85rem;font-weight:500;">Stuks</label>
+            <input type="number" id="b-stock" min="0" style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+          </div>
+          <div>
+            <label style="font-size:.85rem;font-weight:500;">THT datum</label>
+            <input type="date" id="b-tht" style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+          </div>
+        </div>
+        <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+          <button type="button" onclick="sluitBewerken()" style="padding:.4rem .8rem;border:1px solid #ced4da;background:#fff;border-radius:4px;cursor:pointer;">Annuleren</button>
+          <button type="submit" class="btn btn-primary">Opslaan</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/scanner.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Bepaal welke gebruiker de "andere" is
+  var huidigeUser = {{ user|tojson }};
+  var andereUser = (huidigeUser === 'maarten') ? 'hinke' : 'maarten';
+  var el = document.getElementById('andere-naam');
+  if (el) el.textContent = andereUser.charAt(0).toUpperCase() + andereUser.slice(1);
+
+  // ── Scanner: Toevoegen ────────────────────────────────────────
+  var stopScannerToevoegenFn = null;
+
+  window.openScannerToevoegen = function () {
+    var overlay = document.getElementById('scanner-overlay-toevoegen');
+    overlay.style.display = 'block';
+    var video = document.getElementById('video-toevoegen');
+    stopScannerToevoegenFn = Scanner.start(video, function (barcode) {
+      overlay.style.display = 'none';
+      verwerkBarcode(barcode);
+    }, function (err) {
+      alert('Scanner fout: ' + err);
+    });
+  };
+
+  window.stopScannerToevoegen = function () {
+    if (stopScannerToevoegenFn) { stopScannerToevoegenFn(); stopScannerToevoegenFn = null; }
+    document.getElementById('scanner-overlay-toevoegen').style.display = 'none';
+  };
+
+  function verwerkBarcode(barcode) {
+    document.getElementById('f-barcode').value = barcode;
+    document.getElementById('formulier-toevoegen').style.display = 'block';
+    document.getElementById('niet-gevonden-melding').style.display = 'none';
+
+    fetch('/api/shop/openfoodfacts/' + encodeURIComponent(barcode))
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          document.getElementById('niet-gevonden-melding').style.display = 'block';
+          return;
+        }
+        var d = res.data;
+        if (d.name) document.getElementById('f-name').value = d.name;
+        if (d.brand) document.getElementById('f-brand').value = d.brand;
+        if (d.quantity) document.getElementById('f-qty').value = d.quantity;
+        if (d.unit) {
+          var sel = document.getElementById('f-unit');
+          for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === d.unit) { sel.selectedIndex = i; break; }
+          }
+        }
+        if (d.image_url) {
+          document.getElementById('product-foto').src = d.image_url;
+          document.getElementById('product-foto-wrap').style.display = 'block';
+        }
+      })
+      .catch(function () {
+        document.getElementById('niet-gevonden-melding').style.display = 'block';
+      });
+  }
+
+  window.toggleHandmatig = function () {
+    var f = document.getElementById('formulier-toevoegen');
+    f.style.display = (f.style.display === 'none') ? 'block' : 'none';
+  };
+
+  window.resetFormulier = function () {
+    document.getElementById('formulier-toevoegen').style.display = 'none';
+    document.getElementById('form-toevoegen').reset();
+    document.getElementById('product-foto-wrap').style.display = 'none';
+    document.getElementById('niet-gevonden-melding').style.display = 'none';
+    document.getElementById('f-barcode').value = '';
+  };
+
+  window.submitToevoegen = function (e) {
+    e.preventDefault();
+    var body = {
+      barcode: document.getElementById('f-barcode').value || null,
+      name: document.getElementById('f-name').value.trim(),
+      brand: document.getElementById('f-brand').value.trim() || null,
+      quantity_per_unit: parseFloat(document.getElementById('f-qty').value) || 1,
+      unit: document.getElementById('f-unit').value,
+      stock: parseInt(document.getElementById('f-stock').value) || 1,
+      houdbaar_tot: document.getElementById('f-tht').value || null,
+      image_url: document.getElementById('product-foto').src || null,
+    };
+    if (!body.image_url || body.image_url === window.location.href) body.image_url = null;
+
+    fetch('/api/shop/items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.id) {
+          window.location.href = '/winkel?success=' + encodeURIComponent('Product toegevoegd aan voorraad');
+        } else {
+          alert(d.error || 'Fout bij toevoegen');
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  };
+
+  // ── Uitgifte –1 (direct) ─────────────────────────────────────
+  window.uitgifte = function (id, naam, stock) {
+    if (stock < 1) { alert('Voorraad is al 0'); return; }
+    if (!confirm('–1 ' + naam + ' uit voorraad halen?')) return;
+
+    fetch('/api/shop/uitgifte', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop_item_id: id, quantity: 1 }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.succes) {
+          window.location.reload();
+        } else {
+          alert(d.error || 'Fout bij uitgifte');
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  };
+
+  // ── Scanner: Uitgifte ─────────────────────────────────────────
+  var stopScannerUitgifteFn = null;
+
+  window.openScannerUitgifte = function () {
+    var overlay = document.getElementById('scanner-overlay-uitgifte');
+    overlay.style.display = 'block';
+    document.getElementById('uitgifte-keuze').style.display = 'none';
+    document.getElementById('uitgifte-bevestiging').style.display = 'none';
+    var video = document.getElementById('video-uitgifte');
+    stopScannerUitgifteFn = Scanner.start(video, function (barcode) {
+      overlay.style.display = 'none';
+      verwerkBarcodeUitgifte(barcode);
+    }, function (err) {
+      alert('Scanner fout: ' + err);
+    });
+  };
+
+  window.stopScannerUitgifte = function () {
+    if (stopScannerUitgifteFn) { stopScannerUitgifteFn(); stopScannerUitgifteFn = null; }
+    document.getElementById('scanner-overlay-uitgifte').style.display = 'none';
+  };
+
+  function verwerkBarcodeUitgifte(barcode) {
+    fetch('/api/shop/barcode/' + encodeURIComponent(barcode))
+      .then(function (r) { return r.json(); })
+      .then(function (items) {
+        if (!items || items.length === 0) {
+          document.getElementById('uitgifte-keuze').innerHTML =
+            '<p style="color:#e74c3c;">Dit product staat niet in je voorraad.</p>';
+          document.getElementById('uitgifte-keuze').style.display = 'block';
+          return;
+        }
+        if (items.length === 1) {
+          toonBevestiging(items[0]);
+        } else {
+          toonKeuze(items);
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  }
+
+  function toonKeuze(items) {
+    var html = '<p style="font-weight:600;margin-bottom:.5rem;">' + escHtml(items[0].name) + ' — kies een THT-groep:</p><ul style="list-style:none;padding:0;margin:0;">';
+    items.forEach(function (item) {
+      var tht = item.houdbaar_tot ? item.houdbaar_tot.split('-').reverse().join('-') : '—';
+      html += '<li style="margin-bottom:.5rem;">';
+      html += '<button type="button" onclick="toonBevestigingById(' + item.id + ')" style="padding:.4rem .8rem;border:1px solid #ced4da;background:#fff;border-radius:4px;cursor:pointer;">';
+      html += 'THT ' + escHtml(tht) + ' &mdash; ' + item.stock + ' stuks';
+      html += '</button></li>';
+    });
+    html += '</ul>';
+    document.getElementById('uitgifte-keuze').innerHTML = html;
+    document.getElementById('uitgifte-keuze').style.display = 'block';
+    window._uitgifte_items = {};
+    items.forEach(function (i) { window._uitgifte_items[i.id] = i; });
+  }
+
+  window.toonBevestigingById = function (id) {
+    var item = (window._uitgifte_items || {})[id];
+    if (item) toonBevestiging(item);
+  };
+
+  function toonBevestiging(item) {
+    var tht = item.houdbaar_tot ? item.houdbaar_tot.split('-').reverse().join('-') : '—';
+    var html = '<div style="border:1px solid #ced4da;border-radius:6px;padding:1rem;">';
+    html += '<p>Wil je <strong>–1 ' + escHtml(item.name) + '</strong>';
+    if (item.houdbaar_tot) html += ' (THT ' + escHtml(tht) + ')';
+    html += ' uit voorraad halen?</p>';
+    html += '<button type="button" onclick="bevestigUitgifte(' + item.id + ')" style="background:#e74c3c;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;">Bevestigen</button>';
+    html += ' <button type="button" onclick="document.getElementById(\'uitgifte-bevestiging\').style.display=\'none\'" style="margin-left:.5rem;padding:.5rem .8rem;border:1px solid #ced4da;background:#fff;border-radius:4px;cursor:pointer;">Annuleren</button>';
+    html += '</div>';
+    document.getElementById('uitgifte-keuze').style.display = 'none';
+    document.getElementById('uitgifte-bevestiging').innerHTML = html;
+    document.getElementById('uitgifte-bevestiging').style.display = 'block';
+  }
+
+  window.bevestigUitgifte = function (id) {
+    fetch('/api/shop/uitgifte', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop_item_id: id, quantity: 1 }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.succes) {
+          window.location.href = '/winkel?success=' + encodeURIComponent('Uitgifte geregistreerd');
+        } else {
+          alert(d.error || 'Fout bij uitgifte');
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  };
+
+  // ── Zoeken ────────────────────────────────────────────────────
+  var zoekTimer = null;
+  window.winkelZoek = function (q) {
+    clearTimeout(zoekTimer);
+    zoekTimer = setTimeout(function () {
+      var andereCheck = document.getElementById('zoek-andere');
+      var owner = (andereCheck && andereCheck.checked) ? andereUser : null;
+      var url = '/api/shop/search?q=' + encodeURIComponent(q);
+      if (owner) url += '&owner=' + encodeURIComponent(owner);
+      var div = document.getElementById('zoek-resultaten-winkel');
+      if (!q || q.length < 2) { div.innerHTML = ''; return; }
+      fetch(url)
+        .then(function (r) { return r.json(); })
+        .then(function (items) {
+          if (!items.length) { div.innerHTML = '<p style="color:#6c757d;font-size:.9rem;">Geen resultaten gevonden.</p>'; return; }
+          var html = '<table style="width:100%;border-collapse:collapse;font-size:.9rem;"><thead><tr>';
+          html += '<th style="text-align:left;padding:.3rem .5rem;">Product</th>';
+          html += '<th style="text-align:left;padding:.3rem .5rem;">Merk</th>';
+          html += '<th style="text-align:right;padding:.3rem .5rem;">Stuks</th>';
+          html += '<th style="padding:.3rem .5rem;">THT</th>';
+          html += '<th style="padding:.3rem .5rem;">Eigenaar</th>';
+          html += '</tr></thead><tbody>';
+          items.forEach(function (i) {
+            var tht = i.houdbaar_tot ? i.houdbaar_tot.split('-').reverse().join('-') : '—';
+            html += '<tr style="border-top:1px solid #dee2e6;">';
+            html += '<td style="padding:.3rem .5rem;">' + escHtml(i.name) + '</td>';
+            html += '<td style="padding:.3rem .5rem;color:#6c757d;">' + escHtml(i.brand || '—') + '</td>';
+            html += '<td style="padding:.3rem .5rem;text-align:right;font-weight:600;">' + i.stock + '</td>';
+            html += '<td style="padding:.3rem .5rem;">' + escHtml(tht) + '</td>';
+            html += '<td style="padding:.3rem .5rem;"><span style="background:#e9ecef;border-radius:3px;padding:.1rem .4rem;font-size:.8rem;">' + escHtml(i.owner) + '</span></td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+          div.innerHTML = html;
+        })
+        .catch(function () { div.innerHTML = ''; });
+    }, 300);
+  };
+
+  // ── Bewerken modal ────────────────────────────────────────────
+  window.openBewerken = function (id, name, brand, stock, tht) {
+    document.getElementById('b-id').value = id;
+    document.getElementById('b-name').value = name || '';
+    document.getElementById('b-brand').value = brand || '';
+    document.getElementById('b-stock').value = stock || 0;
+    document.getElementById('b-tht').value = tht || '';
+    var modal = document.getElementById('bewerk-modal');
+    modal.style.display = 'flex';
+  };
+
+  window.sluitBewerken = function () {
+    document.getElementById('bewerk-modal').style.display = 'none';
+  };
+
+  window.submitBewerken = function (e) {
+    e.preventDefault();
+    var id = document.getElementById('b-id').value;
+    var body = {
+      name: document.getElementById('b-name').value.trim(),
+      brand: document.getElementById('b-brand').value.trim() || null,
+      stock: parseInt(document.getElementById('b-stock').value) || 0,
+      houdbaar_tot: document.getElementById('b-tht').value || null,
+    };
+    fetch('/api/shop/items/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.succes) {
+          window.location.href = '/winkel?success=' + encodeURIComponent('Item bijgewerkt');
+        } else {
+          alert(d.error || 'Fout bij opslaan');
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  };
+
+  // ── Verwijderen ───────────────────────────────────────────────
+  window.verwijder = function (id, naam) {
+    if (!confirm('Verwijder ' + naam + ' uit de voorraad?')) return;
+    fetch('/api/shop/items/' + id, { method: 'DELETE' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.succes) {
+          window.location.href = '/winkel?success=' + encodeURIComponent('Item verwijderd');
+        } else {
+          alert(d.error || 'Fout bij verwijderen');
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  };
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+})();
+</script>
+{% endblock %}

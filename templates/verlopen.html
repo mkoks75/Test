@@ -48,7 +48,47 @@
   </div>
   {% else %}
   <div class="kaart">
-    <p class="geen-data">Geen producten die binnen 30 dagen verlopen.</p>
+    <p class="geen-data">Geen boerderijproducten die binnen 30 dagen verlopen.</p>
+  </div>
+  {% endif %}
+
+  <!-- Winkelproducten bijna verlopen -->
+  <h2 style="margin:2rem 0 1rem; font-size:1.1rem;">&#128722; Winkelproducten bijna verlopen</h2>
+  {% if shop_entries %}
+  <div class="kaart" style="padding: 0; overflow: hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Merk</th>
+          <th style="text-align:right;">Stuks</th>
+          <th>Houdbaar tot</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in shop_entries %}
+        {% set dagen = (item.houdbaar_tot - today).days %}
+        <tr {% if dagen <= 0 %}style="background:#fde8e8;"{% endif %}>
+          <td>{{ item.name }}</td>
+          <td>{{ item.brand or '—' }}</td>
+          <td style="text-align:right; font-weight:600;">{{ item.stock }}</td>
+          <td>
+            {% if dagen <= 7 %}
+              <span style="color:#CC0000; font-weight:600;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+            {% elif dagen <= 14 %}
+              <span style="color:#CC0000;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+            {% else %}
+              <span style="color:#E07B00;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="kaart">
+    <p class="geen-data">Geen winkelproducten die binnen 30 dagen verlopen.</p>
   </div>
   {% endif %}
 </main>

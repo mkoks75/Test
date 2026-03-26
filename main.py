@@ -8,6 +8,7 @@ from urllib.parse import quote
 from datetime import timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import requests as http_requests
 
 import bcrypt
 from typing import Optional
@@ -79,6 +80,61 @@ async def startup():
             pass  # Wordt aangemaakt door create_all
 
         # Ontvangers tabel wordt aangemaakt door create_all; geen extra migratie nodig
+
+        # Maak shop_items tabel aan
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS shop_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    barcode TEXT,
+                    name TEXT NOT NULL,
+                    brand TEXT,
+                    quantity_per_unit REAL DEFAULT 1,
+                    unit TEXT DEFAULT 'stuks',
+                    image_url TEXT,
+                    owner TEXT NOT NULL,
+                    stock INTEGER DEFAULT 0,
+                    houdbaar_tot DATE,
+                    date_added DATE,
+                    entered_by TEXT NOT NULL
+                )
+            """))
+            conn.commit()
+        except Exception:
+            pass
+
+        # Maak shop_uitgiftes tabel aan
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS shop_uitgiftes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    shop_item_id INTEGER NOT NULL REFERENCES shop_items(id),
+                    quantity INTEGER NOT NULL,
+                    date DATE,
+                    entered_by TEXT NOT NULL
+                )
+            """))
+            conn.commit()
+        except Exception:
+            pass
+
+        # Maak product_cache tabel aan
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS product_cache (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    barcode TEXT NOT NULL UNIQUE,
+                    name TEXT,
+                    brand TEXT,
+                    quantity REAL,
+                    unit TEXT,
+                    image_url TEXT,
+                    cached_at DATETIME
+                )
+            """))
+            conn.commit()
+        except Exception:
+            pass
 
         # Migreer products tabel: voeg eenheid_id kolom toe indien nog niet aanwezig
         try:
@@ -422,6 +478,21 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         if r.totaal and r.totaal > 0
     ]
 
+    # Top 5 winkelproducten die binnenkort verlopen (eigen voorraad)
+    shop_cutoff = today + datetime.timedelta(days=30)
+    shop_bijna_verlopen = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.stock > 0,
+            models.ShopItem.houdbaar_tot != None,
+            models.ShopItem.houdbaar_tot <= shop_cutoff,
+        )
+        .order_by(models.ShopItem.houdbaar_tot.asc())
+        .limit(5)
+        .all()
+    )
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -434,6 +505,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "bijna_verlopen_7d": bijna_verlopen_7d,
             "urgent_items": urgent_items,
             "voorraad_totaal": voorraad_totaal,
+            "shop_bijna_verlopen": shop_bijna_verlopen,
             "stats": {
                 "total_producten": total_producten,
                 "total_locaties": total_locaties,
@@ -1028,12 +1100,26 @@ async def verlopen(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
+    # Winkelproducten bijna verlopen
+    shop_entries = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.stock > 0,
+            models.ShopItem.houdbaar_tot != None,
+            models.ShopItem.houdbaar_tot <= cutoff,
+        )
+        .order_by(models.ShopItem.houdbaar_tot.asc())
+        .all()
+    )
+
     return templates.TemplateResponse(
         "verlopen.html",
         {
             "request": request,
             "user": user,
             "entries": entries,
+            "shop_entries": shop_entries,
             "today": today,
         },
     )
@@ -3394,3 +3480,353 @@ async def api_houdbaarheid_toevoegen(
         "houdbaar_tot": houdbaar_tot.isoformat(),
         "maanden": houdbaarheid_maanden,
     })
+
+
+# ── Winkelvoorraad ──────────────────────────────────────────────────────────────
+
+@app.get("/winkel")
+async def winkel(request: Request, db: Session = Depends(get_db), success: str = None, error: str = None):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    today = datetime.date.today()
+    items = (
+        db.query(models.ShopItem)
+        .filter(models.ShopItem.owner == user)
+        .order_by(models.ShopItem.houdbaar_tot.asc().nullsfirst(), models.ShopItem.name.asc())
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "winkel.html",
+        {
+            "request": request,
+            "user": user,
+            "items": items,
+            "today": today,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+# ── API: Open Food Facts proxy ──────────────────────────────────────────────────
+
+@app.get("/api/shop/openfoodfacts/{barcode}")
+async def openfoodfacts_proxy(barcode: str, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    # Controleer cache
+    cached = db.query(models.ProductCache).filter(models.ProductCache.barcode == barcode).first()
+    if cached:
+        return JSONResponse({
+            "name": cached.name,
+            "brand": cached.brand,
+            "quantity": cached.quantity,
+            "unit": cached.unit,
+            "image_url": cached.image_url,
+        })
+
+    try:
+        resp = http_requests.get(
+            f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json",
+            timeout=5,
+            headers={"User-Agent": "MountainSenseFarm/1.0"},
+        )
+        data = resp.json()
+    except Exception:
+        return JSONResponse({"error": "Open Food Facts niet bereikbaar"}, status_code=503)
+
+    if data.get("status") != 1:
+        return JSONResponse({"error": "Product niet gevonden"}, status_code=404)
+
+    product = data.get("product", {})
+    name = product.get("product_name_nl") or product.get("product_name") or product.get("product_name_en") or ""
+    brand = product.get("brands") or ""
+    image_url = product.get("image_front_url") or product.get("image_url") or ""
+
+    # Haal quantity en unit op uit quantity_string bijv. "400 g"
+    qty_str = product.get("quantity") or ""
+    qty_val = None
+    unit_val = "stuks"
+    if qty_str:
+        import re
+        m = re.match(r"([\d.,]+)\s*([a-zA-Z]+)", qty_str.strip())
+        if m:
+            try:
+                qty_val = float(m.group(1).replace(",", "."))
+            except ValueError:
+                pass
+            unit_val = m.group(2).lower()
+
+    # Sla op in cache
+    entry = models.ProductCache(
+        barcode=barcode,
+        name=name,
+        brand=brand,
+        quantity=qty_val,
+        unit=unit_val,
+        image_url=image_url,
+        cached_at=datetime.datetime.utcnow(),
+    )
+    db.merge(entry)
+    db.commit()
+
+    return JSONResponse({
+        "name": name,
+        "brand": brand,
+        "quantity": qty_val,
+        "unit": unit_val,
+        "image_url": image_url,
+    })
+
+
+# ── API: Shop items ─────────────────────────────────────────────────────────────
+
+@app.get("/api/shop/items")
+async def api_shop_items(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    items = db.query(models.ShopItem).filter(models.ShopItem.owner == user).all()
+    return JSONResponse([{
+        "id": i.id,
+        "barcode": i.barcode,
+        "name": i.name,
+        "brand": i.brand,
+        "quantity_per_unit": i.quantity_per_unit,
+        "unit": i.unit,
+        "image_url": i.image_url,
+        "stock": i.stock,
+        "houdbaar_tot": i.houdbaar_tot.isoformat() if i.houdbaar_tot else None,
+        "date_added": i.date_added.isoformat() if i.date_added else None,
+        "entered_by": i.entered_by,
+    } for i in items])
+
+
+@app.post("/api/shop/items")
+async def api_shop_item_toevoegen(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    try:
+        body = await request.json()
+        name = str(body["name"]).strip()
+        stock = int(body.get("stock", 1))
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    if not name:
+        return JSONResponse({"error": "Productnaam is verplicht"}, status_code=400)
+
+    barcode = body.get("barcode") or None
+    brand = body.get("brand") or None
+    quantity_per_unit = float(body.get("quantity_per_unit", 1) or 1)
+    unit = str(body.get("unit") or "stuks")
+    image_url = body.get("image_url") or None
+    houdbaar_tot = None
+    if body.get("houdbaar_tot"):
+        try:
+            houdbaar_tot = datetime.date.fromisoformat(body["houdbaar_tot"])
+        except ValueError:
+            return JSONResponse({"error": "Ongeldige THT datum"}, status_code=400)
+
+    # Zoek bestaande THT-groep (zelfde barcode + zelfde THT)
+    if barcode and houdbaar_tot:
+        bestaand = db.query(models.ShopItem).filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.barcode == barcode,
+            models.ShopItem.houdbaar_tot == houdbaar_tot,
+        ).first()
+        if bestaand:
+            bestaand.stock += stock
+            db.commit()
+            return JSONResponse({"id": bestaand.id, "merged": True, "stock": bestaand.stock})
+
+    item = models.ShopItem(
+        barcode=barcode,
+        name=name,
+        brand=brand,
+        quantity_per_unit=quantity_per_unit,
+        unit=unit,
+        image_url=image_url,
+        owner=user,
+        stock=stock,
+        houdbaar_tot=houdbaar_tot,
+        date_added=datetime.date.today(),
+        entered_by=user,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return JSONResponse({"id": item.id, "merged": False, "stock": item.stock})
+
+
+@app.put("/api/shop/items/{item_id}")
+async def api_shop_item_bewerken(item_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    if "name" in body:
+        item.name = str(body["name"]).strip()
+    if "brand" in body:
+        item.brand = body["brand"] or None
+    if "quantity_per_unit" in body:
+        item.quantity_per_unit = float(body["quantity_per_unit"] or 1)
+    if "unit" in body:
+        item.unit = str(body["unit"] or "stuks")
+    if "stock" in body:
+        item.stock = int(body["stock"])
+    if "houdbaar_tot" in body:
+        if body["houdbaar_tot"]:
+            try:
+                item.houdbaar_tot = datetime.date.fromisoformat(body["houdbaar_tot"])
+            except ValueError:
+                return JSONResponse({"error": "Ongeldige THT datum"}, status_code=400)
+        else:
+            item.houdbaar_tot = None
+    if "image_url" in body:
+        item.image_url = body["image_url"] or None
+
+    db.commit()
+    return JSONResponse({"succes": True})
+
+
+@app.delete("/api/shop/items/{item_id}")
+async def api_shop_item_verwijderen(item_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+    if item.stock != 0:
+        return JSONResponse({"error": "Kan alleen verwijderen als voorraad 0 is"}, status_code=400)
+
+    db.delete(item)
+    db.commit()
+    return JSONResponse({"succes": True})
+
+
+# ── API: Shop uitgifte ──────────────────────────────────────────────────────────
+
+@app.post("/api/shop/uitgifte")
+async def api_shop_uitgifte(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    try:
+        body = await request.json()
+        shop_item_id = int(body["shop_item_id"])
+        quantity = int(body.get("quantity", 1))
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == shop_item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+
+    if item.stock < quantity:
+        return JSONResponse({"error": "Onvoldoende voorraad."}, status_code=400)
+
+    item.stock -= quantity
+    uitgifte = models.ShopUitgifte(
+        shop_item_id=shop_item_id,
+        quantity=quantity,
+        date=datetime.date.today(),
+        entered_by=user,
+    )
+    db.add(uitgifte)
+    db.commit()
+    return JSONResponse({"succes": True, "stock": item.stock})
+
+
+# ── API: Barcode lookup ─────────────────────────────────────────────────────────
+
+@app.get("/api/shop/barcode/{barcode}")
+async def api_shop_barcode(barcode: str, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    items = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.barcode == barcode,
+            models.ShopItem.stock > 0,
+        )
+        .order_by(models.ShopItem.houdbaar_tot.asc().nullsfirst())
+        .all()
+    )
+
+    return JSONResponse([{
+        "id": i.id,
+        "name": i.name,
+        "brand": i.brand,
+        "unit": i.unit,
+        "quantity_per_unit": i.quantity_per_unit,
+        "image_url": i.image_url,
+        "stock": i.stock,
+        "houdbaar_tot": i.houdbaar_tot.isoformat() if i.houdbaar_tot else None,
+    } for i in items])
+
+
+# ── API: Shop zoeken ────────────────────────────────────────────────────────────
+
+@app.get("/api/shop/search")
+async def api_shop_search(request: Request, db: Session = Depends(get_db), q: str = "", owner: str = None):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    if not q or len(q) < 2:
+        return JSONResponse([])
+
+    filter_owner = owner if owner else user
+    items = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == filter_owner,
+            (models.ShopItem.name.ilike(f"%{q}%") | models.ShopItem.brand.ilike(f"%{q}%")),
+        )
+        .order_by(models.ShopItem.name.asc())
+        .all()
+    )
+
+    return JSONResponse([{
+        "id": i.id,
+        "name": i.name,
+        "brand": i.brand,
+        "unit": i.unit,
+        "stock": i.stock,
+        "houdbaar_tot": i.houdbaar_tot.isoformat() if i.houdbaar_tot else None,
+        "owner": i.owner,
+        "image_url": i.image_url,
+    } for i in items])
