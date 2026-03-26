@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Winkelvoorraad - MountainSense Farm{% endblock %}
 
+{% block extra_head %}
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <div class="page-header-inner">
@@ -260,22 +264,17 @@
   if (el) el.textContent = andereUser.charAt(0).toUpperCase() + andereUser.slice(1);
 
   // ── Scanner: Toevoegen ────────────────────────────────────────
-  var stopScannerToevoegenFn = null;
 
   window.openScannerToevoegen = function () {
-    var overlay = document.getElementById('scanner-overlay-toevoegen');
-    overlay.style.display = 'block';
-    var video = document.getElementById('video-toevoegen');
-    stopScannerToevoegenFn = Scanner.start(video, function (barcode) {
-      overlay.style.display = 'none';
+    document.getElementById('scanner-overlay-toevoegen').style.display = 'block';
+    Scanner.startScanner('video-toevoegen', function (barcode) {
+      document.getElementById('scanner-overlay-toevoegen').style.display = 'none';
       verwerkBarcode(barcode);
-    }, function (err) {
-      alert('Scanner fout: ' + err);
     });
   };
 
   window.stopScannerToevoegen = function () {
-    if (stopScannerToevoegenFn) { stopScannerToevoegenFn(); stopScannerToevoegenFn = null; }
+    Scanner.stopScanner();
     document.getElementById('scanner-overlay-toevoegen').style.display = 'none';
   };
 
@@ -376,24 +375,19 @@
   };
 
   // ── Scanner: Uitgifte ─────────────────────────────────────────
-  var stopScannerUitgifteFn = null;
 
   window.openScannerUitgifte = function () {
-    var overlay = document.getElementById('scanner-overlay-uitgifte');
-    overlay.style.display = 'block';
+    document.getElementById('scanner-overlay-uitgifte').style.display = 'block';
     document.getElementById('uitgifte-keuze').style.display = 'none';
     document.getElementById('uitgifte-bevestiging').style.display = 'none';
-    var video = document.getElementById('video-uitgifte');
-    stopScannerUitgifteFn = Scanner.start(video, function (barcode) {
-      overlay.style.display = 'none';
+    Scanner.startScanner('video-uitgifte', function (barcode) {
+      document.getElementById('scanner-overlay-uitgifte').style.display = 'none';
       verwerkBarcodeUitgifte(barcode);
-    }, function (err) {
-      alert('Scanner fout: ' + err);
     });
   };
 
   window.stopScannerUitgifte = function () {
-    if (stopScannerUitgifteFn) { stopScannerUitgifteFn(); stopScannerUitgifteFn = null; }
+    Scanner.stopScanner();
     document.getElementById('scanner-overlay-uitgifte').style.display = 'none';
   };
 
