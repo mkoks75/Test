@@ -20,7 +20,8 @@ jobs:
             sleep 3
             sudo -n /usr/bin/systemctl restart docker && echo "Docker herstart OK" || echo "Docker herstart MISLUKT"
             sleep 10
-            sudo -n /usr/bin/systemctl is-active docker
+            sudo pkill -f "docker-proxy" || true
+            sleep 2
             sleep 5
             git pull origin main
             /usr/local/bin/docker-compose build
