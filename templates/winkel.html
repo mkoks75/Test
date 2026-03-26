@@ -134,7 +134,7 @@
   <table id="winkel-tabel">
     <thead>
       <tr>
-        <th colspan="6" style="font-size:1rem;text-transform:none;letter-spacing:0;">
+        <th colspan="9" style="font-size:1rem;text-transform:none;letter-spacing:0;">
           &#128722; Mijn winkelvoorraad
         </th>
       </tr>
@@ -145,6 +145,9 @@
         <th>Merk</th>
         <th>THT</th>
         <th style="text-align:right;">Stuks</th>
+        <th style="text-align:right;">Min. voorraad</th>
+        <th style="text-align:right;">Verbruik/week</th>
+        <th style="text-align:right;">Nog ca.</th>
         <th>Acties</th>
       </tr>
       {% endif %}
@@ -153,6 +156,7 @@
       {% if items %}
         {% for item in items %}
         {% set dag_info = (item.houdbaar_tot - today).days if item.houdbaar_tot else None %}
+        {% set vdata = verbruik_map.get(item.id, {}) %}
         <tr id="rij-{{ item.id }}"
           {% if dag_info is not none and dag_info <= 0 %}style="background:#fde8e8;"
           {% elif dag_info is not none and dag_info <= 30 %}style="background:#fff3cd;"
@@ -182,6 +186,41 @@
             {% endif %}
           </td>
           <td style="text-align:right;font-weight:600;">{{ item.stock }}</td>
+          <td style="text-align:right;">
+            <span class="min-stock-display" data-id="{{ item.id }}"
+                  onclick="bewerKMinStock({{ item.id }}, {{ item.minimum_stock if item.minimum_stock is not none else 'null' }})"
+                  style="cursor:pointer;color:#6c757d;text-decoration:underline dotted;"
+                  title="Klik om te bewerken">
+              {{ item.minimum_stock if item.minimum_stock is not none else '–' }}
+            </span>
+            <input type="number" id="min-input-{{ item.id }}" min="0"
+                   style="display:none;width:60px;padding:.2rem .3rem;border:1px solid #ced4da;border-radius:3px;font-size:.9rem;"
+                   onkeydown="opslaaMinStock(event, {{ item.id }})"
+                   onblur="annuleerMinStock({{ item.id }})">
+          </td>
+          <td style="text-align:right;color:#6c757d;font-size:.9rem;">
+            {% if vdata.verbruik_per_week is not none %}
+              {{ vdata.verbruik_per_week }}
+            {% else %}
+              <span style="color:#adb5bd;">—</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;font-size:.9rem;">
+            {% if vdata.weken_voorraad is not none %}
+              {% if vdata.weken_voorraad > 1e10 %}
+                <span style="color:#27ae60;" title="Gebaseerd op verbruik afgelopen 90 dagen">&#8734;</span>
+              {% else %}
+                {% set wk = vdata.weken_voorraad | int %}
+                <span title="Gebaseerd op verbruik afgelopen 90 dagen"
+                  {% if vdata.weken_voorraad < 1 %}style="color:#c0392b;font-weight:600;"
+                  {% elif vdata.weken_voorraad < 2 %}style="color:#e67e22;"
+                  {% else %}style="color:#27ae60;"
+                  {% endif %}>{{ wk }} wk</span>
+              {% endif %}
+            {% else %}
+              <span style="color:#adb5bd;" title="Geen uitgifte-historie">—</span>
+            {% endif %}
+          </td>
           <td style="white-space:nowrap;">
             <button type="button"
               onclick="uitgifte({{ item.id }}, '{{ item.name|replace("'", "\\'") }}', {{ item.stock }})"
@@ -197,7 +236,7 @@
         {% endfor %}
       {% else %}
         <tr>
-          <td colspan="6" style="text-align:center;padding:2rem;color:#6c757d;">
+          <td colspan="9" style="text-align:center;padding:2rem;color:#6c757d;">
             Nog geen winkelproducten toegevoegd.
           </td>
         </tr>
@@ -551,6 +590,56 @@
   function escHtml(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+
+  // ── Inline min. voorraad bewerken ─────────────────────────────
+  window.bewerKMinStock = function(id, huidig) {
+    var span = document.querySelector('.min-stock-display[data-id="' + id + '"]');
+    var input = document.getElementById('min-input-' + id);
+    if (!span || !input) return;
+    input.value = (huidig !== null && huidig !== undefined) ? huidig : '';
+    span.style.display = 'none';
+    input.style.display = 'inline-block';
+    input.focus();
+    input.select();
+  };
+
+  window.opslaaMinStock = function(e, id) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var input = document.getElementById('min-input-' + id);
+      var val = input.value.trim();
+      var minimum_stock = (val === '') ? null : parseInt(val);
+      if (val !== '' && isNaN(minimum_stock)) return;
+      fetch('/api/shop/items/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minimum_stock: minimum_stock }),
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.succes) {
+            var span = document.querySelector('.min-stock-display[data-id="' + id + '"]');
+            if (span) {
+              span.textContent = (minimum_stock !== null) ? minimum_stock : '–';
+              span.style.display = 'inline';
+            }
+            input.style.display = 'none';
+          } else {
+            alert(d.error || 'Fout bij opslaan');
+          }
+        })
+        .catch(function() { alert('Netwerkfout'); });
+    } else if (e.key === 'Escape') {
+      annuleerMinStock(id);
+    }
+  };
+
+  window.annuleerMinStock = function(id) {
+    var span = document.querySelector('.min-stock-display[data-id="' + id + '"]');
+    var input = document.getElementById('min-input-' + id);
+    if (span) span.style.display = 'inline';
+    if (input) input.style.display = 'none';
+  };
 
   {% if auto_scan %}
   // Automatisch scanner openen vanuit /invoer

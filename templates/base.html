@@ -23,6 +23,7 @@
     <a href="/uitgifte" {% if request.url.path == '/uitgifte' %}class="actief"{% endif %}>&#128228; Uitgifte</a>
     <a href="/voorraad" {% if request.url.path == '/voorraad' or request.url.path == '/beheer/geschiedenis' %}class="actief"{% endif %}>&#128230; Voorraad</a>
     <a href="/verlopen" {% if request.url.path == '/verlopen' %}class="actief"{% endif %}>&#9888; Bijna verlopen</a>
+    <a href="/boodschappen" {% if request.url.path == '/boodschappen' %}class="actief"{% endif %}>&#128722; Boodschappen</a>
     <div class="nav-dropdown {% if (request.url.path.startswith('/beheer') and not request.url.path == '/beheer/geschiedenis') or request.url.path == '/account' or request.url.path.startswith('/winkel/') %}actief{% endif %}">
       <span class="nav-dropdown-toggle" id="beheer-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="beheer-submenu">Beheer &#9660;</span>
       <div class="nav-dropdown-menu" id="beheer-submenu">

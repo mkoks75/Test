@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Gedeelde boodschappenlijst - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#128722; Boodschappenlijst</h1>
+    {% if not verlopen %}
+    <p>Gedeeld door {{ owner }}{% if created_at %} op {{ created_at.strftime('%d-%m-%Y') }}{% endif %}</p>
+    {% endif %}
+  </div>
+</div>
+
+<main style="max-width:640px;margin:0 auto;">
+
+  {% if verlopen %}
+  <div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:1.5rem;text-align:center;color:#721c24;">
+    <p style="font-size:1.1rem;font-weight:600;margin-bottom:.5rem;">&#9888; Deze link is verlopen of ongeldig</p>
+    <p>De link was 24 uur geldig en is niet meer beschikbaar.</p>
+  </div>
+  {% else %}
+  <div class="kaart">
+    {% if items %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;width:32px;"></th>
+          <th style="text-align:left;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;">Product</th>
+          <th style="text-align:right;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;">Aantal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr id="grij-{{ loop.index }}" style="border-top:1px solid #dee2e6;">
+          <td style="padding:.4rem .5rem;">
+            <input type="checkbox" style="width:18px;height:18px;cursor:pointer;"
+                   onchange="toggleRij({{ loop.index }})">
+          </td>
+          <td style="padding:.4rem .5rem;"><strong>{{ item.name }}</strong></td>
+          <td style="padding:.4rem .5rem;text-align:right;">{{ item.aantal }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="text-align:center;color:#6c757d;padding:2rem;">Lege boodschappenlijst.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleRij(index) {
+  var rij = document.getElementById('grij-' + index);
+  if (rij) {
+    var check = rij.querySelector('input[type=checkbox]');
+    rij.style.opacity = check.checked ? '0.4' : '1';
+    rij.style.textDecoration = check.checked ? 'line-through' : 'none';
+  }
+}
+</script>
+{% endblock %}

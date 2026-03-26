@@ -148,6 +148,7 @@ class ShopItem(Base):
     image_url = Column(String, nullable=True)
     owner = Column(String, nullable=False)
     stock = Column(Integer, default=0)
+    minimum_stock = Column(Integer, nullable=True)
     houdbaar_tot = Column(Date, nullable=True)
     date_added = Column(Date, default=datetime.date.today)
     entered_by = Column(String, nullable=False)
@@ -163,6 +164,17 @@ class ShopUitgifte(Base):
     entered_by = Column(String, nullable=False)
 
     shop_item = relationship("ShopItem")
+
+
+class SharedList(Base):
+    __tablename__ = "shared_lists"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token = Column(String, nullable=False, unique=True, index=True)
+    owner = Column(String, nullable=False)
+    list_data = Column(Text, nullable=False)  # JSON
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 class ProductCache(Base):

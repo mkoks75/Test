@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Boodschappenlijst - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#128722; Boodschappenlijst</h1>
+    <p>Producten die aangevuld moeten worden</p>
+  </div>
+</div>
+
+<main>
+
+<div class="kaart" style="margin-bottom:1.5rem;">
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+    <button type="button" class="btn btn-primary" onclick="kopieerAlsTekst()">&#128203; Kopieer als tekst</button>
+    <button type="button" class="btn" onclick="deelLink()"
+            style="background:#27ae60;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;">
+      &#128279; Deel link
+    </button>
+    <span id="kopie-melding" style="display:none;color:#27ae60;font-size:.9rem;">&#10003; Gekopieerd!</span>
+    <span id="deel-melding" style="display:none;color:#27ae60;font-size:.9rem;"></span>
+  </div>
+
+  {% if nodig %}
+  <table id="boodschappen-tabel" style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;width:32px;"></th>
+        <th style="text-align:left;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;">Product</th>
+        <th style="text-align:left;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;">Merk</th>
+        <th style="text-align:right;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;">Huidig</th>
+        <th style="text-align:right;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;">Min.</th>
+        <th style="text-align:right;padding:.4rem .5rem;border-bottom:2px solid #dee2e6;">Aan te schaffen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in nodig %}
+      <tr id="rij-boodschap-{{ loop.index }}" style="border-top:1px solid #dee2e6;">
+        <td style="padding:.4rem .5rem;">
+          <input type="checkbox" class="boodschap-check" id="check-{{ loop.index }}"
+                 onchange="toggleAfgevinkt({{ loop.index }})" style="width:18px;height:18px;cursor:pointer;">
+        </td>
+        <td style="padding:.4rem .5rem;"><strong class="boodschap-naam">{{ item.name }}</strong></td>
+        <td style="padding:.4rem .5rem;color:#6c757d;">{{ item.brand or '—' }}</td>
+        <td style="padding:.4rem .5rem;text-align:right;">{{ item.stock }}</td>
+        <td style="padding:.4rem .5rem;text-align:right;">{{ item.minimum_stock if item.minimum_stock is not none else '—' }}</td>
+        <td style="padding:.4rem .5rem;text-align:right;">
+          <input type="number" class="aan-te-schaffen" data-index="{{ loop.index }}"
+                 value="{{ item.aan_te_schaffen }}" min="0"
+                 style="width:60px;padding:.2rem .3rem;border:1px solid #ced4da;border-radius:3px;text-align:right;font-size:.9rem;">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="text-align:center;color:#6c757d;padding:2rem;">
+    &#10003; Alle producten hebben voldoende voorraad. Er hoeft niets aangeschaft te worden.
+  </p>
+  {% endif %}
+</div>
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  'use strict';
+
+  var vandaag = '{{ today.strftime("%d-%m-%Y") }}';
+
+  window.toggleAfgevinkt = function(index) {
+    var rij = document.getElementById('rij-boodschap-' + index);
+    var check = document.getElementById('check-' + index);
+    if (rij) {
+      rij.style.opacity = check.checked ? '0.4' : '1';
+      rij.style.textDecoration = check.checked ? 'line-through' : 'none';
+    }
+  };
+
+  window.kopieerAlsTekst = function() {
+    var rijen = document.querySelectorAll('#boodschappen-tabel tbody tr');
+    var regels = ['Boodschappenlijst ' + vandaag];
+    rijen.forEach(function(rij) {
+      var naam = rij.querySelector('.boodschap-naam');
+      var aantalInput = rij.querySelector('.aan-te-schaffen');
+      if (!naam || !aantalInput) return;
+      var aantal = aantalInput.value || '1';
+      regels.push('\u25a1 ' + naam.textContent.trim() + ' \u2014 ' + aantal + ' stuks');
+    });
+    var tekst = regels.join('\n');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(tekst).then(function() {
+        toonMelding('kopie-melding', '&#10003; Gekopieerd!');
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = tekst;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toonMelding('kopie-melding', '&#10003; Gekopieerd!');
+    }
+  };
+
+  window.deelLink = function() {
+    var rijen = document.querySelectorAll('#boodschappen-tabel tbody tr');
+    var items = [];
+    rijen.forEach(function(rij) {
+      var naam = rij.querySelector('.boodschap-naam');
+      var aantalInput = rij.querySelector('.aan-te-schaffen');
+      if (!naam || !aantalInput) return;
+      items.push({
+        name: naam.textContent.trim(),
+        aantal: aantalInput.value || '1',
+      });
+    });
+
+    fetch('/api/boodschappen/deel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.token) {
+          var url = window.location.origin + '/boodschappen/gedeeld/' + d.token;
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(function() {
+              toonMelding('deel-melding', '&#128279; Link gekopieerd! Geldig 24 uur.');
+            });
+          } else {
+            prompt('Deel deze link (geldig 24 uur):', url);
+          }
+        } else {
+          alert('Fout bij aanmaken van link');
+        }
+      })
+      .catch(function() { alert('Netwerkfout'); });
+  };
+
+  function toonMelding(id, tekst) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = tekst;
+    el.style.display = 'inline';
+    setTimeout(function() { el.style.display = 'none'; }, 3000);
+  }
+})();
+</script>
+{% endblock %}

@@ -96,9 +96,36 @@ async def startup():
                     image_url TEXT,
                     owner TEXT NOT NULL,
                     stock INTEGER DEFAULT 0,
+                    minimum_stock INTEGER,
                     houdbaar_tot DATE,
                     date_added DATE,
                     entered_by TEXT NOT NULL
+                )
+            """))
+            conn.commit()
+        except Exception:
+            pass
+
+        # Voeg minimum_stock kolom toe aan shop_items indien ontbreekt
+        try:
+            pragma_shop = conn.execute(text("PRAGMA table_info(shop_items)")).fetchall()
+            shop_col_names = [row[1] for row in pragma_shop]
+            if "minimum_stock" not in shop_col_names:
+                conn.execute(text("ALTER TABLE shop_items ADD COLUMN minimum_stock INTEGER"))
+            conn.commit()
+        except Exception:
+            pass
+
+        # Maak shared_lists tabel aan
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS shared_lists (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    token TEXT NOT NULL UNIQUE,
+                    owner TEXT NOT NULL,
+                    list_data TEXT NOT NULL,
+                    expires_at DATETIME NOT NULL,
+                    created_at DATETIME
                 )
             """))
             conn.commit()
@@ -495,6 +522,37 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
+    # Winkelproducten bijna op (stock <= minimum_stock)
+    shop_bijna_op_rows = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.minimum_stock != None,
+            models.ShopItem.stock <= models.ShopItem.minimum_stock,
+        )
+        .order_by(models.ShopItem.stock.asc(), models.ShopItem.name.asc())
+        .all()
+    )
+    # Groepeer op (barcode, name) voor gecombineerde stock weergave
+    _bijna_op_seen = set()
+    shop_bijna_op = []
+    for _item in shop_bijna_op_rows:
+        _key = (_item.barcode or '', _item.name)
+        if _key not in _bijna_op_seen:
+            _bijna_op_seen.add(_key)
+            # Bereken totale stock voor dit product
+            _totaal_stock = sum(
+                x.stock for x in shop_bijna_op_rows if (x.barcode or '') == (_item.barcode or '') and x.name == _item.name
+            )
+            shop_bijna_op.append({
+                "id": _item.id,
+                "name": _item.name,
+                "brand": _item.brand,
+                "stock": _totaal_stock,
+                "minimum_stock": _item.minimum_stock,
+                "owner": _item.owner,
+            })
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -508,6 +566,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "urgent_items": urgent_items,
             "voorraad_totaal": voorraad_totaal,
             "shop_bijna_verlopen": shop_bijna_verlopen,
+            "shop_bijna_op": shop_bijna_op,
             "stats": {
                 "total_producten": total_producten,
                 "total_locaties": total_locaties,
@@ -3617,6 +3676,50 @@ async def winkel(request: Request, db: Session = Depends(get_db), success: str =
         .all()
     )
 
+    # Bereken verbruikssnelheid per (barcode, naam) groep
+    negentig_dagen_geleden = today - datetime.timedelta(days=90)
+    uitgiftes_90d = (
+        db.query(models.ShopUitgifte)
+        .join(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopUitgifte.date >= negentig_dagen_geleden,
+        )
+        .all()
+    )
+    weken_90 = 90 / 7
+
+    # Groepeer uitgiftes per (barcode, naam)
+    from collections import defaultdict
+    issued_per_product: dict = defaultdict(int)
+    for u in uitgiftes_90d:
+        _k = (u.shop_item.barcode or '', u.shop_item.name)
+        issued_per_product[_k] += u.quantity
+
+    # Bereken gecombineerde stock per (barcode, naam)
+    stock_per_product: dict = defaultdict(int)
+    for item in items:
+        _k = (item.barcode or '', item.name)
+        stock_per_product[_k] += item.stock
+
+    # Bouw verbruik_map: item_id → {verbruik_per_week, weken_voorraad}
+    verbruik_map = {}
+    for item in items:
+        _k = (item.barcode or '', item.name)
+        total_issued = issued_per_product.get(_k, 0)
+        verbruik_per_week = total_issued / weken_90 if total_issued > 0 else None
+        total_stock = stock_per_product[_k]
+        if verbruik_per_week and verbruik_per_week > 0:
+            weken_voorraad = total_stock / verbruik_per_week
+        elif total_stock > 0:
+            weken_voorraad = float('inf')
+        else:
+            weken_voorraad = None
+        verbruik_map[item.id] = {
+            "verbruik_per_week": round(verbruik_per_week, 1) if verbruik_per_week is not None else None,
+            "weken_voorraad": weken_voorraad,
+        }
+
     return templates.TemplateResponse(
         "winkel.html",
         {
@@ -3627,6 +3730,7 @@ async def winkel(request: Request, db: Session = Depends(get_db), success: str =
             "success": success,
             "error": error,
             "auto_scan": bool(scan),
+            "verbruik_map": verbruik_map,
         },
     )
 
@@ -3825,6 +3929,9 @@ async def api_shop_item_bewerken(item_id: int, request: Request, db: Session = D
             item.houdbaar_tot = None
     if "image_url" in body:
         item.image_url = body["image_url"] or None
+    if "minimum_stock" in body:
+        val = body["minimum_stock"]
+        item.minimum_stock = int(val) if val is not None and val != "" else None
 
     db.commit()
     return JSONResponse({"succes": True})
@@ -3885,6 +3992,181 @@ async def api_shop_uitgifte(request: Request, db: Session = Depends(get_db)):
     db.add(uitgifte)
     db.commit()
     return JSONResponse({"succes": True, "stock": item.stock})
+
+
+# ── API: Verbruikssnelheid ──────────────────────────────────────────────────────
+
+@app.get("/api/shop/verbruik")
+async def api_shop_verbruik(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    from collections import defaultdict
+    ninety_days_ago = datetime.date.today() - datetime.timedelta(days=90)
+    weken_90 = 90 / 7
+
+    uitgiftes = (
+        db.query(models.ShopUitgifte)
+        .join(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopUitgifte.date >= ninety_days_ago,
+        )
+        .all()
+    )
+
+    issued_per_product: dict = defaultdict(int)
+    for u in uitgiftes:
+        _k = (u.shop_item.barcode or '', u.shop_item.name)
+        issued_per_product[_k] += u.quantity
+
+    items = db.query(models.ShopItem).filter(models.ShopItem.owner == user).all()
+
+    stock_per_product: dict = defaultdict(int)
+    product_info: dict = {}
+    for item in items:
+        _k = (item.barcode or '', item.name)
+        stock_per_product[_k] += item.stock
+        if _k not in product_info:
+            product_info[_k] = {'naam': item.name, 'barcode': item.barcode}
+
+    result = []
+    for _k, info in product_info.items():
+        total_issued = issued_per_product.get(_k, 0)
+        verbruik_per_week = total_issued / weken_90 if total_issued > 0 else None
+        huidige_stock = stock_per_product[_k]
+        if verbruik_per_week and verbruik_per_week > 0:
+            weken_voorraad = huidige_stock / verbruik_per_week
+        else:
+            weken_voorraad = None
+
+        result.append({
+            "naam": info['naam'],
+            "barcode": info['barcode'],
+            "huidige_stock": huidige_stock,
+            "verbruik_per_week": round(verbruik_per_week, 1) if verbruik_per_week is not None else None,
+            "weken_voorraad": round(weken_voorraad, 1) if weken_voorraad is not None else None,
+        })
+
+    return JSONResponse(result)
+
+
+# ── Boodschappenlijst ───────────────────────────────────────────────────────────
+
+@app.get("/boodschappen")
+async def boodschappen(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    from collections import defaultdict
+
+    # Haal items op die aangevuld moeten worden
+    alle_items = db.query(models.ShopItem).filter(models.ShopItem.owner == user).all()
+
+    # Bepaal welke items "bijna op" zijn
+    nodig: list = []
+    seen_keys: set = set()
+    grouped_stock: dict = defaultdict(int)
+    grouped_min: dict = {}
+    grouped_info: dict = {}
+
+    for item in alle_items:
+        _k = (item.barcode or '', item.name)
+        grouped_stock[_k] += item.stock
+        if _k not in grouped_min:
+            grouped_min[_k] = item.minimum_stock
+            grouped_info[_k] = {
+                'name': item.name,
+                'brand': item.brand,
+                'barcode': item.barcode,
+                'unit': item.unit,
+            }
+
+    for _k, info in grouped_info.items():
+        totaal_stock = grouped_stock[_k]
+        min_stock = grouped_min[_k]
+        # Opnemen als stock=0 of stock<=minimum_stock
+        if totaal_stock == 0 or (min_stock is not None and totaal_stock <= min_stock):
+            aan_te_schaffen = max(1, (min_stock - totaal_stock)) if min_stock else 1
+            nodig.append({
+                'name': info['name'],
+                'brand': info['brand'],
+                'barcode': info['barcode'],
+                'unit': info['unit'],
+                'stock': totaal_stock,
+                'minimum_stock': min_stock,
+                'aan_te_schaffen': aan_te_schaffen,
+            })
+
+    nodig.sort(key=lambda x: x['name'])
+
+    return templates.TemplateResponse(
+        "boodschappen.html",
+        {
+            "request": request,
+            "user": user,
+            "nodig": nodig,
+            "today": datetime.date.today(),
+        },
+    )
+
+
+@app.post("/api/boodschappen/deel")
+async def api_boodschappen_deel(request: Request, db: Session = Depends(get_db)):
+    import json as _json
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    try:
+        body = await request.json()
+        items_data = body.get("items", [])
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    token = secrets.token_urlsafe(16)
+    expires_at = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+
+    shared = models.SharedList(
+        token=token,
+        owner=user,
+        list_data=_json.dumps(items_data),
+        expires_at=expires_at,
+    )
+    db.add(shared)
+    db.commit()
+
+    return JSONResponse({"token": token, "expires_at": expires_at.isoformat()})
+
+
+@app.get("/boodschappen/gedeeld/{token}")
+async def boodschappen_gedeeld(token: str, request: Request, db: Session = Depends(get_db)):
+    import json as _json
+    shared = db.query(models.SharedList).filter(
+        models.SharedList.token == token,
+        models.SharedList.expires_at >= datetime.datetime.utcnow(),
+    ).first()
+
+    if not shared:
+        return templates.TemplateResponse(
+            "boodschappen_gedeeld.html",
+            {"request": request, "user": None, "verlopen": True, "items": [], "owner": None, "created_at": None},
+        )
+
+    items = _json.loads(shared.list_data)
+    return templates.TemplateResponse(
+        "boodschappen_gedeeld.html",
+        {
+            "request": request,
+            "user": None,
+            "verlopen": False,
+            "items": items,
+            "owner": shared.owner,
+            "created_at": shared.created_at,
+        },
+    )
 
 
 # ── API: Barcode lookup ─────────────────────────────────────────────────────────
@@ -4079,6 +4361,7 @@ async def winkel_item_edit_post(
     unit: str = Form(default="stuks"),
     stock: int = Form(...),
     houdbaar_tot: str = Form(default=""),
+    minimum_stock: str = Form(default=""),
 ):
     user = get_current_user(request)
     if not user:
@@ -4098,12 +4381,20 @@ async def winkel_item_edit_post(
         except ValueError:
             pass
 
+    min_stock_val = None
+    if minimum_stock.strip():
+        try:
+            min_stock_val = max(0, int(minimum_stock.strip()))
+        except ValueError:
+            pass
+
     item.name = name.strip()
     item.brand = brand.strip() or None
     item.quantity_per_unit = quantity_per_unit
     item.unit = unit.strip() or "stuks"
     item.stock = max(0, stock)
     item.houdbaar_tot = houdbaar_tot_date
+    item.minimum_stock = min_stock_val
     db.commit()
     return RedirectResponse("/winkel?success=bijgewerkt", status_code=302)
 
