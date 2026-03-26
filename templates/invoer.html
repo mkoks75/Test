@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Invoer - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#10133; Invoer</h1>
+    <p>Voeg een boerderij- of winkelproduct toe aan de voorraad</p>
+  </div>
+</div>
+
+<main style="max-width:640px;margin:0 auto;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:.5rem;">
+
+    <!-- Winkelproduct -->
+    <a href="/winkel?scan=1" style="text-decoration:none;">
+      <div style="
+        background:#fff;
+        border:2px solid #2980b9;
+        border-radius:12px;
+        padding:2rem 1.25rem;
+        text-align:center;
+        cursor:pointer;
+        transition:box-shadow .15s,transform .15s;
+        height:100%;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;
+      " onmouseover="this.style.boxShadow='0 4px 16px rgba(41,128,185,.25)';this.style.transform='translateY(-2px)'"
+         onmouseout="this.style.boxShadow='';this.style.transform=''">
+        <span style="font-size:3rem;">&#128722;</span>
+        <span style="font-size:1.05rem;font-weight:700;color:#2980b9;">Winkelproduct<br>toevoegen</span>
+        <span style="font-size:.85rem;color:#6c757d;">Scan barcode of zoek op naam</span>
+      </div>
+    </a>
+
+    <!-- Boerderijproduct -->
+    <a href="/harvest/new" style="text-decoration:none;">
+      <div style="
+        background:#fff;
+        border:2px solid #2D6A4F;
+        border-radius:12px;
+        padding:2rem 1.25rem;
+        text-align:center;
+        cursor:pointer;
+        transition:box-shadow .15s,transform .15s;
+        height:100%;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;
+      " onmouseover="this.style.boxShadow='0 4px 16px rgba(45,106,79,.25)';this.style.transform='translateY(-2px)'"
+         onmouseout="this.style.boxShadow='';this.style.transform=''">
+        <span style="font-size:3rem;">&#127807;</span>
+        <span style="font-size:1.05rem;font-weight:700;color:#2D6A4F;">Boerderijproduct<br>toevoegen</span>
+        <span style="font-size:.85rem;color:#6c757d;">Registreer oogst en print QR etiket</span>
+      </div>
+    </a>
+
+  </div>
+</main>
+{% endblock %}

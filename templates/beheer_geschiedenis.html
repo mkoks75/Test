@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Overzichten - MountainSense Farm{% endblock %}
+{% block title %}Voorraad - MountainSense Farm{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-header-inner">
-    <h1>Overzichten</h1>
-    <p>Bekijk, bewerk en exporteer registraties en uitgiftes</p>
+    <h1>&#128230; Voorraad</h1>
+    <p>Bekijk, bewerk en exporteer registraties, uitgiftes en winkelvoorraad</p>
   </div>
 </div>
 
@@ -14,11 +14,15 @@
   <div class="tabs-nav">
     <a href="/beheer/geschiedenis?tab=registraties"
        class="tab-knop {% if tab == 'registraties' %}tab-actief{% endif %}">
-      Voorraad registraties
+      &#127807; Boerderij registraties
     </a>
     <a href="/beheer/geschiedenis?tab=uitgiftes"
        class="tab-knop {% if tab == 'uitgiftes' %}tab-actief{% endif %}">
-      Uitgiftes
+      &#127807; Uitgiftes
+    </a>
+    <a href="/beheer/geschiedenis?tab=winkel"
+       class="tab-knop {% if tab == 'winkel' %}tab-actief{% endif %}">
+      &#128722; Winkelvoorraad
     </a>
   </div>
 
@@ -239,6 +243,69 @@
   </div>
   {% endfor %}
   {% endif %}
+
+  {% elif tab == 'winkel' %}
+  <!-- ── WINKELVOORRAAD ── -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span style="font-size:.9rem;color:#6c757d;">{{ shop_items|length }} product(en)</span>
+    <a href="/winkel" class="btn btn-secundair btn-klein">&#9999; Beheren op /winkel</a>
+  </div>
+  <div class="kaart" style="padding:0;overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:44px;"></th>
+          <th>Product</th>
+          <th>Merk</th>
+          <th>Inhoud</th>
+          <th style="text-align:right;">Stuks</th>
+          <th>Houdbaar tot</th>
+          <th>Toegevoegd</th>
+          <th>Door</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in shop_items %}
+        {% set dag_info = (item.houdbaar_tot - today).days if item.houdbaar_tot else None %}
+        <tr {% if dag_info is not none and dag_info <= 0 %}style="background:#fde8e8;"
+            {% elif dag_info is not none and dag_info <= 30 %}style="background:#fff3cd;"{% endif %}>
+          <td style="padding:4px 8px;">
+            {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="" style="height:32px;width:32px;object-fit:cover;border-radius:3px;">
+            {% endif %}
+          </td>
+          <td><strong>{{ item.name }}</strong></td>
+          <td style="color:#6c757d;">{{ item.brand or '—' }}</td>
+          <td style="color:#6c757d;font-size:.85rem;">
+            {% if item.quantity_per_unit and item.quantity_per_unit != 1 %}{{ item.quantity_per_unit }} {% endif %}{{ item.unit }}
+          </td>
+          <td style="text-align:right;font-weight:600;">{{ item.stock }}</td>
+          <td>
+            {% if item.houdbaar_tot %}
+              {% if dag_info <= 7 %}
+                <span style="color:#CC0000;font-weight:600;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% elif dag_info <= 14 %}
+                <span style="color:#CC0000;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% elif dag_info <= 30 %}
+                <span style="color:#E07B00;">{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+              {% else %}
+                {{ item.houdbaar_tot.strftime('%d-%m-%Y') }}
+              {% endif %}
+            {% else %}
+              <span style="color:#adb5bd;">—</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.85rem;color:#6c757d;">{{ item.date_added.strftime('%d-%m-%Y') if item.date_added else '—' }}</td>
+          <td style="font-size:.85rem;color:#6c757d;">{{ item.entered_by }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="geen-data">Geen winkelproducten in voorraad.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   {% endif %}
 </main>

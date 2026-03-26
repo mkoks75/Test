@@ -2550,12 +2550,26 @@ async def beheer_geschiedenis(
         for r in db.query(models.Uitgifte.ontvanger).distinct().order_by(models.Uitgifte.ontvanger).all()
     ]
 
+    active_tab = tab if tab in ("registraties", "uitgiftes", "winkel") else "registraties"
+
+    shop_items = []
+    if active_tab == "winkel":
+        shop_items = (
+            db.query(models.ShopItem)
+            .filter(models.ShopItem.owner == user)
+            .order_by(
+                models.ShopItem.houdbaar_tot.asc().nullsfirst(),
+                models.ShopItem.name.asc(),
+            )
+            .all()
+        )
+
     return templates.TemplateResponse(
         "beheer_geschiedenis.html",
         {
             "request": request,
             "user": user,
-            "tab": tab if tab in ("registraties", "uitgiftes") else "registraties",
+            "tab": active_tab,
             "registraties": registraties,
             "products": products,
             "locations": locations,
@@ -2569,6 +2583,8 @@ async def beheer_geschiedenis(
             "u_date_from": u_date_from or "",
             "u_date_to": u_date_to or "",
             "totaal_per_ontvanger": totaal_per_ontvanger,
+            "shop_items": shop_items,
+            "today": datetime.date.today(),
         },
     )
 
@@ -3482,10 +3498,41 @@ async def api_houdbaarheid_toevoegen(
     })
 
 
+# ── Centrale invoerpagina ──────────────────────────────────────────────────────
+
+@app.get("/invoer")
+async def invoer(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login?next=/invoer", status_code=302)
+    return templates.TemplateResponse("invoer.html", {"request": request, "user": user})
+
+
+# ── Centrale uitgiftepagina ─────────────────────────────────────────────────────
+
+@app.get("/uitgifte")
+async def uitgifte_hub(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login?next=/uitgifte", status_code=302)
+    andere = "hinke" if user.lower() == "maarten" else "maarten"
+    return templates.TemplateResponse(
+        "uitgifte_hub.html",
+        {"request": request, "user": user, "andere": andere},
+    )
+
+
+# ── Voorraad (alias voor beheer/geschiedenis) ───────────────────────────────────
+
+@app.get("/voorraad")
+async def voorraad_redirect(request: Request, tab: str = "registraties"):
+    return RedirectResponse(f"/beheer/geschiedenis?tab={tab}", status_code=302)
+
+
 # ── Winkelvoorraad ──────────────────────────────────────────────────────────────
 
 @app.get("/winkel")
-async def winkel(request: Request, db: Session = Depends(get_db), success: str = None, error: str = None):
+async def winkel(request: Request, db: Session = Depends(get_db), success: str = None, error: str = None, scan: int = 0):
     user = get_current_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
@@ -3507,6 +3554,7 @@ async def winkel(request: Request, db: Session = Depends(get_db), success: str =
             "today": today,
             "success": success,
             "error": error,
+            "auto_scan": bool(scan),
         },
     )
 

@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}Uitgifte - MountainSense Farm{% endblock %}
+
+{% block extra_head %}
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#128228; Uitgifte</h1>
+    <p>Registreer een uitgifte via QR code, barcode of zoeken</p>
+  </div>
+</div>
+
+<main>
+
+<!-- ── Sectie A: QR scan (boerderij) ── -->
+<div class="kaart" style="margin-bottom:1.5rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+    <h2 style="font-size:1rem;margin:0;">&#128247; Scan QR code <span style="font-size:.8rem;font-weight:400;color:#6c757d;">(boerderijproduct)</span></h2>
+    <button type="button" id="btn-qr" onclick="toggleScanner('qr')"
+            style="background:#2D6A4F;color:#fff;border:none;padding:.45rem 1rem;border-radius:4px;cursor:pointer;font-size:.9rem;">
+      Camera starten
+    </button>
+  </div>
+  <div id="scanner-wrap-qr" style="display:none;">
+    <video id="video-qr" style="width:100%;max-width:420px;border-radius:8px;background:#000;" autoplay muted playsinline></video>
+    <p style="font-size:.85rem;color:#6c757d;margin-top:.4rem;">Richt de camera op de QR code van het product</p>
+    <div id="qr-melding" style="display:none;background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;padding:.4rem .75rem;font-size:.85rem;color:#721c24;margin-top:.5rem;"></div>
+  </div>
+</div>
+
+<!-- ── Sectie B: Barcode scan (winkel) ── -->
+<div class="kaart" style="margin-bottom:1.5rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+    <h2 style="font-size:1rem;margin:0;">&#128247; Scan barcode <span style="font-size:.8rem;font-weight:400;color:#6c757d;">(winkelproduct)</span></h2>
+    <button type="button" id="btn-barcode" onclick="toggleScanner('barcode')"
+            style="background:#2980b9;color:#fff;border:none;padding:.45rem 1rem;border-radius:4px;cursor:pointer;font-size:.9rem;">
+      Camera starten
+    </button>
+  </div>
+  <div id="scanner-wrap-barcode" style="display:none;">
+    <video id="video-barcode" style="width:100%;max-width:420px;border-radius:8px;background:#000;" autoplay muted playsinline></video>
+    <p style="font-size:.85rem;color:#6c757d;margin-top:.4rem;">Richt de camera op de EAN barcode van het product</p>
+  </div>
+  <div id="barcode-keuze" style="display:none;margin-top:.75rem;"></div>
+  <div id="barcode-bevestiging" style="display:none;margin-top:.75rem;"></div>
+</div>
+
+<!-- ── Sectie C: Zoek product ── -->
+<div class="kaart" style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1rem;margin-bottom:.75rem;">&#128269; Zoek product</h2>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.6rem;">
+    <input type="text" id="uitgifte-zoek"
+           placeholder="Zoek op productnaam..."
+           style="flex:1;min-width:200px;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;"
+           oninput="uitgifte_zoek(this.value)">
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;">
+    <button type="button" class="zoek-tag actief" data-source="boerderij" onclick="toggleZoekTag(this)">&#127807; Boerderij</button>
+    <button type="button" class="zoek-tag actief" data-source="eigen" onclick="toggleZoekTag(this)">&#128722; Mijn winkel</button>
+  </div>
+  <div id="uitgifte-zoek-resultaten"></div>
+</div>
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/scanner.js"></script>
+<style>
+.zoek-tag { padding:.3rem .75rem; border-radius:20px; border:1px solid #ced4da; background:#e9ecef; color:#6c757d; font-size:.85rem; cursor:pointer; }
+.zoek-tag.actief { background:#2D6A4F; color:#fff; border-color:#2D6A4F; }
+.zoek-tag[data-source="eigen"].actief { background:#2980b9; border-color:#2980b9; }
+</style>
+<script>
+(function () {
+  'use strict';
+
+  var actieveScanner = null; // 'qr' | 'barcode' | null
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Scanner toggle ───────────────────────────────────────────
+  window.toggleScanner = function (type) {
+    if (actieveScanner === type) {
+      // Zelfde scanner: stoppen
+      Scanner.stopScanner();
+      actieveScanner = null;
+      document.getElementById('scanner-wrap-' + type).style.display = 'none';
+      document.getElementById('btn-' + type).textContent = 'Camera starten';
+      return;
+    }
+    // Stop andere scanner als die actief is
+    if (actieveScanner) {
+      Scanner.stopScanner();
+      document.getElementById('scanner-wrap-' + actieveScanner).style.display = 'none';
+      document.getElementById('btn-' + actieveScanner).textContent = 'Camera starten';
+    }
+    actieveScanner = type;
+    document.getElementById('scanner-wrap-' + type).style.display = 'block';
+    document.getElementById('btn-' + type).textContent = 'Camera stoppen';
+
+    if (type === 'qr') {
+      startQrScanner();
+    } else {
+      startBarcodeScanner();
+    }
+  };
+
+  // ── QR scanner (boerderijproduct) ────────────────────────────
+  function startQrScanner() {
+    Scanner.startScanner('video-qr', function (tekst) {
+      actieveScanner = null;
+      document.getElementById('scanner-wrap-qr').style.display = 'none';
+      document.getElementById('btn-qr').textContent = 'Camera starten';
+      verwerkQr(tekst);
+    });
+  }
+
+  function verwerkQr(tekst) {
+    var match = tekst.match(/\/scan\/(\d+)/);
+    if (match) {
+      window.location.href = '/scan/' + match[1];
+    } else {
+      var el = document.getElementById('qr-melding');
+      el.textContent = 'Ongeldige QR code: ' + tekst;
+      el.style.display = 'block';
+      document.getElementById('scanner-wrap-qr').style.display = 'block';
+      document.getElementById('btn-qr').textContent = 'Camera stoppen';
+      actieveScanner = 'qr';
+      startQrScanner();
+    }
+  }
+
+  // ── Barcode scanner (winkelproduct) ──────────────────────────
+  function startBarcodeScanner() {
+    Scanner.startScanner('video-barcode', function (barcode) {
+      actieveScanner = null;
+      document.getElementById('scanner-wrap-barcode').style.display = 'none';
+      document.getElementById('btn-barcode').textContent = 'Camera starten';
+      verwerkBarcode(barcode);
+    });
+  }
+
+  function verwerkBarcode(barcode) {
+    document.getElementById('barcode-keuze').style.display = 'none';
+    document.getElementById('barcode-bevestiging').style.display = 'none';
+    fetch('/api/shop/barcode/' + encodeURIComponent(barcode))
+      .then(function (r) { return r.json(); })
+      .then(function (items) {
+        if (!items || items.length === 0) {
+          document.getElementById('barcode-keuze').innerHTML =
+            '<p style="color:#e74c3c;">Dit product staat niet in je voorraad.</p>';
+          document.getElementById('barcode-keuze').style.display = 'block';
+          return;
+        }
+        if (items.length === 1) {
+          toonBevestiging(items[0]);
+        } else {
+          toonKeuze(items);
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  }
+
+  function toonKeuze(items) {
+    window._uitgifte_items = {};
+    items.forEach(function (i) { window._uitgifte_items[i.id] = i; });
+    var html = '<p style="font-weight:600;margin-bottom:.5rem;">' + escHtml(items[0].name) + ' — kies een THT-groep:</p><ul style="list-style:none;padding:0;margin:0;">';
+    items.forEach(function (item) {
+      var tht = item.houdbaar_tot ? item.houdbaar_tot.split('-').reverse().join('-') : '—';
+      html += '<li style="margin-bottom:.5rem;"><button type="button" onclick="toonBevestigingById(' + item.id + ')" style="padding:.4rem .8rem;border:1px solid #ced4da;background:#fff;border-radius:4px;cursor:pointer;">THT ' + escHtml(tht) + ' &mdash; ' + item.stock + ' stuks</button></li>';
+    });
+    html += '</ul>';
+    document.getElementById('barcode-keuze').innerHTML = html;
+    document.getElementById('barcode-keuze').style.display = 'block';
+  }
+
+  window.toonBevestigingById = function (id) {
+    var item = (window._uitgifte_items || {})[id];
+    if (item) toonBevestiging(item);
+  };
+
+  function toonBevestiging(item) {
+    var tht = item.houdbaar_tot ? item.houdbaar_tot.split('-').reverse().join('-') : null;
+    var html = '<div style="border:1px solid #ced4da;border-radius:6px;padding:1rem;">';
+    html += '<p>Wil je <strong>–1 ' + escHtml(item.name) + '</strong>';
+    if (tht) html += ' (THT ' + escHtml(tht) + ')';
+    html += ' uit voorraad halen?</p>';
+    html += '<button type="button" onclick="bevestigUitgifte(' + item.id + ')" style="background:#e74c3c;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;">Bevestigen</button>';
+    html += ' <button type="button" onclick="document.getElementById(\'barcode-bevestiging\').style.display=\'none\'" style="margin-left:.5rem;padding:.5rem .8rem;border:1px solid #ced4da;background:#fff;border-radius:4px;cursor:pointer;">Annuleren</button>';
+    html += '</div>';
+    document.getElementById('barcode-keuze').style.display = 'none';
+    document.getElementById('barcode-bevestiging').innerHTML = html;
+    document.getElementById('barcode-bevestiging').style.display = 'block';
+  }
+
+  window.bevestigUitgifte = function (id) {
+    fetch('/api/shop/uitgifte', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop_item_id: id, quantity: 1 }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.succes) {
+          document.getElementById('barcode-bevestiging').innerHTML =
+            '<div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:.75rem 1rem;color:#155724;">&#10003; Uitgifte geregistreerd (resterende voorraad: ' + d.stock + ')</div>';
+        } else {
+          alert(d.error || 'Fout bij uitgifte');
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  };
+
+  // ── Zoek sectie ──────────────────────────────────────────────
+  var zoekTimer = null;
+
+  window.toggleZoekTag = function (btn) {
+    btn.classList.toggle('actief');
+    uitgifte_zoek(document.getElementById('uitgifte-zoek').value);
+  };
+
+  window.uitgifte_zoek = function (q) {
+    clearTimeout(zoekTimer);
+    var div = document.getElementById('uitgifte-zoek-resultaten');
+    if (!q || q.length < 2) { div.innerHTML = ''; return; }
+    var actief = [];
+    document.querySelectorAll('#uitgifte-hub-zoek-tags .zoek-tag.actief, .zoek-tag.actief').forEach(function (btn) {
+      actief.push(btn.getAttribute('data-source'));
+    });
+    var sources = actief.join(',') || 'boerderij,eigen';
+    zoekTimer = setTimeout(function () {
+      fetch('/api/search?q=' + encodeURIComponent(q) + '&sources=' + encodeURIComponent(sources))
+        .then(function (r) { return r.json(); })
+        .then(function (data) { renderZoekResultaten(data); })
+        .catch(function () {});
+    }, 350);
+  };
+
+  function renderZoekResultaten(data) {
+    var div = document.getElementById('uitgifte-zoek-resultaten');
+    if (!data.results || data.results.length === 0) {
+      div.innerHTML = '<p style="color:#6c757d;font-size:.9rem;">Geen resultaten gevonden.</p>';
+      return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:.9rem;"><thead><tr>';
+    html += '<th style="text-align:left;padding:.3rem .4rem;">Product</th>';
+    html += '<th style="padding:.3rem .4rem;text-align:right;">Hoeveelheid</th>';
+    html += '<th style="padding:.3rem .4rem;">THT</th>';
+    html += '<th style="padding:.3rem .4rem;">Bron</th>';
+    html += '<th style="padding:.3rem .4rem;"></th>';
+    html += '</tr></thead><tbody>';
+    data.results.forEach(function (r) {
+      var houdStijl = r.kort_houdbaar ? 'color:#c0392b;font-weight:600;' : (r.houdbaar_tot ? '' : 'color:#adb5bd;');
+      var badge = r.bron === 'boerderij'
+        ? '<span style="background:#d4edda;color:#155724;border-radius:10px;padding:.1rem .4rem;font-size:.75rem;">&#127807; Boerderij</span>'
+        : '<span style="background:#cce5ff;color:#004085;border-radius:10px;padding:.1rem .4rem;font-size:.75rem;">&#128722; Winkel</span>';
+      var actie = '';
+      if (r.bron === 'boerderij' && r.scan_id) {
+        actie = '<a href="/scan/' + r.scan_id + '" style="background:#2D6A4F;color:#fff;border:none;padding:.25rem .6rem;border-radius:3px;font-size:.8rem;text-decoration:none;">Uitgeven</a>';
+      } else if (r.bron === 'eigen') {
+        actie = '<button type="button" onclick="shopUitgifteViaZoek(' + r.id + ',\'' + escHtml(r.naam).replace(/'/g,"\\'") + '\',' + (r.houdbaar_tot ? '\'' + escHtml(r.houdbaar_tot) + '\'' : 'null') + ')" style="background:#e74c3c;color:#fff;border:none;padding:.25rem .6rem;border-radius:3px;font-size:.8rem;cursor:pointer;">&minus;1</button>';
+      }
+      html += '<tr style="border-top:1px solid #dee2e6;">';
+      html += '<td style="padding:.35rem .4rem;"><strong>' + escHtml(r.naam) + '</strong>' + (r.locatie ? '<br><span style="font-size:.78rem;color:#6c757d;">' + escHtml(r.locatie) + '</span>' : '') + '</td>';
+      html += '<td style="padding:.35rem .4rem;text-align:right;">' + r.hoeveelheid + '\u00a0' + escHtml(r.eenheid) + '</td>';
+      html += '<td style="padding:.35rem .4rem;' + houdStijl + '">' + (r.houdbaar_tot || '—') + '</td>';
+      html += '<td style="padding:.35rem .4rem;">' + badge + '</td>';
+      html += '<td style="padding:.35rem .4rem;">' + actie + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    div.innerHTML = html;
+  }
+
+  window.shopUitgifteViaZoek = function (id, naam, tht) {
+    var msg = '–1 ' + naam;
+    if (tht) msg += ' (THT ' + tht + ')';
+    if (!confirm(msg + ' uit voorraad halen?')) return;
+    fetch('/api/shop/uitgifte', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop_item_id: id, quantity: 1 }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.succes) {
+          uitgifte_zoek(document.getElementById('uitgifte-zoek').value);
+        } else {
+          alert(d.error || 'Fout bij uitgifte');
+        }
+      })
+      .catch(function () { alert('Netwerkfout'); });
+  };
+})();
+</script>
+{% endblock %}
