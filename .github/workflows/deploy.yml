@@ -17,6 +17,7 @@ jobs:
           script: |
             cd ~/project-maarten
             /usr/local/bin/docker-compose down || true
+            sleep 3
             git pull origin main
             /usr/local/bin/docker-compose build
             /usr/local/bin/docker-compose up -d
