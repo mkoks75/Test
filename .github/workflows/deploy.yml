@@ -25,4 +25,5 @@ jobs:
             /usr/local/bin/docker-compose build
             sudo fuser -k 8000/tcp || true
             sleep 2
+            sudo fuser -k 8000/tcp || true
             /usr/local/bin/docker-compose up -d
