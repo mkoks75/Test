@@ -27,109 +27,50 @@
   </div>
 
   {% if tab == 'registraties' %}
-  <!-- ── REGISTRATIES ── -->
-  <div class="kaart">
-    <form method="get" action="/beheer/geschiedenis">
-      <input type="hidden" name="tab" value="registraties">
-      <div class="filter-balk">
-        <div class="veld">
-          <label for="product_id">Product</label>
-          <select id="product_id" name="product_id">
-            <option value="">Alle producten</option>
-            {% for p in products %}
-            <option value="{{ p.id }}" {% if filter_product_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="veld">
-          <label for="location_id">Locatie</label>
-          <select id="location_id" name="location_id">
-            <option value="">Alle locaties</option>
-            {% for l in locations %}
-            <option value="{{ l.id }}" {% if filter_location_id == l.id %}selected{% endif %}>{{ l.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="veld">
-          <label for="date_from">Van datum</label>
-          <input type="date" id="date_from" name="date_from" value="{{ filter_date_from }}">
-        </div>
-
-        <div class="veld">
-          <label for="date_to">Tot datum</label>
-          <input type="date" id="date_to" name="date_to" value="{{ filter_date_to }}">
-        </div>
-
-        <div style="display:flex; gap:8px; align-items:flex-end;">
-          <button type="submit" class="btn btn-primair btn-klein">Filteren</button>
-          <a href="/beheer/geschiedenis?tab=registraties" class="btn btn-secundair btn-klein">Reset</a>
-        </div>
-      </div>
-    </form>
+  <!-- ── BOERDERIJ VOORRAAD (geaggregeerd) ── -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span style="font-size:.9rem;color:#6c757d;">{{ voorraad_items|length }} product-locatie combinatie(s) met voorraad</span>
+    <a href="/beheer/mutaties?tab=boerderij" class="btn btn-secundair btn-klein">&#128203; Mutatielog</a>
   </div>
 
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-    <span style="font-size:.9rem; color:#6c757d;">{{ registraties|length }} record(s) gevonden</span>
-    <a href="/beheer/geschiedenis/export/registraties?{% if filter_product_id %}product_id={{ filter_product_id }}&{% endif %}{% if filter_location_id %}location_id={{ filter_location_id }}&{% endif %}{% if filter_date_from %}date_from={{ filter_date_from }}&{% endif %}{% if filter_date_to %}date_to={{ filter_date_to }}{% endif %}"
-       class="btn btn-secundair btn-klein">
-      Exporteer CSV
-    </a>
-  </div>
-
-  <div class="kaart" style="padding:0; overflow:hidden;">
+  <div class="kaart" style="padding:0;overflow:hidden;">
     <table>
       <thead>
         <tr>
-          <th>Datum</th>
-          <th>ID</th>
           <th>Product</th>
           <th>Locatie</th>
-          <th style="text-align:right;">Hoeveelheid</th>
+          <th style="text-align:right;">Voorraad</th>
           <th>Eenheid</th>
-          <th>Houdbaar tot</th>
-          <th>Status</th>
-          <th>Ingevoerd door</th>
-          <th>Gewijzigd door</th>
-          <th>Notitie</th>
-          <th></th>
+          <th>Vroegste THT</th>
         </tr>
       </thead>
       <tbody>
-        {% for e in registraties %}
-        <tr {% if e.uitgegeven %}style="opacity:0.55;"{% endif %}>
-          <td>{{ e.date }}</td>
-          <td style="color:#6c757d;">{{ e.id }}</td>
-          <td {% if e.uitgegeven %}style="text-decoration:line-through; color:#6c757d;"{% endif %}>{{ e.product.name }}</td>
-          <td>{{ e.location.name }}</td>
-          <td style="text-align:right; font-weight:600;">{{ "%.2f"|format(e.quantity) }}</td>
-          <td>{{ e.product.unit }}</td>
+        {% for item in voorraad_items %}
+        {% set dag_info = (item.vroegste_tht - today).days if item.vroegste_tht else None %}
+        <tr {% if dag_info is not none and dag_info <= 0 %}style="background:#fde8e8;"
+            {% elif dag_info is not none and dag_info <= 7 %}style="background:#fde8e8;"
+            {% elif dag_info is not none and dag_info <= 30 %}style="background:#fff3cd;"{% endif %}>
+          <td><strong>{{ item.product_naam }}</strong></td>
+          <td>{{ item.locatie_naam }}</td>
+          <td style="text-align:right;font-weight:600;">{{ "%.2f"|format(item.voorraad) }}</td>
+          <td>{{ item.eenheid }}</td>
           <td>
-            {% if e.houdbaar_tot %}
-              {{ e.houdbaar_tot }}
+            {% if item.vroegste_tht %}
+              {% if dag_info <= 7 %}
+                <span style="color:#CC0000;font-weight:600;">{{ item.vroegste_tht.strftime('%d-%m-%Y') }}</span>
+              {% elif dag_info <= 30 %}
+                <span style="color:#E07B00;">{{ item.vroegste_tht.strftime('%d-%m-%Y') }}</span>
+              {% else %}
+                {{ item.vroegste_tht.strftime('%d-%m-%Y') }}
+              {% endif %}
             {% else %}
               <span style="color:#adb5bd;">—</span>
             {% endif %}
           </td>
-          <td>
-            {% if e.uitgegeven %}
-              <span style="color:#6c757d; font-size:.85rem;" title="Uitgegeven aan: {{ e.uitgegeven_aan or '' }}{% if e.uitgegeven_op %} op {{ e.uitgegeven_op.strftime('%d-%m-%Y') }}{% endif %}">Uitgegeven</span>
-            {% else %}
-              <span style="color:var(--groen); font-weight:600; font-size:.85rem;">Beschikbaar</span>
-            {% endif %}
-          </td>
-          <td>{{ e.entered_by }}</td>
-          <td style="color:#6c757d; font-size:.85rem;">{{ e.gewijzigd_door or "" }}</td>
-          <td style="color:#6c757d; font-size:.85rem;">{{ e.note or "" }}</td>
-          <td style="white-space:nowrap;">
-            <a href="/harvest/label/{{ e.id }}" class="btn btn-secundair btn-klein" style="margin-right:4px;">&#128438; Label</a>
-            <a href="/harvest/edit/{{ e.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
-          </td>
         </tr>
         {% else %}
         <tr>
-          <td colspan="11" class="geen-data">Geen registraties gevonden voor de geselecteerde filters.</td>
+          <td colspan="5" class="geen-data">Geen boerderijproducten in voorraad.</td>
         </tr>
         {% endfor %}
       </tbody>

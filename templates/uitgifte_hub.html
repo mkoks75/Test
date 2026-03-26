@@ -13,56 +13,92 @@
   </div>
 </div>
 
-<main>
+<main style="max-width:640px;margin:0 auto;">
 
-<!-- ── Sectie A: QR scan (boerderij) ── -->
-<div class="kaart" style="margin-bottom:1.5rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
-    <h2 style="font-size:1rem;margin:0;">&#128247; Scan QR code <span style="font-size:.8rem;font-weight:400;color:#6c757d;">(boerderijproduct)</span></h2>
-    <button type="button" id="btn-qr" onclick="toggleScanner('qr')"
-            style="background:#2D6A4F;color:#fff;border:none;padding:.45rem 1rem;border-radius:4px;cursor:pointer;font-size:.9rem;">
-      Camera starten
-    </button>
+<!-- ── Twee grote tegels ── -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:.5rem;margin-bottom:1.5rem;">
+
+  <!-- QR tegel -->
+  <div id="tegel-qr" onclick="tegel_klik('qr')" style="
+    background:#fff;border:2px solid #2D6A4F;border-radius:12px;
+    padding:2rem 1.25rem;text-align:center;cursor:pointer;
+    transition:box-shadow .15s,transform .15s;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;"
+    onmouseover="if(!this.classList.contains('tegel-actief')){this.style.boxShadow='0 4px 16px rgba(45,106,79,.25)';this.style.transform='translateY(-2px)'}"
+    onmouseout="if(!this.classList.contains('tegel-actief')){this.style.boxShadow='';this.style.transform=''}">
+    <span style="font-size:3rem;">&#128247;</span>
+    <span style="font-size:1.05rem;font-weight:700;color:#2D6A4F;">Scan QR code</span>
+    <span style="font-size:.85rem;color:#6c757d;">Boerderijproduct</span>
   </div>
-  <div id="scanner-wrap-qr" style="display:none;">
+
+  <!-- Barcode tegel -->
+  <div id="tegel-barcode" onclick="tegel_klik('barcode')" style="
+    background:#fff;border:2px solid #2980b9;border-radius:12px;
+    padding:2rem 1.25rem;text-align:center;cursor:pointer;
+    transition:box-shadow .15s,transform .15s;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;"
+    onmouseover="if(!this.classList.contains('tegel-actief')){this.style.boxShadow='0 4px 16px rgba(41,128,185,.25)';this.style.transform='translateY(-2px)'}"
+    onmouseout="if(!this.classList.contains('tegel-actief')){this.style.boxShadow='';this.style.transform=''}">
+    <span style="font-size:3rem;">&#128247;</span>
+    <span style="font-size:1.05rem;font-weight:700;color:#2980b9;">Scan barcode</span>
+    <span style="font-size:.85rem;color:#6c757d;">Winkelproduct</span>
+  </div>
+
+</div>
+
+<!-- ── Scanner sectie QR ── -->
+<div id="scanner-sectie-qr" style="display:none;margin-bottom:1.5rem;">
+  <div class="kaart">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+      <h2 style="font-size:1rem;margin:0;">&#127807; QR code scanner</h2>
+      <button type="button" onclick="tegel_klik('qr')"
+              style="background:none;border:1px solid #ced4da;padding:.3rem .7rem;border-radius:4px;cursor:pointer;font-size:.85rem;color:#6c757d;">
+        &#10005; Sluiten
+      </button>
+    </div>
     <video id="video-qr" style="width:100%;max-width:420px;border-radius:8px;background:#000;" autoplay muted playsinline></video>
     <p style="font-size:.85rem;color:#6c757d;margin-top:.4rem;">Richt de camera op de QR code van het product</p>
     <div id="qr-melding" style="display:none;background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;padding:.4rem .75rem;font-size:.85rem;color:#721c24;margin-top:.5rem;"></div>
   </div>
 </div>
 
-<!-- ── Sectie B: Barcode scan (winkel) ── -->
-<div class="kaart" style="margin-bottom:1.5rem;">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
-    <h2 style="font-size:1rem;margin:0;">&#128247; Scan barcode <span style="font-size:.8rem;font-weight:400;color:#6c757d;">(winkelproduct)</span></h2>
-    <button type="button" id="btn-barcode" onclick="toggleScanner('barcode')"
-            style="background:#2980b9;color:#fff;border:none;padding:.45rem 1rem;border-radius:4px;cursor:pointer;font-size:.9rem;">
-      Camera starten
-    </button>
-  </div>
-  <div id="scanner-wrap-barcode" style="display:none;">
+<!-- ── Scanner sectie Barcode ── -->
+<div id="scanner-sectie-barcode" style="display:none;margin-bottom:1.5rem;">
+  <div class="kaart">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+      <h2 style="font-size:1rem;margin:0;">&#128722; Barcode scanner</h2>
+      <button type="button" onclick="tegel_klik('barcode')"
+              style="background:none;border:1px solid #ced4da;padding:.3rem .7rem;border-radius:4px;cursor:pointer;font-size:.85rem;color:#6c757d;">
+        &#10005; Sluiten
+      </button>
+    </div>
     <video id="video-barcode" style="width:100%;max-width:420px;border-radius:8px;background:#000;" autoplay muted playsinline></video>
     <p style="font-size:.85rem;color:#6c757d;margin-top:.4rem;">Richt de camera op de EAN barcode van het product</p>
+    <div id="barcode-keuze" style="display:none;margin-top:.75rem;"></div>
+    <div id="barcode-bevestiging" style="display:none;margin-top:.75rem;"></div>
   </div>
-  <div id="barcode-keuze" style="display:none;margin-top:.75rem;"></div>
-  <div id="barcode-bevestiging" style="display:none;margin-top:.75rem;"></div>
 </div>
 
-<!-- ── Sectie C: Zoek product ── -->
-<div class="kaart" style="margin-bottom:1.5rem;">
-  <h2 style="font-size:1rem;margin-bottom:.75rem;">&#128269; Zoek product</h2>
-  <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.6rem;">
-    <input type="text" id="uitgifte-zoek"
-           placeholder="Zoek op productnaam..."
-           style="flex:1;min-width:200px;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;"
-           oninput="uitgifte_zoek(this.value)">
+<!-- ── Uitklapbare zoeksectie ── -->
+<details class="kaart" style="margin-bottom:1.5rem;">
+  <summary style="cursor:pointer;font-weight:600;font-size:1rem;list-style:none;display:flex;align-items:center;gap:.5rem;">
+    <span>&#128269; Zoeken voor handmatige uitgifte</span>
+    <span class="zoek-pijl" style="margin-left:auto;font-size:.8rem;color:#6c757d;">&#9660;</span>
+  </summary>
+  <div style="margin-top:1rem;">
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.6rem;">
+      <input type="text" id="uitgifte-zoek"
+             placeholder="Zoek op productnaam..."
+             style="flex:1;min-width:200px;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;"
+             oninput="uitgifte_zoek(this.value)">
+    </div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;">
+      <button type="button" class="zoek-tag actief" data-source="boerderij" onclick="toggleZoekTag(this)">&#127807; Boerderij</button>
+      <button type="button" class="zoek-tag actief" data-source="eigen" onclick="toggleZoekTag(this)">&#128722; Mijn winkel</button>
+    </div>
+    <div id="uitgifte-zoek-resultaten"></div>
   </div>
-  <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;">
-    <button type="button" class="zoek-tag actief" data-source="boerderij" onclick="toggleZoekTag(this)">&#127807; Boerderij</button>
-    <button type="button" class="zoek-tag actief" data-source="eigen" onclick="toggleZoekTag(this)">&#128722; Mijn winkel</button>
-  </div>
-  <div id="uitgifte-zoek-resultaten"></div>
-</div>
+</details>
 
 </main>
 {% endblock %}
@@ -73,6 +109,11 @@
 .zoek-tag { padding:.3rem .75rem; border-radius:20px; border:1px solid #ced4da; background:#e9ecef; color:#6c757d; font-size:.85rem; cursor:pointer; }
 .zoek-tag.actief { background:#2D6A4F; color:#fff; border-color:#2D6A4F; }
 .zoek-tag[data-source="eigen"].actief { background:#2980b9; border-color:#2980b9; }
+.tegel-actief { box-shadow: 0 4px 16px rgba(0,0,0,.15) !important; }
+#tegel-qr.tegel-actief { background: #f0faf4; }
+#tegel-barcode.tegel-actief { background: #f0f7ff; }
+details > summary { user-select: none; }
+details[open] .zoek-pijl { transform: rotate(180deg); }
 </style>
 <script>
 (function () {
@@ -84,25 +125,25 @@
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ── Scanner toggle ───────────────────────────────────────────
-  window.toggleScanner = function (type) {
+  // ── Tegel klik handler ───────────────────────────────────────────
+  window.tegel_klik = function (type) {
     if (actieveScanner === type) {
       // Zelfde scanner: stoppen
       Scanner.stopScanner();
       actieveScanner = null;
-      document.getElementById('scanner-wrap-' + type).style.display = 'none';
-      document.getElementById('btn-' + type).textContent = 'Camera starten';
+      document.getElementById('scanner-sectie-' + type).style.display = 'none';
+      document.getElementById('tegel-' + type).classList.remove('tegel-actief');
       return;
     }
     // Stop andere scanner als die actief is
     if (actieveScanner) {
       Scanner.stopScanner();
-      document.getElementById('scanner-wrap-' + actieveScanner).style.display = 'none';
-      document.getElementById('btn-' + actieveScanner).textContent = 'Camera starten';
+      document.getElementById('scanner-sectie-' + actieveScanner).style.display = 'none';
+      document.getElementById('tegel-' + actieveScanner).classList.remove('tegel-actief');
     }
     actieveScanner = type;
-    document.getElementById('scanner-wrap-' + type).style.display = 'block';
-    document.getElementById('btn-' + type).textContent = 'Camera stoppen';
+    document.getElementById('scanner-sectie-' + type).style.display = 'block';
+    document.getElementById('tegel-' + type).classList.add('tegel-actief');
 
     if (type === 'qr') {
       startQrScanner();
@@ -111,12 +152,15 @@
     }
   };
 
+  // Legacy compatibility
+  window.toggleScanner = window.tegel_klik;
+
   // ── QR scanner (boerderijproduct) ────────────────────────────
   function startQrScanner() {
     Scanner.startScanner('video-qr', function (tekst) {
       actieveScanner = null;
-      document.getElementById('scanner-wrap-qr').style.display = 'none';
-      document.getElementById('btn-qr').textContent = 'Camera starten';
+      document.getElementById('scanner-sectie-qr').style.display = 'none';
+      document.getElementById('tegel-qr').classList.remove('tegel-actief');
       verwerkQr(tekst);
     });
   }
@@ -129,8 +173,8 @@
       var el = document.getElementById('qr-melding');
       el.textContent = 'Ongeldige QR code: ' + tekst;
       el.style.display = 'block';
-      document.getElementById('scanner-wrap-qr').style.display = 'block';
-      document.getElementById('btn-qr').textContent = 'Camera stoppen';
+      document.getElementById('scanner-sectie-qr').style.display = 'block';
+      document.getElementById('tegel-qr').classList.add('tegel-actief');
       actieveScanner = 'qr';
       startQrScanner();
     }
@@ -140,8 +184,8 @@
   function startBarcodeScanner() {
     Scanner.startScanner('video-barcode', function (barcode) {
       actieveScanner = null;
-      document.getElementById('scanner-wrap-barcode').style.display = 'none';
-      document.getElementById('btn-barcode').textContent = 'Camera starten';
+      document.getElementById('scanner-sectie-barcode').style.display = 'none';
+      document.getElementById('tegel-barcode').classList.remove('tegel-actief');
       verwerkBarcode(barcode);
     });
   }
@@ -170,9 +214,9 @@
   function toonKeuze(items) {
     window._uitgifte_items = {};
     items.forEach(function (i) { window._uitgifte_items[i.id] = i; });
-    var html = '<p style="font-weight:600;margin-bottom:.5rem;">' + escHtml(items[0].name) + ' — kies een THT-groep:</p><ul style="list-style:none;padding:0;margin:0;">';
+    var html = '<p style="font-weight:600;margin-bottom:.5rem;">' + escHtml(items[0].name) + ' &mdash; kies een THT-groep:</p><ul style="list-style:none;padding:0;margin:0;">';
     items.forEach(function (item) {
-      var tht = item.houdbaar_tot ? item.houdbaar_tot.split('-').reverse().join('-') : '—';
+      var tht = item.houdbaar_tot ? item.houdbaar_tot.split('-').reverse().join('-') : '&mdash;';
       html += '<li style="margin-bottom:.5rem;"><button type="button" onclick="toonBevestigingById(' + item.id + ')" style="padding:.4rem .8rem;border:1px solid #ced4da;background:#fff;border-radius:4px;cursor:pointer;">THT ' + escHtml(tht) + ' &mdash; ' + item.stock + ' stuks</button></li>';
     });
     html += '</ul>';
@@ -188,7 +232,7 @@
   function toonBevestiging(item) {
     var tht = item.houdbaar_tot ? item.houdbaar_tot.split('-').reverse().join('-') : null;
     var html = '<div style="border:1px solid #ced4da;border-radius:6px;padding:1rem;">';
-    html += '<p>Wil je <strong>–1 ' + escHtml(item.name) + '</strong>';
+    html += '<p>Wil je <strong>&minus;1 ' + escHtml(item.name) + '</strong>';
     if (tht) html += ' (THT ' + escHtml(tht) + ')';
     html += ' uit voorraad halen?</p>';
     html += '<button type="button" onclick="bevestigUitgifte(' + item.id + ')" style="background:#e74c3c;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;">Bevestigen</button>';
@@ -230,7 +274,7 @@
     var div = document.getElementById('uitgifte-zoek-resultaten');
     if (!q || q.length < 2) { div.innerHTML = ''; return; }
     var actief = [];
-    document.querySelectorAll('#uitgifte-hub-zoek-tags .zoek-tag.actief, .zoek-tag.actief').forEach(function (btn) {
+    document.querySelectorAll('.zoek-tag.actief').forEach(function (btn) {
       actief.push(btn.getAttribute('data-source'));
     });
     var sources = actief.join(',') || 'boerderij,eigen';
@@ -269,7 +313,7 @@
       html += '<tr style="border-top:1px solid #dee2e6;">';
       html += '<td style="padding:.35rem .4rem;"><strong>' + escHtml(r.naam) + '</strong>' + (r.locatie ? '<br><span style="font-size:.78rem;color:#6c757d;">' + escHtml(r.locatie) + '</span>' : '') + '</td>';
       html += '<td style="padding:.35rem .4rem;text-align:right;">' + r.hoeveelheid + '\u00a0' + escHtml(r.eenheid) + '</td>';
-      html += '<td style="padding:.35rem .4rem;' + houdStijl + '">' + (r.houdbaar_tot || '—') + '</td>';
+      html += '<td style="padding:.35rem .4rem;' + houdStijl + '">' + (r.houdbaar_tot || '&mdash;') + '</td>';
       html += '<td style="padding:.35rem .4rem;">' + badge + '</td>';
       html += '<td style="padding:.35rem .4rem;">' + actie + '</td>';
       html += '</tr>';
@@ -279,7 +323,7 @@
   }
 
   window.shopUitgifteViaZoek = function (id, naam, tht) {
-    var msg = '–1 ' + naam;
+    var msg = '\u20131 ' + naam;
     if (tht) msg += ' (THT ' + tht + ')';
     if (!confirm(msg + ' uit voorraad halen?')) return;
     fetch('/api/shop/uitgifte', {

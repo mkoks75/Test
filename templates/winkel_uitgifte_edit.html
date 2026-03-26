@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Winkel uitgifte bewerken - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#128722; Uitgifte bewerken</h1>
+    <p>{{ uitgifte.shop_item.name }}{% if uitgifte.shop_item.brand %} &mdash; {{ uitgifte.shop_item.brand }}{% endif %}</p>
+  </div>
+</div>
+
+<main style="max-width:640px;margin:0 auto;">
+
+  {% if error %}
+  <div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:.75rem 1rem;color:#721c24;margin-bottom:1rem;">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <div class="kaart">
+    <form method="post" action="/winkel/uitgifte/{{ uitgifte.id }}/edit">
+      <div class="formulier-veld">
+        <label>Product</label>
+        <p style="padding:.5rem 0;margin:0;font-weight:600;">{{ uitgifte.shop_item.name }}</p>
+      </div>
+      <div class="formulier-veld">
+        <label for="quantity">Aantal</label>
+        <input type="number" id="quantity" name="quantity" value="{{ uitgifte.quantity }}"
+               min="1" step="1" required>
+      </div>
+      <div class="formulier-veld">
+        <label for="date">Datum</label>
+        <input type="date" id="date" name="date"
+               value="{{ uitgifte.date.isoformat() if uitgifte.date else '' }}" required>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primair">Opslaan</button>
+        <a href="/beheer/mutaties?tab=winkel" class="btn btn-secundair">Annuleren</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="kaart" style="margin-top:1rem;border:1px solid #f5c6cb;">
+    <p style="color:#721c24;margin:0 0 .75rem 0;font-size:.9rem;">
+      Verwijderen zet <strong>{{ uitgifte.quantity }} {{ uitgifte.shop_item.unit }}</strong>
+      terug in de voorraad van <strong>{{ uitgifte.shop_item.name }}</strong>.
+    </p>
+    <form method="post" action="/winkel/uitgifte/{{ uitgifte.id }}/delete"
+          onsubmit="return confirm('Uitgifte verwijderen en voorraad terugzetten?')">
+      <button type="submit" class="btn btn-gevaar">Verwijderen &amp; voorraad terugzetten</button>
+    </form>
+  </div>
+
+</main>
+{% endblock %}

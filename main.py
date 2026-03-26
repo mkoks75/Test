@@ -13,6 +13,8 @@ import requests as http_requests
 import bcrypt
 from typing import Optional
 from fastapi import FastAPI, Request, Depends, Form
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -2564,6 +2566,75 @@ async def beheer_geschiedenis(
             .all()
         )
 
+    # Geaggregeerde boerderij voorraad (voor tab=registraties)
+    today = datetime.date.today()
+    voorraad_items = []
+    if active_tab == "registraties":
+        harvest_totalen = (
+            db.query(
+                models.Product.id.label("product_id"),
+                models.Product.name.label("product_naam"),
+                models.Product.unit.label("unit"),
+                models.Location.id.label("location_id"),
+                models.Location.name.label("locatie_naam"),
+                func.sum(models.HarvestEntry.quantity).label("harvest_total"),
+            )
+            .select_from(models.HarvestEntry)
+            .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+            .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+            .group_by(
+                models.Product.id, models.Product.name, models.Product.unit,
+                models.Location.id, models.Location.name,
+            )
+            .all()
+        )
+
+        uitgifte_map = {
+            (r[0], r[1]): (r[2] or 0)
+            for r in db.query(
+                models.Uitgifte.product_id,
+                models.Uitgifte.location_id,
+                func.sum(models.Uitgifte.quantity),
+            )
+            .group_by(models.Uitgifte.product_id, models.Uitgifte.location_id)
+            .all()
+        }
+
+        tht_map = {
+            (r[0], r[1]): r[2]
+            for r in db.query(
+                models.HarvestEntry.product_id,
+                models.HarvestEntry.location_id,
+                func.min(models.HarvestEntry.houdbaar_tot),
+            )
+            .filter(
+                models.HarvestEntry.uitgegeven == False,
+                models.HarvestEntry.houdbaar_tot != None,
+            )
+            .group_by(models.HarvestEntry.product_id, models.HarvestEntry.location_id)
+            .all()
+        }
+
+        for row in harvest_totalen:
+            uitgegeven_totaal = uitgifte_map.get((row.product_id, row.location_id), 0)
+            netto = (row.harvest_total or 0) - uitgegeven_totaal
+            if netto > 0:
+                eenheid = ""
+                product_obj = db.query(models.Product).filter(models.Product.id == row.product_id).first()
+                if product_obj:
+                    eenheid = product_obj.eenheid.naam if product_obj.eenheid else (product_obj.unit or "")
+                voorraad_items.append({
+                    "product_id": row.product_id,
+                    "product_naam": row.product_naam,
+                    "locatie_id": row.location_id,
+                    "locatie_naam": row.locatie_naam,
+                    "voorraad": netto,
+                    "eenheid": eenheid,
+                    "vroegste_tht": tht_map.get((row.product_id, row.location_id)),
+                })
+
+        voorraad_items.sort(key=lambda x: (x["locatie_naam"], x["product_naam"]))
+
     return templates.TemplateResponse(
         "beheer_geschiedenis.html",
         {
@@ -2571,6 +2642,7 @@ async def beheer_geschiedenis(
             "user": user,
             "tab": active_tab,
             "registraties": registraties,
+            "voorraad_items": voorraad_items,
             "products": products,
             "locations": locations,
             "filter_product_id": product_id,
@@ -2584,7 +2656,7 @@ async def beheer_geschiedenis(
             "u_date_to": u_date_to or "",
             "totaal_per_ontvanger": totaal_per_ontvanger,
             "shop_items": shop_items,
-            "today": datetime.date.today(),
+            "today": today,
         },
     )
 
@@ -3968,3 +4040,462 @@ async def api_search(
         "count": len(results),
         "andere": andere,
     })
+
+
+# ── Winkelproduct bewerken (dedicated pagina) ────────────────────────────────────
+
+@app.get("/winkel/{item_id}/edit")
+async def winkel_item_edit(item_id: int, request: Request, db: Session = Depends(get_db),
+                           error: str = None):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return RedirectResponse("/winkel", status_code=302)
+
+    error_msg = None
+    if error == "heeft_uitgiftes":
+        error_msg = "Dit product kan niet worden verwijderd omdat er uitgifte-records aan gekoppeld zijn."
+
+    return templates.TemplateResponse(
+        "winkel_item_edit.html",
+        {"request": request, "user": user, "item": item, "error": error_msg},
+    )
+
+
+@app.post("/winkel/{item_id}/edit")
+async def winkel_item_edit_post(
+    item_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+    brand: str = Form(default=""),
+    quantity_per_unit: float = Form(default=1.0),
+    unit: str = Form(default="stuks"),
+    stock: int = Form(...),
+    houdbaar_tot: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return RedirectResponse("/winkel", status_code=302)
+
+    houdbaar_tot_date = None
+    if houdbaar_tot.strip():
+        try:
+            houdbaar_tot_date = datetime.date.fromisoformat(houdbaar_tot.strip())
+        except ValueError:
+            pass
+
+    item.name = name.strip()
+    item.brand = brand.strip() or None
+    item.quantity_per_unit = quantity_per_unit
+    item.unit = unit.strip() or "stuks"
+    item.stock = max(0, stock)
+    item.houdbaar_tot = houdbaar_tot_date
+    db.commit()
+    return RedirectResponse("/winkel?success=bijgewerkt", status_code=302)
+
+
+@app.post("/winkel/{item_id}/delete")
+async def winkel_item_delete(item_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return RedirectResponse("/winkel", status_code=302)
+
+    if item.stock != 0:
+        return RedirectResponse(f"/winkel/{item_id}/edit?error=stock_niet_nul", status_code=302)
+
+    db.delete(item)
+    db.commit()
+    return RedirectResponse("/winkel?success=verwijderd", status_code=302)
+
+
+# ── Winkel uitgifte bewerken ────────────────────────────────────────────────────
+
+@app.get("/winkel/uitgifte/{uitgifte_id}/edit")
+async def winkel_uitgifte_edit(uitgifte_id: int, request: Request, db: Session = Depends(get_db),
+                                error: str = None):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    uitgifte = db.query(models.ShopUitgifte).filter(
+        models.ShopUitgifte.id == uitgifte_id,
+    ).join(models.ShopItem).filter(
+        models.ShopItem.owner == user,
+    ).first()
+    if not uitgifte:
+        return RedirectResponse("/beheer/mutaties?tab=winkel", status_code=302)
+
+    error_msg = None
+    if error == "onvoldoende_voorraad":
+        error_msg = "Kan niet bewerken: onvoldoende voorraad voor de nieuwe hoeveelheid."
+
+    return templates.TemplateResponse(
+        "winkel_uitgifte_edit.html",
+        {"request": request, "user": user, "uitgifte": uitgifte, "error": error_msg},
+    )
+
+
+@app.post("/winkel/uitgifte/{uitgifte_id}/edit")
+async def winkel_uitgifte_edit_post(
+    uitgifte_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    quantity: int = Form(...),
+    date: str = Form(...),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    uitgifte = db.query(models.ShopUitgifte).filter(
+        models.ShopUitgifte.id == uitgifte_id,
+    ).join(models.ShopItem).filter(
+        models.ShopItem.owner == user,
+    ).first()
+    if not uitgifte:
+        return RedirectResponse("/beheer/mutaties?tab=winkel", status_code=302)
+
+    # Pas stock aan: verschil tussen nieuwe en oude hoeveelheid
+    verschil = quantity - uitgifte.quantity
+    item = uitgifte.shop_item
+    if item.stock - verschil < 0:
+        return RedirectResponse(
+            f"/winkel/uitgifte/{uitgifte_id}/edit?error=onvoldoende_voorraad", status_code=302
+        )
+
+    item.stock -= verschil
+    uitgifte.quantity = quantity
+    try:
+        uitgifte.date = datetime.date.fromisoformat(date)
+    except ValueError:
+        pass
+    db.commit()
+    return RedirectResponse("/beheer/mutaties?tab=winkel", status_code=302)
+
+
+@app.post("/winkel/uitgifte/{uitgifte_id}/delete")
+async def winkel_uitgifte_delete(uitgifte_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    uitgifte = db.query(models.ShopUitgifte).filter(
+        models.ShopUitgifte.id == uitgifte_id,
+    ).join(models.ShopItem).filter(
+        models.ShopItem.owner == user,
+    ).first()
+    if not uitgifte:
+        return RedirectResponse("/beheer/mutaties?tab=winkel", status_code=302)
+
+    # Zet hoeveelheid terug in voorraad
+    uitgifte.shop_item.stock += uitgifte.quantity
+    db.delete(uitgifte)
+    db.commit()
+    return RedirectResponse("/beheer/mutaties?tab=winkel", status_code=302)
+
+
+# ── Beheer: Mutaties logboek ────────────────────────────────────────────────────
+
+@app.get("/beheer/mutaties")
+async def beheer_mutaties(
+    request: Request,
+    db: Session = Depends(get_db),
+    tab: str = "boerderij",
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    active_tab = tab if tab in ("boerderij", "winkel") else "boerderij"
+
+    boerderij_mutaties = []
+    winkel_mutaties = []
+
+    if active_tab == "boerderij":
+        entries = (
+            db.query(models.HarvestEntry)
+            .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+            .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+            .order_by(models.HarvestEntry.date.desc(), models.HarvestEntry.created_at.desc())
+            .all()
+        )
+        for e in entries:
+            eenheid = e.product.eenheid.naam if e.product.eenheid else (e.product.unit or "")
+            boerderij_mutaties.append({
+                "type": "registratie",
+                "datum": e.date,
+                "product": e.product.name,
+                "locatie": e.location.name,
+                "hoeveelheid": e.quantity,
+                "eenheid": eenheid,
+                "ontvanger": None,
+                "tht": e.houdbaar_tot.strftime("%d-%m-%Y") if e.houdbaar_tot else None,
+                "door": e.entered_by,
+                "note": e.note,
+                "id": e.id,
+            })
+
+        uitgiftes = (
+            db.query(models.Uitgifte)
+            .join(models.Product, models.Uitgifte.product_id == models.Product.id)
+            .join(models.Location, models.Uitgifte.location_id == models.Location.id)
+            .order_by(models.Uitgifte.date.desc(), models.Uitgifte.created_at.desc())
+            .all()
+        )
+        for u in uitgiftes:
+            eenheid = u.product.eenheid.naam if u.product.eenheid else (u.product.unit or "")
+            boerderij_mutaties.append({
+                "type": "uitgifte",
+                "datum": u.date,
+                "product": u.product.name,
+                "locatie": u.location.name,
+                "hoeveelheid": u.quantity,
+                "eenheid": eenheid,
+                "ontvanger": u.ontvanger,
+                "tht": None,
+                "door": u.entered_by,
+                "note": u.note,
+                "id": u.id,
+            })
+
+        boerderij_mutaties.sort(key=lambda x: x["datum"], reverse=True)
+
+    else:  # winkel
+        shop_uitgiftes = (
+            db.query(models.ShopUitgifte)
+            .join(models.ShopItem, models.ShopUitgifte.shop_item_id == models.ShopItem.id)
+            .filter(models.ShopItem.owner == user)
+            .order_by(models.ShopUitgifte.date.desc())
+            .all()
+        )
+        for su in shop_uitgiftes:
+            winkel_mutaties.append({
+                "id": su.id,
+                "datum": su.date,
+                "product": su.shop_item.name,
+                "brand": su.shop_item.brand,
+                "hoeveelheid": su.quantity,
+                "eenheid": su.shop_item.unit or "stuks",
+                "door": su.entered_by,
+            })
+
+    return templates.TemplateResponse(
+        "beheer_mutaties.html",
+        {
+            "request": request,
+            "user": user,
+            "tab": active_tab,
+            "boerderij_mutaties": boerderij_mutaties,
+            "winkel_mutaties": winkel_mutaties,
+        },
+    )
+
+
+@app.get("/beheer/mutaties/export/boerderij")
+async def beheer_mutaties_export_boerderij(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    entries = (
+        db.query(models.HarvestEntry)
+        .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+        .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+        .order_by(models.HarvestEntry.date.desc())
+        .all()
+    )
+    uitgiftes = (
+        db.query(models.Uitgifte)
+        .join(models.Product, models.Uitgifte.product_id == models.Product.id)
+        .join(models.Location, models.Uitgifte.location_id == models.Location.id)
+        .order_by(models.Uitgifte.date.desc())
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Datum", "Type", "Product", "Locatie", "Hoeveelheid", "Eenheid", "Ontvanger/THT", "Door", "Notitie"])
+    for e in entries:
+        eenheid = e.product.eenheid.naam if e.product.eenheid else (e.product.unit or "")
+        writer.writerow([e.date, "Registratie", e.product.name, e.location.name, e.quantity, eenheid,
+                         e.houdbaar_tot.isoformat() if e.houdbaar_tot else "", e.entered_by, e.note or ""])
+    for u in uitgiftes:
+        eenheid = u.product.eenheid.naam if u.product.eenheid else (u.product.unit or "")
+        writer.writerow([u.date, "Uitgifte", u.product.name, u.location.name, u.quantity, eenheid,
+                         u.ontvanger, u.entered_by, u.note or ""])
+
+    filename = f"boerderij_mutaties_{datetime.date.today().isoformat()}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/beheer/mutaties/export/winkel")
+async def beheer_mutaties_export_winkel(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    shop_uitgiftes = (
+        db.query(models.ShopUitgifte)
+        .join(models.ShopItem, models.ShopUitgifte.shop_item_id == models.ShopItem.id)
+        .filter(models.ShopItem.owner == user)
+        .order_by(models.ShopUitgifte.date.desc())
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow(["Datum", "Product", "Merk", "Aantal", "Eenheid", "Door"])
+    for su in shop_uitgiftes:
+        writer.writerow([su.date, su.shop_item.name, su.shop_item.brand or "",
+                         su.quantity, su.shop_item.unit or "stuks", su.entered_by])
+
+    filename = f"winkel_mutaties_{datetime.date.today().isoformat()}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ── Dagelijkse email: bijna verlopen producten ──────────────────────────────────
+
+def _stuur_verlopen_email(to_email: str, username: str, items_boerderij: list, items_winkel: list):
+    """Stuur dagelijkse waarschuwingsmail voor producten die binnen 7 dagen verlopen."""
+    if not SMTP_HOST:
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Bijna verlopen producten - MountainSense Farm"
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+
+    regels = [f"Hallo {username},\n", "De volgende producten verlopen binnen 7 dagen:\n"]
+
+    if items_boerderij:
+        regels.append("\nBoerderijproducten:")
+        for item in items_boerderij:
+            tht = item["houdbaar_tot"].strftime("%d-%m-%Y") if item["houdbaar_tot"] else "—"
+            regels.append(f"  - {item['product']} ({item['locatie']}) — THT {tht}")
+
+    if items_winkel:
+        regels.append("\nWinkelproducten:")
+        for item in items_winkel:
+            tht = item["houdbaar_tot"].strftime("%d-%m-%Y") if item["houdbaar_tot"] else "—"
+            regels.append(f"  - {item['name']} — {item['stock']} stuks — THT {tht}")
+
+    regels.append(f"\nBekijk alle bijna verlopen producten op: {APP_URL}/verlopen")
+    regels.append("\nMet vriendelijke groet,\nMountainSense Farm")
+
+    msg.attach(MIMEText("\n".join(regels), "plain", "utf-8"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            if SMTP_USER and SMTP_PASSWORD:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_FROM, to_email, msg.as_string())
+    except Exception as e:
+        logging.error(f"SMTP fout dagelijkse mail ({to_email}): {e}")
+
+
+async def _dagelijkse_verlopen_check():
+    """APScheduler job: stuur per gebruiker een email voor producten die binnen 7 dagen verlopen."""
+    db = database.SessionLocal()
+    try:
+        today = datetime.date.today()
+        cutoff_7 = today + datetime.timedelta(days=7)
+
+        gebruikers = db.query(models.User).filter(models.User.email != None).all()
+        for gebruiker in gebruikers:
+            if not gebruiker.email:
+                continue
+
+            # Boerderij: HarvestEntries die verlopen binnen 7 dagen
+            boerderij_entries = (
+                db.query(models.HarvestEntry)
+                .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+                .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+                .filter(
+                    models.HarvestEntry.entered_by == gebruiker.username,
+                    models.HarvestEntry.uitgegeven == False,
+                    models.HarvestEntry.houdbaar_tot != None,
+                    models.HarvestEntry.houdbaar_tot >= today,
+                    models.HarvestEntry.houdbaar_tot <= cutoff_7,
+                )
+                .all()
+            )
+            items_boerderij = [
+                {
+                    "product": e.product.name,
+                    "locatie": e.location.name,
+                    "houdbaar_tot": e.houdbaar_tot,
+                }
+                for e in boerderij_entries
+            ]
+
+            # Winkel: ShopItems die verlopen binnen 7 dagen
+            winkel_items = (
+                db.query(models.ShopItem)
+                .filter(
+                    models.ShopItem.owner == gebruiker.username,
+                    models.ShopItem.stock > 0,
+                    models.ShopItem.houdbaar_tot != None,
+                    models.ShopItem.houdbaar_tot >= today,
+                    models.ShopItem.houdbaar_tot <= cutoff_7,
+                )
+                .all()
+            )
+            items_winkel = [
+                {
+                    "name": i.name,
+                    "stock": i.stock,
+                    "houdbaar_tot": i.houdbaar_tot,
+                }
+                for i in winkel_items
+            ]
+
+            if items_boerderij or items_winkel:
+                _stuur_verlopen_email(
+                    to_email=gebruiker.email,
+                    username=gebruiker.username,
+                    items_boerderij=items_boerderij,
+                    items_winkel=items_winkel,
+                )
+    finally:
+        db.close()
+
+
+# Start APScheduler
+_scheduler = AsyncIOScheduler(timezone="Europe/Amsterdam")
+_scheduler.add_job(
+    _dagelijkse_verlopen_check,
+    CronTrigger(hour=7, minute=0, timezone="Europe/Amsterdam"),
+    id="dagelijkse_verlopen_check",
+    replace_existing=True,
+)
+_scheduler.start()

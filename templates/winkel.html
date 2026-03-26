@@ -188,18 +188,10 @@
               style="font-size:.8rem;padding:.2rem .5rem;background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.25rem;">
               &minus;1
             </button>
-            <button type="button"
-              onclick="openBewerken({{ item.id }}, {{ item.name|tojson }}, {{ (item.brand or '')|tojson }}, {{ item.stock }}, {{ (item.houdbaar_tot.isoformat() if item.houdbaar_tot else '')|tojson }})"
-              style="font-size:.8rem;padding:.2rem .5rem;background:#f39c12;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.25rem;">
+            <a href="/winkel/{{ item.id }}/edit"
+              style="font-size:.8rem;padding:.2rem .5rem;background:#f39c12;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.25rem;text-decoration:none;display:inline-block;">
               &#9999;
-            </button>
-            {% if item.stock == 0 %}
-            <button type="button"
-              onclick="verwijder({{ item.id }}, '{{ item.name|replace("'", "\\'") }}')"
-              style="font-size:.8rem;padding:.2rem .5rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;">
-              &#10005;
-            </button>
-            {% endif %}
+            </a>
           </td>
         </tr>
         {% endfor %}

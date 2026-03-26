@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Mutaties - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#128203; Mutaties</h1>
+    <p>Logboek van alle boerderij- en winkelregistraties</p>
+  </div>
+</div>
+
+<main>
+  <div class="tabs-nav">
+    <a href="/beheer/mutaties?tab=boerderij"
+       class="tab-knop {% if tab == 'boerderij' %}tab-actief{% endif %}">
+      &#127807; Boerderij
+    </a>
+    <a href="/beheer/mutaties?tab=winkel"
+       class="tab-knop {% if tab == 'winkel' %}tab-actief{% endif %}">
+      &#128722; Winkel
+    </a>
+  </div>
+
+  {% if tab == 'boerderij' %}
+  <!-- ── BOERDERIJ MUTATIES ── -->
+  <div class="kaart">
+    <div class="filter-balk">
+      <div class="veld">
+        <label for="zoek-boerderij">Zoeken</label>
+        <input type="text" id="zoek-boerderij" placeholder="Zoek op product of locatie..."
+               oninput="filterTabel('boerderij', this.value)"
+               style="padding:.45rem .6rem;border:1px solid #ced4da;border-radius:4px;font-size:.9rem;width:240px;">
+      </div>
+      <div class="veld">
+        <label for="type-filter">Type</label>
+        <select id="type-filter" onchange="filterTabel('boerderij', document.getElementById('zoek-boerderij').value)">
+          <option value="">Alle</option>
+          <option value="registratie">Registraties</option>
+          <option value="uitgifte">Uitgiftes</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <a href="/beheer/mutaties/export/boerderij" class="btn btn-secundair btn-klein">Exporteer CSV</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span id="boerderij-count" style="font-size:.9rem;color:#6c757d;">{{ boerderij_mutaties|length }} mutatie(s)</span>
+  </div>
+
+  <div class="kaart" style="padding:0;overflow:hidden;">
+    <table id="tabel-boerderij">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Type</th>
+          <th>Product</th>
+          <th>Locatie</th>
+          <th style="text-align:right;">Hoeveelheid</th>
+          <th>Eenheid</th>
+          <th>Ontvanger / THT</th>
+          <th>Door</th>
+          <th>Notitie</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in boerderij_mutaties %}
+        <tr data-zoek="{{ m.product|lower }} {{ m.locatie|lower }}" data-type="{{ m.type }}">
+          <td>{{ m.datum }}</td>
+          <td>
+            {% if m.type == 'registratie' %}
+              <span style="background:#d4edda;color:#155724;border-radius:10px;padding:.1rem .5rem;font-size:.8rem;">Registratie</span>
+            {% else %}
+              <span style="background:#f8d7da;color:#721c24;border-radius:10px;padding:.1rem .5rem;font-size:.8rem;">Uitgifte</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ m.product }}</strong></td>
+          <td>{{ m.locatie }}</td>
+          <td style="text-align:right;font-weight:600;">{{ "%.2f"|format(m.hoeveelheid) }}</td>
+          <td>{{ m.eenheid }}</td>
+          <td style="font-size:.85rem;color:#6c757d;">
+            {% if m.type == 'uitgifte' %}{{ m.ontvanger or '—' }}
+            {% elif m.tht %}{{ m.tht }}
+            {% else %}<span style="color:#adb5bd;">—</span>{% endif %}
+          </td>
+          <td style="font-size:.85rem;">{{ m.door }}</td>
+          <td style="font-size:.85rem;color:#6c757d;">{{ m.note or '' }}</td>
+          <td style="white-space:nowrap;">
+            {% if m.type == 'registratie' %}
+              <a href="/harvest/label/{{ m.id }}" class="btn btn-secundair btn-klein" style="margin-right:4px;">&#128438; Label</a>
+              <a href="/harvest/edit/{{ m.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+            {% else %}
+              <a href="/beheer/uitgifte/edit/{{ m.id }}" class="btn btn-secundair btn-klein">Bewerken</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="geen-data">Geen mutaties gevonden.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% elif tab == 'winkel' %}
+  <!-- ── WINKEL MUTATIES ── -->
+  <div class="kaart">
+    <div class="filter-balk">
+      <div class="veld">
+        <label for="zoek-winkel">Zoeken</label>
+        <input type="text" id="zoek-winkel" placeholder="Zoek op productnaam..."
+               oninput="filterTabel('winkel', this.value)"
+               style="padding:.45rem .6rem;border:1px solid #ced4da;border-radius:4px;font-size:.9rem;width:240px;">
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <a href="/beheer/mutaties/export/winkel" class="btn btn-secundair btn-klein">Exporteer CSV</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span id="winkel-count" style="font-size:.9rem;color:#6c757d;">{{ winkel_mutaties|length }} uitgifte(s)</span>
+  </div>
+
+  <div class="kaart" style="padding:0;overflow:hidden;">
+    <table id="tabel-winkel">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Product</th>
+          <th>Merk</th>
+          <th style="text-align:right;">Aantal</th>
+          <th>Eenheid</th>
+          <th>Door</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in winkel_mutaties %}
+        <tr data-zoek="{{ m.product|lower }}">
+          <td>{{ m.datum }}</td>
+          <td><strong>{{ m.product }}</strong></td>
+          <td style="color:#6c757d;font-size:.85rem;">{{ m.brand or '—' }}</td>
+          <td style="text-align:right;font-weight:600;">{{ m.hoeveelheid }}</td>
+          <td>{{ m.eenheid }}</td>
+          <td style="font-size:.85rem;">{{ m.door }}</td>
+          <td>
+            <a href="/winkel/uitgifte/{{ m.id }}/edit" class="btn btn-secundair btn-klein">Bewerken</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="geen-data">Geen winkel uitgiftes gevonden.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function filterTabel(type, q) {
+  var tableId = 'tabel-' + type;
+  var countId = type + '-count';
+  var tabel = document.getElementById(tableId);
+  var typeFilter = document.getElementById('type-filter');
+  var typeVal = typeFilter ? typeFilter.value : '';
+  q = (q || '').toLowerCase().trim();
+
+  var rijen = tabel ? tabel.querySelectorAll('tbody tr[data-zoek]') : [];
+  var zichtbaar = 0;
+  rijen.forEach(function(rij) {
+    var tekst = rij.getAttribute('data-zoek') || '';
+    var rijType = rij.getAttribute('data-type') || '';
+    var zoekMatch = !q || tekst.indexOf(q) !== -1;
+    var typeMatch = !typeVal || rijType === typeVal;
+    var toon = zoekMatch && typeMatch;
+    rij.style.display = toon ? '' : 'none';
+    if (toon) zichtbaar++;
+  });
+
+  var countEl = document.getElementById(countId);
+  if (countEl) countEl.textContent = zichtbaar + ' ' + (type === 'winkel' ? 'uitgifte(s)' : 'mutatie(s)');
+}
+</script>
+{% endblock %}
