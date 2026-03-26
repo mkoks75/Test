@@ -17,13 +17,6 @@ jobs:
           script: |
             cd ~/project-maarten
             /usr/local/bin/docker-compose down || true
-            sleep 3
-            sudo -n /usr/bin/systemctl restart docker && echo "Docker herstart OK" || echo "Docker herstart MISLUKT"
-            sleep 10
-            sleep 5
             git pull origin main
             /usr/local/bin/docker-compose build
-            sudo fuser -k 8000/tcp || true
-            sleep 2
-            sudo fuser -k 8000/tcp || true
             /usr/local/bin/docker-compose up -d
