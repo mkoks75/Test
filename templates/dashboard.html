@@ -20,6 +20,12 @@
       <button type="button" class="zoekbalk-btn" onclick="voerZoekUit()">Zoeken</button>
       <div id="zoek-suggesties" class="zoek-suggesties-dropdown" style="display:none;"></div>
     </div>
+    <!-- Filter tags -->
+    <div id="zoek-filters" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
+      <button type="button" class="zoek-tag actief" data-source="boerderij" onclick="toggleTag(this)">&#127807; Boerderij</button>
+      <button type="button" class="zoek-tag actief" data-source="eigen" onclick="toggleTag(this)">&#128722; Mijn winkel</button>
+      <button type="button" class="zoek-tag" data-source="andere" onclick="toggleTag(this)">&#128722; Winkel {% if user == 'maarten' %}Hinke{% elif user == 'hinke' %}Maarten{% else %}andere gebruiker{% endif %}</button>
+    </div>
     <div id="zoek-resultaten" class="zoek-resultaten-inline" style="display:none;"></div>
   </div>
 
@@ -270,6 +276,39 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<style>
+.zoek-tag {
+  padding: .3rem .75rem;
+  border-radius: 20px;
+  border: 1px solid #ced4da;
+  background: #e9ecef;
+  color: #6c757d;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.zoek-tag.actief {
+  background: #2D6A4F;
+  color: #fff;
+  border-color: #2D6A4F;
+}
+.zoek-tag[data-source="eigen"].actief,
+.zoek-tag[data-source="andere"].actief {
+  background: #2980b9;
+  border-color: #2980b9;
+}
+.badge-bron {
+  display: inline-block;
+  padding: .1rem .45rem;
+  border-radius: 10px;
+  font-size: .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-boerderij { background: #d4edda; color: #155724; }
+.badge-eigen     { background: #cce5ff; color: #004085; }
+.badge-andere    { background: #e2e3e5; color: #383d41; }
+</style>
 <script>
 (function() {
   var input = document.getElementById('zoek-input');
@@ -279,8 +318,21 @@
   var suggestiesTimer = null;
 
   function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+
+  function getActieveSources() {
+    var actief = [];
+    document.querySelectorAll('.zoek-tag.actief').forEach(function(btn) {
+      actief.push(btn.getAttribute('data-source'));
+    });
+    return actief.join(',');
+  }
+
+  window.toggleTag = function(btn) {
+    btn.classList.toggle('actief');
+    zoekLive(input.value.trim());
+  };
 
   // ── Autocomplete suggesties ──────────────────────────────────
   function toonSuggesties(suggesties) {
@@ -297,10 +349,7 @@
   }
 
   function laadSuggesties(q) {
-    if (!q || q.length < 2) {
-      suggestiesDiv.style.display = 'none';
-      return;
-    }
+    if (!q || q.length < 2) { suggestiesDiv.style.display = 'none'; return; }
     fetch('/zoek/suggesties?q=' + encodeURIComponent(q))
       .then(function(r) { return r.json(); })
       .then(function(data) { toonSuggesties(data.suggesties); })
@@ -308,45 +357,54 @@
   }
 
   // ── Live zoekresultaten ─────────────────────────────────────
+  function bronBadge(bron, andereNaam) {
+    if (bron === 'boerderij') return '<span class="badge-bron badge-boerderij">&#127807; Boerderij</span>';
+    if (bron === 'eigen')     return '<span class="badge-bron badge-eigen">&#128722; Mijn winkel</span>';
+    return '<span class="badge-bron badge-andere">&#128722; Winkel ' + escHtml(andereNaam) + '</span>';
+  }
+
   function renderResultaten(data) {
-    if (!data.q || data.q.length < 2) {
-      resultDiv.style.display = 'none';
-      return;
-    }
+    if (!data.q || data.q.length < 2) { resultDiv.style.display = 'none'; return; }
     var html = '';
     if (data.count === 0) {
       html = '<p class="zoek-geen">Geen voorraad gevonden voor &ldquo;' + escHtml(data.q) + '&rdquo;</p>';
     } else {
-      html += '<p class="zoek-telling"><strong>' + data.count + ' stuks ' + escHtml(data.q) + '</strong> gevonden in voorraad</p>';
+      var andereNaam = (data.andere || 'andere');
+      andereNaam = andereNaam.charAt(0).toUpperCase() + andereNaam.slice(1);
+      html += '<p class="zoek-telling"><strong>' + data.count + '</strong> resultaten gevonden</p>';
       html += '<div class="zoek-tabel-wrap"><table class="zoek-tabel"><thead><tr>';
-      html += '<th>ID</th><th>Product</th><th>Locatie</th><th>Hoeveelheid</th><th>Houdbaar tot</th><th>Status</th><th></th>';
+      html += '<th>Product</th><th>Hoeveelheid</th><th>Houdbaar tot</th><th>Bron</th><th></th>';
       html += '</tr></thead><tbody>';
       data.results.forEach(function(r) {
-        var houdAttr = r.kort_houdbaar ? ' style="color:var(--rood);font-weight:600;"' : (!r.houdbaar_tot ? ' style="color:#adb5bd;"' : '');
-        var houdTekst = r.houdbaar_tot_display ? r.houdbaar_tot_display : '&mdash;';
+        var houdStijl = r.kort_houdbaar ? ' style="color:var(--rood,#c0392b);font-weight:600;"' : (r.houdbaar_tot ? '' : ' style="color:#adb5bd;"');
+        var houdTekst = r.houdbaar_tot || '&mdash;';
+        var hoeveelheid = r.hoeveelheid + '\u00a0' + escHtml(r.eenheid);
+        var actieKnop = '';
+        if (r.bron === 'boerderij' && r.scan_id) {
+          actieKnop = '<a href="/scan/' + r.scan_id + '" class="btn-uitgeven-klein">Uitgeven</a>';
+        } else if (r.bron === 'eigen') {
+          actieKnop = '<a href="/winkel" class="btn-uitgeven-klein">Bekijken</a>';
+        }
         html += '<tr>';
-        html += '<td style="color:#6c757d;font-size:.85rem;">' + r.id + '</td>';
-        html += '<td>' + escHtml(r.product) + '</td>';
-        html += '<td>' + escHtml(r.locatie) + '</td>';
-        html += '<td>' + r.quantity + '\u00a0' + escHtml(r.eenheid) + '</td>';
-        html += '<td' + houdAttr + '>' + houdTekst + '</td>';
-        html += '<td><span class="badge-beschikbaar">Beschikbaar</span></td>';
-        html += '<td><a href="/scan/' + r.id + '" class="btn-uitgeven-klein">Uitgeven</a></td>';
+        html += '<td><strong>' + escHtml(r.naam) + '</strong>' + (r.locatie ? '<br><span style="font-size:.8rem;color:#6c757d;">' + escHtml(r.locatie) + '</span>' : '') + '</td>';
+        html += '<td>' + hoeveelheid + '</td>';
+        html += '<td' + houdStijl + '>' + houdTekst + '</td>';
+        html += '<td>' + bronBadge(r.bron, andereNaam) + '</td>';
+        html += '<td>' + actieKnop + '</td>';
         html += '</tr>';
       });
       html += '</tbody></table></div>';
-      html += '<div class="zoek-meer"><a href="/zoek?q=' + encodeURIComponent(data.q) + '">Bekijk als volledige pagina &rarr;</a></div>';
+      html += '<div class="zoek-meer"><a href="/zoek?q=' + encodeURIComponent(data.q) + '">Boerderij volledige pagina &rarr;</a></div>';
     }
     resultDiv.innerHTML = html;
     resultDiv.style.display = 'block';
   }
 
   function zoekLive(q) {
-    if (!q || q.length < 2) {
-      resultDiv.style.display = 'none';
-      return;
-    }
-    fetch('/zoek?q=' + encodeURIComponent(q) + '&format=json')
+    if (!q || q.length < 2) { resultDiv.style.display = 'none'; return; }
+    var sources = getActieveSources();
+    if (!sources) { resultDiv.style.display = 'none'; return; }
+    fetch('/api/search?q=' + encodeURIComponent(q) + '&sources=' + encodeURIComponent(sources))
       .then(function(r) { return r.json(); })
       .then(function(data) { renderResultaten(data); })
       .catch(function() {});
@@ -362,13 +420,8 @@
     });
 
     input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        suggestiesDiv.style.display = 'none';
-        voerZoekUit();
-      }
-      if (e.key === 'Escape') {
-        suggestiesDiv.style.display = 'none';
-      }
+      if (e.key === 'Enter') { suggestiesDiv.style.display = 'none'; voerZoekUit(); }
+      if (e.key === 'Escape') { suggestiesDiv.style.display = 'none'; }
     });
   }
 
@@ -381,18 +434,14 @@
 })();
 
 function kiesSuggestie(naam) {
-  var input = document.getElementById('zoek-input');
-  var suggestiesDiv = document.getElementById('zoek-suggesties');
-  input.value = naam;
-  suggestiesDiv.style.display = 'none';
+  document.getElementById('zoek-input').value = naam;
+  document.getElementById('zoek-suggesties').style.display = 'none';
   window.location.href = '/zoek?q=' + encodeURIComponent(naam);
 }
 
 function voerZoekUit() {
   var q = document.getElementById('zoek-input').value.trim();
-  if (q.length >= 2) {
-    window.location.href = '/zoek?q=' + encodeURIComponent(q);
-  }
+  if (q.length >= 2) window.location.href = '/zoek?q=' + encodeURIComponent(q);
 }
 </script>
 {% endblock %}

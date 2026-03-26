@@ -3830,3 +3830,93 @@ async def api_shop_search(request: Request, db: Session = Depends(get_db), q: st
         "owner": i.owner,
         "image_url": i.image_url,
     } for i in items])
+
+
+# ── API: Gecombineerd zoeken (dashboard) ────────────────────────────────────────
+
+@app.get("/api/search")
+async def api_search(
+    request: Request,
+    db: Session = Depends(get_db),
+    q: str = "",
+    sources: str = "boerderij,eigen",
+):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    if not q or len(q) < 2:
+        return JSONResponse({"results": [], "q": q, "count": 0})
+
+    sources_list = [s.strip() for s in sources.split(",") if s.strip()]
+    today = datetime.date.today()
+    cutoff = today + datetime.timedelta(days=30)
+    andere = "hinke" if user.lower() == "maarten" else "maarten"
+    results = []
+
+    if "boerderij" in sources_list:
+        entries = (
+            db.query(models.HarvestEntry)
+            .join(models.Product, models.HarvestEntry.product_id == models.Product.id)
+            .join(models.Location, models.HarvestEntry.location_id == models.Location.id)
+            .filter(models.HarvestEntry.uitgegeven == False)
+            .filter(func.lower(models.Product.name).contains(q.lower()))
+            .order_by(
+                (models.HarvestEntry.houdbaar_tot == None).asc(),
+                models.HarvestEntry.houdbaar_tot.asc(),
+            )
+            .limit(20)
+            .all()
+        )
+        for e in entries:
+            eenheid = e.product.eenheid.naam if e.product.eenheid else (e.product.unit or "")
+            results.append({
+                "bron": "boerderij",
+                "id": e.id,
+                "naam": e.product.name,
+                "hoeveelheid": e.quantity,
+                "eenheid": eenheid,
+                "locatie": e.location.name,
+                "houdbaar_tot": e.houdbaar_tot.strftime("%d-%m-%Y") if e.houdbaar_tot else None,
+                "kort_houdbaar": bool(e.houdbaar_tot and e.houdbaar_tot <= cutoff),
+                "stock": None,
+                "scan_id": e.id,
+            })
+
+    for bron, owner in [("eigen", user), ("andere", andere)]:
+        if bron not in sources_list:
+            continue
+        items = (
+            db.query(models.ShopItem)
+            .filter(models.ShopItem.owner == owner)
+            .filter(
+                func.lower(models.ShopItem.name).contains(q.lower())
+                | func.lower(func.coalesce(models.ShopItem.brand, "")).contains(q.lower())
+            )
+            .order_by(
+                (models.ShopItem.houdbaar_tot == None).asc(),
+                models.ShopItem.houdbaar_tot.asc(),
+            )
+            .limit(20)
+            .all()
+        )
+        for i in items:
+            results.append({
+                "bron": bron,
+                "id": i.id,
+                "naam": i.name,
+                "hoeveelheid": i.stock,
+                "eenheid": i.unit or "stuks",
+                "locatie": None,
+                "houdbaar_tot": i.houdbaar_tot.strftime("%d-%m-%Y") if i.houdbaar_tot else None,
+                "kort_houdbaar": bool(i.houdbaar_tot and i.houdbaar_tot <= cutoff),
+                "stock": i.stock,
+                "scan_id": None,
+            })
+
+    return JSONResponse({
+        "results": results,
+        "q": q,
+        "count": len(results),
+        "andere": andere,
+    })
