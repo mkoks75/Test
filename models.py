@@ -152,6 +152,39 @@ class ShopItem(Base):
     houdbaar_tot = Column(Date, nullable=True)
     date_added = Column(Date, default=datetime.date.today)
     entered_by = Column(String, nullable=False)
+    categorie = Column(String, nullable=True)
+    is_deelbaar = Column(Boolean, default=False, nullable=False)
+    opslag_in_container = Column(Boolean, default=False, nullable=False)
+    niveau_stap = Column(String, default="vol", nullable=True)
+    niveau_hoeveelheid = Column(Float, nullable=True)
+
+    niveau_logs = relationship("NiveauLog", back_populates="shop_item")
+    containers = relationship("Container", back_populates="shop_item")
+
+
+class NiveauLog(Base):
+    __tablename__ = "niveau_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    shop_item_id = Column(Integer, ForeignKey("shop_items.id"), nullable=False)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    niveau_stap = Column(String, nullable=False)
+    niveau_hoeveelheid = Column(Float, nullable=True)
+    gewijzigd_door = Column(String, nullable=False)
+
+    shop_item = relationship("ShopItem", back_populates="niveau_logs")
+
+
+class Container(Base):
+    __tablename__ = "containers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    naam = Column(String, nullable=False)
+    qr_code = Column(String, nullable=False, unique=True, index=True)
+    shop_item_id = Column(Integer, ForeignKey("shop_items.id"), nullable=False)
+    notitie = Column(String, nullable=True)
+
+    shop_item = relationship("ShopItem", back_populates="containers")
 
 
 class ShopUitgifte(Base):

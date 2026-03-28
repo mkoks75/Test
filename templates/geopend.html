@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Geopend - MountainSense Farm{% endblock %}
+
+{% macro niveau_blokjes(stap) %}
+  {% if stap == 'vol' %}
+    <span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;&#9632;</span>
+  {% elif stap == 'bijna_vol' %}
+    <span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;</span>
+  {% elif stap == 'half' %}
+    <span style="color:#27ae60;">&#9632;&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;</span>
+  {% elif stap == 'bijna_leeg' %}
+    <span style="color:#e67e22;">&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;&#9632;</span>
+  {% elif stap == 'leeg' %}
+    <span style="color:#e74c3c;">&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;&#9632;&#9632;</span>
+  {% else %}
+    <span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;&#9632;</span>
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#128194; Geopend</h1>
+    <p>Aangebroken producten — niveau bijhouden</p>
+  </div>
+</div>
+
+<main>
+
+{% if not per_categorie %}
+<div class="kaart" style="text-align:center;padding:2rem;color:#6c757d;">
+  Geen aangebroken producten. Markeer producten als "deelbaar" in de winkelvoorraad om ze hier bij te houden.
+</div>
+{% endif %}
+
+{% for categorie, items in per_categorie.items() %}
+<div class="kaart" style="margin-bottom:1.25rem;">
+  <h2 style="font-size:.9rem;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;margin-bottom:1rem;border-bottom:1px solid #dee2e6;padding-bottom:.5rem;">
+    {{ categorie }}
+  </h2>
+  {% for item in items %}
+  {% set container = containers_map.get(item.id) %}
+  <div style="padding:.75rem 0;{% if not loop.last %}border-bottom:1px solid #f1f3f5;{% endif %}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.5rem;">
+      <div>
+        <div style="font-weight:600;font-size:1rem;">{{ item.name }}</div>
+        {% if item.brand %}<div style="color:#6c757d;font-size:.85rem;">{{ item.brand }}</div>{% endif %}
+        {% if item.categorie %}
+        <span style="background:#e9ecef;border-radius:10px;padding:.1rem .45rem;font-size:.75rem;">{{ item.categorie }}</span>
+        {% endif %}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;">
+        <span class="niveau-blokjes-geopend" data-id="{{ item.id }}" data-niveau="{{ item.niveau_stap or 'vol' }}" data-unit="{{ item.unit }}"
+              style="cursor:pointer;font-size:1.2rem;" title="Klik om niveau aan te passen">
+          {{ niveau_blokjes(item.niveau_stap or 'vol') }}
+        </span>
+        {% if item.niveau_hoeveelheid %}
+        <span style="font-size:.8rem;color:#6c757d;">Nog ca. {{ item.niveau_hoeveelheid }}{{ item.unit }}</span>
+        {% endif %}
+        {% if item.houdbaar_tot %}
+        <span style="font-size:.8rem;color:#6c757d;">THT {{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Container info -->
+    {% if item.opslag_in_container %}
+    <div style="margin-top:.5rem;">
+      {% if container %}
+      <span style="background:#d4edda;color:#155724;border-radius:10px;padding:.2rem .6rem;font-size:.8rem;">
+        &#127991; {{ container.naam }} &mdash; {{ item.name }}
+      </span>
+      {% else %}
+      <span style="background:#fff3cd;color:#856404;border-radius:10px;padding:.2rem .6rem;font-size:.8rem;">
+        &#9888; Nog geen container gekoppeld
+      </span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Acties -->
+    <div style="margin-top:.5rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+      <button type="button" onclick="geopendBijvullen({{ item.id }}, '{{ item.name|replace("'", "\\'") }}')"
+              style="font-size:.8rem;padding:.25rem .6rem;background:#2980b9;color:#fff;border:none;border-radius:4px;cursor:pointer;">
+        &#9654; Bijvullen
+      </button>
+      <a href="/winkel/{{ item.id }}/edit"
+         style="font-size:.8rem;padding:.25rem .6rem;background:#f39c12;color:#fff;border-radius:4px;text-decoration:none;display:inline-block;">
+        &#9999; Bewerken
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+<!-- Niveau popover -->
+<div id="niveau-popover-g" style="display:none;position:fixed;z-index:2000;background:#fff;border:1px solid #dee2e6;border-radius:8px;padding:1rem;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:220px;">
+  <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem;">Niveau aanpassen</div>
+  <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem;" id="npg-stappen"></div>
+  <div style="margin-bottom:.75rem;">
+    <label style="font-size:.8rem;color:#6c757d;">Nog ca. (optioneel)</label>
+    <div style="display:flex;gap:.3rem;align-items:center;">
+      <input type="number" id="npg-hoeveelheid" min="0" step="any" placeholder="bijv. 150"
+             style="width:80px;padding:.3rem .4rem;border:1px solid #ced4da;border-radius:4px;font-size:.9rem;">
+      <span id="npg-eenheid" style="font-size:.85rem;color:#6c757d;"></span>
+    </div>
+  </div>
+  <div style="display:flex;gap:.5rem;">
+    <button type="button" onclick="npgOpslaan()"
+            style="background:#27ae60;color:#fff;border:none;padding:.35rem .75rem;border-radius:4px;cursor:pointer;font-size:.85rem;">Opslaan</button>
+    <button type="button" onclick="npgSluiten()"
+            style="background:#f8f9fa;border:1px solid #dee2e6;padding:.35rem .75rem;border-radius:4px;cursor:pointer;font-size:.85rem;">Annuleren</button>
+  </div>
+</div>
+
+<!-- Bijvullen modal -->
+<div id="bijvullen-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1500;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:1.5rem;width:min(400px,95vw);">
+    <h3 style="margin-bottom:1rem;font-size:1rem;">&#9654; Bijvullen — <span id="bv-naam"></span></h3>
+    <div style="margin-bottom:1rem;">
+      <label style="font-size:.85rem;font-weight:500;">Nieuwe THT datum</label>
+      <input type="date" id="bv-tht" style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;margin-top:.25rem;">
+    </div>
+    <p style="font-size:.85rem;color:#6c757d;margin-bottom:1rem;">Niveau wordt automatisch teruggezet op "vol".</p>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+      <button type="button" onclick="document.getElementById('bijvullen-modal').style.display='none'"
+              style="padding:.4rem .8rem;border:1px solid #ced4da;background:#fff;border-radius:4px;cursor:pointer;">Annuleren</button>
+      <button type="button" onclick="bijvullenBevestigen()"
+              style="padding:.4rem .8rem;background:#2980b9;color:#fff;border:none;border-radius:4px;cursor:pointer;">Bijvullen</button>
+    </div>
+  </div>
+</div>
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  'use strict';
+
+  var _npgId = null;
+  var _npgStap = null;
+  var _labels = { vol: 'Vol', bijna_vol: 'Bijna vol', half: 'Half', bijna_leeg: 'Bijna leeg', leeg: 'Leeg' };
+  var _kleuren = { vol: '#27ae60', bijna_vol: '#27ae60', half: '#27ae60', bijna_leeg: '#e67e22', leeg: '#e74c3c' };
+
+  document.querySelectorAll('.niveau-blokjes-geopend').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      _npgId = parseInt(el.dataset.id);
+      _npgStap = el.dataset.niveau || 'vol';
+      var eenheid = el.dataset.unit || '';
+      document.getElementById('npg-eenheid').textContent = eenheid;
+      document.getElementById('npg-hoeveelheid').value = '';
+
+      var stappen = ['vol', 'bijna_vol', 'half', 'bijna_leeg', 'leeg'];
+      var container = document.getElementById('npg-stappen');
+      container.innerHTML = '';
+      stappen.forEach(function(s) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.title = _labels[s];
+        var sel = s === _npgStap;
+        btn.style.cssText = 'border:2px solid ' + (sel ? _kleuren[s] : '#dee2e6') + ';background:' + (sel ? _kleuren[s] : '#f8f9fa') + ';color:' + (sel ? '#fff' : '#6c757d') + ';border-radius:4px;padding:.25rem .4rem;cursor:pointer;font-size:.75rem;';
+        btn.textContent = _labels[s];
+        btn.dataset.stap = s;
+        btn.addEventListener('click', function() {
+          _npgStap = s;
+          container.querySelectorAll('button').forEach(function(b) {
+            var isS = b.dataset.stap === s;
+            b.style.borderColor = isS ? _kleuren[s] : '#dee2e6';
+            b.style.background = isS ? _kleuren[s] : '#f8f9fa';
+            b.style.color = isS ? '#fff' : '#6c757d';
+          });
+        });
+        container.appendChild(btn);
+      });
+
+      var popover = document.getElementById('niveau-popover-g');
+      var rect = el.getBoundingClientRect();
+      popover.style.display = 'block';
+      popover.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+      popover.style.left = rect.left + window.scrollX + 'px';
+    });
+  });
+
+  window.npgSluiten = function() {
+    document.getElementById('niveau-popover-g').style.display = 'none';
+  };
+
+  window.npgOpslaan = function() {
+    if (!_npgId || !_npgStap) return;
+    var h = document.getElementById('npg-hoeveelheid').value;
+    fetch('/api/shop/items/' + _npgId + '/niveau', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ niveau_stap: _npgStap, niveau_hoeveelheid: h ? parseFloat(h) : null }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (d.succes) window.location.reload(); else alert(d.error || 'Fout'); })
+      .catch(function() { alert('Netwerkfout'); });
+  };
+
+  document.addEventListener('click', function(e) {
+    var p = document.getElementById('niveau-popover-g');
+    if (p && p.style.display !== 'none' && !p.contains(e.target)) npgSluiten();
+  });
+
+  var _bvId = null;
+  window.geopendBijvullen = function(id, naam) {
+    _bvId = id;
+    document.getElementById('bv-naam').textContent = naam;
+    document.getElementById('bv-tht').value = '';
+    var modal = document.getElementById('bijvullen-modal');
+    modal.style.display = 'flex';
+  };
+
+  window.bijvullenBevestigen = function() {
+    if (!_bvId) return;
+    var tht = document.getElementById('bv-tht').value;
+    fetch('/api/shop/items/' + _bvId + '/bijvullen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ houdbaar_tot: tht || null }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.succes) window.location.reload();
+        else alert(d.error || 'Fout bij bijvullen');
+      })
+      .catch(function() { alert('Netwerkfout'); });
+  };
+})();
+</script>
+{% endblock %}

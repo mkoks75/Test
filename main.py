@@ -27,6 +27,8 @@ from database import get_db
 from auth import get_current_user, authenticate_user, create_access_token
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, USERS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, APP_URL
 
+NIVEAU_VOLGORDE = ["vol", "bijna_vol", "half", "bijna_leeg", "leeg"]
+
 # Maak database tabellen aan
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -106,12 +108,51 @@ async def startup():
         except Exception:
             pass
 
-        # Voeg minimum_stock kolom toe aan shop_items indien ontbreekt
+        # Voeg nieuwe kolommen toe aan shop_items indien ontbreekt
         try:
             pragma_shop = conn.execute(text("PRAGMA table_info(shop_items)")).fetchall()
             shop_col_names = [row[1] for row in pragma_shop]
-            if "minimum_stock" not in shop_col_names:
-                conn.execute(text("ALTER TABLE shop_items ADD COLUMN minimum_stock INTEGER"))
+            for col, definition in [
+                ("minimum_stock", "INTEGER"),
+                ("categorie", "TEXT"),
+                ("is_deelbaar", "BOOLEAN DEFAULT 0"),
+                ("opslag_in_container", "BOOLEAN DEFAULT 0"),
+                ("niveau_stap", "TEXT DEFAULT 'vol'"),
+                ("niveau_hoeveelheid", "REAL"),
+            ]:
+                if col not in shop_col_names:
+                    conn.execute(text(f"ALTER TABLE shop_items ADD COLUMN {col} {definition}"))
+            conn.commit()
+        except Exception:
+            pass
+
+        # Maak niveau_logs tabel aan
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS niveau_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    shop_item_id INTEGER NOT NULL REFERENCES shop_items(id),
+                    timestamp DATETIME,
+                    niveau_stap TEXT NOT NULL,
+                    niveau_hoeveelheid REAL,
+                    gewijzigd_door TEXT NOT NULL
+                )
+            """))
+            conn.commit()
+        except Exception:
+            pass
+
+        # Maak containers tabel aan
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS containers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    naam TEXT NOT NULL,
+                    qr_code TEXT NOT NULL UNIQUE,
+                    shop_item_id INTEGER NOT NULL REFERENCES shop_items(id),
+                    notitie TEXT
+                )
+            """))
             conn.commit()
         except Exception:
             pass
@@ -553,6 +594,37 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
                 "owner": _item.owner,
             })
 
+    # Geopende producten: deelbaar met niveau bijna_leeg of leeg (voor dashboard waarschuwing)
+    geopend_kritiek = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.is_deelbaar == True,
+            models.ShopItem.niveau_stap.in_(["bijna_leeg", "leeg"]),
+        )
+        .order_by(models.ShopItem.name.asc())
+        .all()
+    )
+
+    # Container-producten zonder gekoppelde container
+    container_producten_zonder = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.opslag_in_container == True,
+        )
+        .all()
+    )
+    container_ids_gebruikt = {
+        c.shop_item_id for c in db.query(models.Container).join(models.ShopItem).filter(
+            models.ShopItem.owner == user
+        ).all()
+    }
+    geopend_zonder_container = [
+        p for p in container_producten_zonder
+        if p.id not in container_ids_gebruikt
+    ]
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -567,6 +639,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "voorraad_totaal": voorraad_totaal,
             "shop_bijna_verlopen": shop_bijna_verlopen,
             "shop_bijna_op": shop_bijna_op,
+            "geopend_kritiek": geopend_kritiek,
+            "geopend_zonder_container": geopend_zonder_container,
             "stats": {
                 "total_producten": total_producten,
                 "total_locaties": total_locaties,
@@ -3720,6 +3794,26 @@ async def winkel(request: Request, db: Session = Depends(get_db), success: str =
             "weken_voorraad": weken_voorraad,
         }
 
+    # Categorieën voor autocomplete (vaste lijst + eerder gebruikte eigen categorieën)
+    vaste_categorieen = ["Conserven", "Kruiden & specerijen", "Olie & azijn", "Sauzen & pasta",
+                         "Droge opslag", "Zuivel", "Diepvries", "Dranken", "Overig"]
+    eigen_categorieen = [
+        row[0] for row in
+        db.query(models.ShopItem.categorie).filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.categorie != None,
+        ).distinct().all()
+        if row[0] and row[0] not in vaste_categorieen
+    ]
+    alle_categorieen = vaste_categorieen + eigen_categorieen
+
+    # Containers gekoppeld aan deelbare producten van deze gebruiker
+    containers_map = {}
+    for c in db.query(models.Container).join(models.ShopItem).filter(
+        models.ShopItem.owner == user
+    ).all():
+        containers_map[c.shop_item_id] = c
+
     return templates.TemplateResponse(
         "winkel.html",
         {
@@ -3731,6 +3825,8 @@ async def winkel(request: Request, db: Session = Depends(get_db), success: str =
             "error": error,
             "auto_scan": bool(scan),
             "verbruik_map": verbruik_map,
+            "alle_categorieen": alle_categorieen,
+            "containers_map": containers_map,
         },
     )
 
@@ -3853,6 +3949,11 @@ async def api_shop_item_toevoegen(request: Request, db: Session = Depends(get_db
     quantity_per_unit = float(body.get("quantity_per_unit", 1) or 1)
     unit = str(body.get("unit") or "stuks")
     image_url = body.get("image_url") or None
+    categorie = str(body.get("categorie") or "").strip() or None
+    is_deelbaar = bool(body.get("is_deelbaar", False))
+    opslag_in_container = bool(body.get("opslag_in_container", False))
+    if opslag_in_container and not categorie:
+        categorie = "Droge opslag"
     houdbaar_tot = None
     if body.get("houdbaar_tot"):
         try:
@@ -3884,6 +3985,9 @@ async def api_shop_item_toevoegen(request: Request, db: Session = Depends(get_db
         houdbaar_tot=houdbaar_tot,
         date_added=datetime.date.today(),
         entered_by=user,
+        categorie=categorie,
+        is_deelbaar=is_deelbaar,
+        opslag_in_container=opslag_in_container,
     )
     db.add(item)
     db.commit()
@@ -3932,6 +4036,16 @@ async def api_shop_item_bewerken(item_id: int, request: Request, db: Session = D
     if "minimum_stock" in body:
         val = body["minimum_stock"]
         item.minimum_stock = int(val) if val is not None and val != "" else None
+    if "categorie" in body:
+        item.categorie = str(body["categorie"]).strip() or None
+    if "is_deelbaar" in body:
+        item.is_deelbaar = bool(body["is_deelbaar"])
+    if "opslag_in_container" in body:
+        item.opslag_in_container = bool(body["opslag_in_container"])
+    if "niveau_stap" in body:
+        stap = body["niveau_stap"]
+        if stap in NIVEAU_VOLGORDE:
+            item.niveau_stap = stap
 
     db.commit()
     return JSONResponse({"succes": True})
@@ -4344,9 +4458,22 @@ async def winkel_item_edit(item_id: int, request: Request, db: Session = Depends
     if error == "heeft_uitgiftes":
         error_msg = "Dit product kan niet worden verwijderd omdat er uitgifte-records aan gekoppeld zijn."
 
+    vaste_categorieen = ["Conserven", "Kruiden & specerijen", "Olie & azijn", "Sauzen & pasta",
+                         "Droge opslag", "Zuivel", "Diepvries", "Dranken", "Overig"]
+    eigen_categorieen = [
+        row[0] for row in
+        db.query(models.ShopItem.categorie).filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.categorie != None,
+        ).distinct().all()
+        if row[0] and row[0] not in vaste_categorieen
+    ]
+    alle_categorieen = vaste_categorieen + eigen_categorieen
+
     return templates.TemplateResponse(
         "winkel_item_edit.html",
-        {"request": request, "user": user, "item": item, "error": error_msg},
+        {"request": request, "user": user, "item": item, "error": error_msg,
+         "alle_categorieen": alle_categorieen},
     )
 
 
@@ -4362,6 +4489,9 @@ async def winkel_item_edit_post(
     stock: int = Form(...),
     houdbaar_tot: str = Form(default=""),
     minimum_stock: str = Form(default=""),
+    categorie: str = Form(default=""),
+    is_deelbaar: str = Form(default=""),
+    opslag_in_container: str = Form(default=""),
 ):
     user = get_current_user(request)
     if not user:
@@ -4388,6 +4518,14 @@ async def winkel_item_edit_post(
         except ValueError:
             pass
 
+    deelbaar = is_deelbaar == "on"
+    container_opslag = opslag_in_container == "on"
+
+    cat = categorie.strip() or None
+    # Auto-categoriseer als droge opslag bij container opslag zonder categorie
+    if container_opslag and not cat:
+        cat = "Droge opslag"
+
     item.name = name.strip()
     item.brand = brand.strip() or None
     item.quantity_per_unit = quantity_per_unit
@@ -4395,6 +4533,9 @@ async def winkel_item_edit_post(
     item.stock = max(0, stock)
     item.houdbaar_tot = houdbaar_tot_date
     item.minimum_stock = min_stock_val
+    item.categorie = cat
+    item.is_deelbaar = deelbaar
+    item.opslag_in_container = container_opslag
     db.commit()
     return RedirectResponse("/winkel?success=bijgewerkt", status_code=302)
 
@@ -4779,6 +4920,298 @@ async def _dagelijkse_verlopen_check():
                 )
     finally:
         db.close()
+
+
+# ── Niveau API ─────────────────────────────────────────────────────────────────
+
+
+@app.post("/api/shop/items/{item_id}/niveau")
+async def api_niveau_update(item_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+
+    try:
+        body = await request.json()
+        niveau_stap = body.get("niveau_stap")
+        niveau_hoeveelheid = body.get("niveau_hoeveelheid")
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    if niveau_stap not in NIVEAU_VOLGORDE:
+        return JSONResponse({"error": "Ongeldig niveau"}, status_code=400)
+
+    item.niveau_stap = niveau_stap
+    item.niveau_hoeveelheid = float(niveau_hoeveelheid) if niveau_hoeveelheid is not None else None
+
+    log = models.NiveauLog(
+        shop_item_id=item_id,
+        timestamp=datetime.datetime.utcnow(),
+        niveau_stap=niveau_stap,
+        niveau_hoeveelheid=item.niveau_hoeveelheid,
+        gewijzigd_door=user,
+    )
+    db.add(log)
+    db.commit()
+    return JSONResponse({"succes": True})
+
+
+@app.post("/api/shop/items/{item_id}/bijvullen")
+async def api_bijvullen(item_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+
+    try:
+        body = await request.json()
+        houdbaar_tot_str = body.get("houdbaar_tot")
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    if houdbaar_tot_str:
+        try:
+            item.houdbaar_tot = datetime.date.fromisoformat(houdbaar_tot_str)
+        except ValueError:
+            return JSONResponse({"error": "Ongeldige THT datum"}, status_code=400)
+
+    item.niveau_stap = "vol"
+    item.niveau_hoeveelheid = None
+
+    log = models.NiveauLog(
+        shop_item_id=item_id,
+        timestamp=datetime.datetime.utcnow(),
+        niveau_stap="vol",
+        niveau_hoeveelheid=None,
+        gewijzigd_door=user,
+    )
+    db.add(log)
+    db.commit()
+    return JSONResponse({"succes": True})
+
+
+# ── Geopend pagina ──────────────────────────────────────────────────────────────
+
+@app.get("/geopend")
+async def geopend(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    items = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.is_deelbaar == True,
+            models.ShopItem.niveau_stap != "vol",
+        )
+        .order_by(models.ShopItem.categorie.asc().nullslast(), models.ShopItem.name.asc())
+        .all()
+    )
+
+    # Containers map: shop_item_id -> Container
+    containers_map = {}
+    for c in db.query(models.Container).join(models.ShopItem).filter(
+        models.ShopItem.owner == user
+    ).all():
+        containers_map[c.shop_item_id] = c
+
+    # Groepeer op categorie
+    from collections import defaultdict
+    per_categorie: dict = defaultdict(list)
+    for item in items:
+        cat = item.categorie or "Overig"
+        per_categorie[cat].append(item)
+
+    return templates.TemplateResponse(
+        "geopend.html",
+        {
+            "request": request,
+            "user": user,
+            "per_categorie": dict(per_categorie),
+            "containers_map": containers_map,
+            "niveau_volgorde": NIVEAU_VOLGORDE,
+        },
+    )
+
+
+# ── Containers beheer ───────────────────────────────────────────────────────────
+
+@app.get("/beheer/containers")
+async def beheer_containers(request: Request, db: Session = Depends(get_db),
+                             success: str = None, error: str = None):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    containers = (
+        db.query(models.Container)
+        .join(models.ShopItem)
+        .filter(models.ShopItem.owner == user)
+        .order_by(models.Container.naam.asc())
+        .all()
+    )
+
+    # Producten met opslag_in_container voor nieuwe container dropdown
+    container_producten = (
+        db.query(models.ShopItem)
+        .filter(
+            models.ShopItem.owner == user,
+            models.ShopItem.opslag_in_container == True,
+        )
+        .order_by(models.ShopItem.name.asc())
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "beheer_containers.html",
+        {
+            "request": request,
+            "user": user,
+            "containers": containers,
+            "container_producten": container_producten,
+            "success": success,
+            "error": error,
+        },
+    )
+
+
+@app.post("/beheer/containers/nieuw")
+async def beheer_container_nieuw(
+    request: Request,
+    db: Session = Depends(get_db),
+    naam: str = Form(...),
+    shop_item_id: int = Form(...),
+    notitie: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    # Controleer dat het product van deze gebruiker is
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == shop_item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return RedirectResponse("/beheer/containers?error=product_niet_gevonden", status_code=302)
+
+    # Genereer QR code: CONT-0001 oplopend
+    last = db.query(models.Container).order_by(models.Container.id.desc()).first()
+    next_num = (last.id + 1) if last else 1
+    qr_code = f"CONT-{next_num:04d}"
+    # Zorg voor uniciteit
+    while db.query(models.Container).filter(models.Container.qr_code == qr_code).first():
+        next_num += 1
+        qr_code = f"CONT-{next_num:04d}"
+
+    container = models.Container(
+        naam=naam.strip(),
+        qr_code=qr_code,
+        shop_item_id=shop_item_id,
+        notitie=notitie.strip() or None,
+    )
+    db.add(container)
+    db.commit()
+    db.refresh(container)
+
+    return RedirectResponse(
+        f"/beheer/containers?success=Container+{qr_code}+aangemaakt",
+        status_code=302,
+    )
+
+
+# ── Container scan pagina (publiek) ─────────────────────────────────────────────
+
+@app.get("/container/{qr_code}")
+async def container_scan(qr_code: str, request: Request, db: Session = Depends(get_db),
+                         success: str = None):
+    container = db.query(models.Container).filter(
+        models.Container.qr_code == qr_code
+    ).first()
+
+    user = get_current_user(request)
+
+    if not container:
+        return templates.TemplateResponse(
+            "container_scan.html",
+            {"request": request, "user": user, "container": None, "qr_code": qr_code,
+             "niveau_volgorde": NIVEAU_VOLGORDE, "success": success},
+        )
+
+    item = container.shop_item
+    return templates.TemplateResponse(
+        "container_scan.html",
+        {
+            "request": request,
+            "user": user,
+            "container": container,
+            "item": item,
+            "qr_code": qr_code,
+            "niveau_volgorde": NIVEAU_VOLGORDE,
+            "is_eigenaar": user == item.owner if user else False,
+            "success": success,
+        },
+    )
+
+
+@app.post("/container/{qr_code}/bijvullen")
+async def container_bijvullen(
+    qr_code: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    houdbaar_tot: str = Form(default=""),
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(f"/login?next=/container/{qr_code}", status_code=302)
+
+    container = db.query(models.Container).filter(
+        models.Container.qr_code == qr_code
+    ).first()
+    if not container:
+        return RedirectResponse("/", status_code=302)
+
+    item = container.shop_item
+    if item.owner != user:
+        return RedirectResponse(f"/container/{qr_code}", status_code=302)
+
+    if houdbaar_tot.strip():
+        try:
+            item.houdbaar_tot = datetime.date.fromisoformat(houdbaar_tot.strip())
+        except ValueError:
+            pass
+
+    item.niveau_stap = "vol"
+    item.niveau_hoeveelheid = None
+
+    log = models.NiveauLog(
+        shop_item_id=item.id,
+        timestamp=datetime.datetime.utcnow(),
+        niveau_stap="vol",
+        niveau_hoeveelheid=None,
+        gewijzigd_door=user,
+    )
+    db.add(log)
+    db.commit()
+
+    return RedirectResponse(
+        f"/container/{qr_code}?success=bijgevuld",
+        status_code=302,
+    )
 
 
 # Start APScheduler

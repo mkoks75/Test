@@ -52,6 +52,38 @@
                value="{{ item.houdbaar_tot.isoformat() if item.houdbaar_tot else '' }}">
       </div>
 
+      <div class="formulier-veld">
+        <label for="categorie">Categorie</label>
+        <input type="text" id="categorie" name="categorie"
+               value="{{ item.categorie or '' }}"
+               list="categorie-list"
+               placeholder="Kies of typ een categorie">
+        <datalist id="categorie-list">
+          {% for cat in alle_categorieen %}
+          <option value="{{ cat }}">
+          {% endfor %}
+        </datalist>
+      </div>
+
+      <div class="formulier-veld">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+          <input type="checkbox" id="is_deelbaar" name="is_deelbaar"
+                 {% if item.is_deelbaar %}checked{% endif %}
+                 onchange="toggleDeelbaar(this.checked)">
+          Dit product wordt aangebroken (bijv. olie, boter, suiker)
+        </label>
+      </div>
+
+      <div id="sectie-container" style="{% if not item.is_deelbaar %}display:none;{% endif %}">
+        <div class="formulier-veld">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+            <input type="checkbox" id="opslag_in_container" name="opslag_in_container"
+                   {% if item.opslag_in_container %}checked{% endif %}>
+            Bewaar ik in een container (bijv. suiker, bloem, cacao)
+          </label>
+        </div>
+      </div>
+
       <div class="form-actions">
         <button type="submit" class="btn btn-primair">Opslaan</button>
         <a href="/winkel" class="btn btn-secundair">Annuleren</a>
@@ -79,4 +111,13 @@
   {% endif %}
 
 </main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleDeelbaar(checked) {
+  document.getElementById('sectie-container').style.display = checked ? '' : 'none';
+  if (!checked) document.getElementById('opslag_in_container').checked = false;
+}
+</script>
 {% endblock %}

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Container {{ qr_code }} - MountainSense Farm{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-inner">
+    <h1>&#127991; Container</h1>
+    <p>{{ qr_code }}</p>
+  </div>
+</div>
+
+<main style="max-width:600px;margin:0 auto;">
+
+{% if success %}
+<div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;color:#155724;">
+  &#10003; Bijgevuld — niveau teruggezet naar vol.
+</div>
+{% endif %}
+
+{% if not container %}
+<div class="kaart" style="text-align:center;padding:2rem;">
+  <p style="font-size:1.1rem;font-weight:600;margin-bottom:.5rem;">Container niet gevonden</p>
+  <p style="color:#6c757d;">QR code <code>{{ qr_code }}</code> is niet bekend in het systeem.</p>
+</div>
+
+{% else %}
+
+{% set stap = item.niveau_stap or 'vol' %}
+
+<div class="kaart">
+  <div style="margin-bottom:1rem;">
+    <div style="font-size:1.4rem;font-weight:700;">{{ container.naam }}</div>
+    <div style="font-size:1.1rem;color:#6c757d;">{{ item.name }}{% if item.brand %} — {{ item.brand }}{% endif %}</div>
+    {% if item.categorie %}
+    <span style="background:#e9ecef;border-radius:10px;padding:.15rem .5rem;font-size:.78rem;margin-top:.25rem;display:inline-block;">{{ item.categorie }}</span>
+    {% endif %}
+  </div>
+
+  <div style="margin-bottom:1rem;">
+    <div style="font-size:.85rem;color:#6c757d;margin-bottom:.25rem;">Niveau</div>
+    <div style="font-size:1.3rem;">
+      {% if stap == 'vol' %}<span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;&#9632;</span> <span style="font-size:.9rem;">Vol</span>
+      {% elif stap == 'bijna_vol' %}<span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;</span> <span style="font-size:.9rem;">Bijna vol</span>
+      {% elif stap == 'half' %}<span style="color:#27ae60;">&#9632;&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;</span> <span style="font-size:.9rem;">Half</span>
+      {% elif stap == 'bijna_leeg' %}<span style="color:#e67e22;">&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;&#9632;</span> <span style="font-size:.9rem;color:#e67e22;">Bijna leeg</span>
+      {% elif stap == 'leeg' %}<span style="color:#e74c3c;">&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;&#9632;&#9632;</span> <span style="font-size:.9rem;color:#e74c3c;">Leeg</span>
+      {% endif %}
+    </div>
+    {% if item.niveau_hoeveelheid %}
+    <div style="font-size:.85rem;color:#6c757d;margin-top:.2rem;">Nog ca. {{ item.niveau_hoeveelheid }}{{ item.unit }}</div>
+    {% endif %}
+  </div>
+
+  {% if item.houdbaar_tot %}
+  <div style="margin-bottom:1rem;">
+    <div style="font-size:.85rem;color:#6c757d;">THT huidige vulling</div>
+    <div>{{ item.houdbaar_tot.strftime('%d-%m-%Y') }}</div>
+  </div>
+  {% endif %}
+
+  {% if container.notitie %}
+  <div style="margin-bottom:1rem;font-size:.85rem;color:#6c757d;">
+    Notitie: {{ container.notitie }}
+  </div>
+  {% endif %}
+
+  {% if user and is_eigenaar %}
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem;border-top:1px solid #dee2e6;padding-top:1rem;">
+    <button type="button" onclick="niveauAanpassen()"
+            style="background:#6c757d;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer;">
+      Niveau aanpassen
+    </button>
+    <button type="button" onclick="document.getElementById('bijvullen-sectie').style.display='block';this.style.display='none';"
+            style="background:#2980b9;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer;">
+      &#9654; Bijvullen
+    </button>
+  </div>
+
+  <!-- Bijvullen formulier -->
+  <div id="bijvullen-sectie" style="display:none;margin-top:1rem;background:#f8f9fa;border-radius:6px;padding:1rem;">
+    <h3 style="font-size:.95rem;margin-bottom:.75rem;">&#9654; Bijvullen</h3>
+    <form method="post" action="/container/{{ qr_code }}/bijvullen">
+      <div style="margin-bottom:.75rem;">
+        <label style="font-size:.85rem;font-weight:500;">Nieuwe THT datum</label>
+        <input type="date" name="houdbaar_tot"
+               style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;margin-top:.25rem;">
+      </div>
+      <p style="font-size:.8rem;color:#6c757d;margin-bottom:.75rem;">Niveau wordt automatisch teruggezet op "vol".</p>
+      <button type="submit" style="background:#27ae60;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer;">
+        Opslaan
+      </button>
+      <button type="button" onclick="document.getElementById('bijvullen-sectie').style.display='none';"
+              style="background:#fff;border:1px solid #ced4da;padding:.5rem .8rem;border-radius:6px;cursor:pointer;margin-left:.5rem;">
+        Annuleren
+      </button>
+    </form>
+  </div>
+
+  {% elif not user %}
+  <div style="margin-top:1rem;border-top:1px solid #dee2e6;padding-top:1rem;">
+    <a href="/login?next=/container/{{ qr_code }}"
+       style="background:#2980b9;color:#fff;padding:.5rem 1rem;border-radius:6px;text-decoration:none;display:inline-block;">
+      Inloggen om niveau aan te passen
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Niveau popover -->
+<div id="niveau-popover-c" style="display:none;position:fixed;z-index:2000;background:#fff;border:1px solid #dee2e6;border-radius:8px;padding:1rem;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:220px;">
+  <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem;">Niveau aanpassen</div>
+  <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem;" id="npc-stappen"></div>
+  <div style="margin-bottom:.75rem;">
+    <label style="font-size:.8rem;color:#6c757d;">Nog ca. (optioneel)</label>
+    <div style="display:flex;gap:.3rem;align-items:center;">
+      <input type="number" id="npc-hoeveelheid" min="0" step="any" placeholder="bijv. 150"
+             style="width:80px;padding:.3rem .4rem;border:1px solid #ced4da;border-radius:4px;font-size:.9rem;">
+      <span style="font-size:.85rem;color:#6c757d;">{{ item.unit }}</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:.5rem;">
+    <button type="button" onclick="npcOpslaan()"
+            style="background:#27ae60;color:#fff;border:none;padding:.35rem .75rem;border-radius:4px;cursor:pointer;font-size:.85rem;">Opslaan</button>
+    <button type="button" onclick="document.getElementById('niveau-popover-c').style.display='none'"
+            style="background:#f8f9fa;border:1px solid #dee2e6;padding:.35rem .75rem;border-radius:4px;cursor:pointer;font-size:.85rem;">Annuleren</button>
+  </div>
+</div>
+
+{% endif %}
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if user and is_eigenaar and container %}
+<script>
+(function() {
+  var _itemId = {{ item.id }};
+  var _stap = '{{ item.niveau_stap or "vol" }}';
+  var _labels = { vol: 'Vol', bijna_vol: 'Bijna vol', half: 'Half', bijna_leeg: 'Bijna leeg', leeg: 'Leeg' };
+  var _kleuren = { vol: '#27ae60', bijna_vol: '#27ae60', half: '#27ae60', bijna_leeg: '#e67e22', leeg: '#e74c3c' };
+
+  window.niveauAanpassen = function() {
+    var stappen = ['vol', 'bijna_vol', 'half', 'bijna_leeg', 'leeg'];
+    var c = document.getElementById('npc-stappen');
+    c.innerHTML = '';
+    stappen.forEach(function(s) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = _labels[s];
+      var sel = s === _stap;
+      btn.style.cssText = 'border:2px solid ' + (sel ? _kleuren[s] : '#dee2e6') + ';background:' + (sel ? _kleuren[s] : '#f8f9fa') + ';color:' + (sel ? '#fff' : '#6c757d') + ';border-radius:4px;padding:.25rem .4rem;cursor:pointer;font-size:.75rem;';
+      btn.textContent = _labels[s];
+      btn.addEventListener('click', function() {
+        _stap = s;
+        c.querySelectorAll('button').forEach(function(b) {
+          b.style.borderColor = '#dee2e6'; b.style.background = '#f8f9fa'; b.style.color = '#6c757d';
+        });
+        btn.style.borderColor = _kleuren[s];
+        btn.style.background = _kleuren[s];
+        btn.style.color = '#fff';
+      });
+      c.appendChild(btn);
+    });
+
+    var popover = document.getElementById('niveau-popover-c');
+    popover.style.display = 'block';
+    popover.style.top = '200px';
+    popover.style.left = '50%';
+    popover.style.transform = 'translateX(-50%)';
+  };
+
+  window.npcOpslaan = function() {
+    var h = document.getElementById('npc-hoeveelheid').value;
+    fetch('/api/shop/items/' + _itemId + '/niveau', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ niveau_stap: _stap, niveau_hoeveelheid: h ? parseFloat(h) : null }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.succes) window.location.reload();
+        else alert(d.error || 'Fout bij opslaan');
+      })
+      .catch(function() { alert('Netwerkfout'); });
+  };
+})();
+</script>
+{% endif %}
+{% endblock %}

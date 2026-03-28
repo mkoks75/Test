@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Winkelvoorraad - MountainSense Farm{% endblock %}
 
+{% macro niveau_blokjes(stap) %}
+  {% if stap == 'vol' %}
+    <span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;&#9632;</span>
+  {% elif stap == 'bijna_vol' %}
+    <span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;</span>
+  {% elif stap == 'half' %}
+    <span style="color:#27ae60;">&#9632;&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;</span>
+  {% elif stap == 'bijna_leeg' %}
+    <span style="color:#e67e22;">&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;&#9632;</span>
+  {% elif stap == 'leeg' %}
+    <span style="color:#e74c3c;">&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;&#9632;&#9632;</span>
+  {% else %}
+    <span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;&#9632;</span>
+  {% endif %}
+{% endmacro %}
+
 {% block extra_head %}
 <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 {% endblock %}
@@ -90,6 +106,29 @@
           </div>
         </div>
         <div>
+          <label style="font-size:.85rem;font-weight:500;">Categorie</label>
+          <input type="text" id="f-categorie" name="categorie" list="f-categorie-list"
+                 placeholder="Kies of typ een categorie"
+                 style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
+          <datalist id="f-categorie-list">
+            {% for cat in alle_categorieen %}
+            <option value="{{ cat }}">
+            {% endfor %}
+          </datalist>
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem;">
+            <input type="checkbox" id="f-is-deelbaar" onchange="toggleFDeelbaar(this.checked)">
+            Dit product wordt aangebroken (bijv. olie, boter, suiker)
+          </label>
+        </div>
+        <div id="f-sectie-container" style="display:none;">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem;">
+            <input type="checkbox" id="f-opslag-container">
+            Bewaar ik in een container (bijv. suiker, bloem, cacao)
+          </label>
+        </div>
+        <div>
           <button type="submit" class="btn btn-primary">&#43; Toevoegen aan voorraad</button>
           <button type="button" onclick="resetFormulier()" style="margin-left:.5rem;font-size:.85rem;padding:.4rem .8rem;">Annuleren</button>
         </div>
@@ -98,13 +137,20 @@
   </div>
 </div>
 
-<!-- ── Zoekbalk ── -->
+<!-- ── Zoekbalk + categorie filter ── -->
 <div class="kaart" style="margin-bottom:1.5rem;">
   <h2 style="font-size:1rem;margin-bottom:.75rem;">Zoeken in voorraad</h2>
-  <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem;">
     <input type="text" id="winkel-zoek" placeholder="Zoek op naam of merk..."
            style="flex:1;min-width:200px;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;"
            oninput="winkelZoek(this.value)">
+    <select id="filter-categorie" onchange="filterCategorie()"
+            style="padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.9rem;">
+      <option value="">Alle categorieën</option>
+      {% for cat in alle_categorieen %}
+      <option value="{{ cat }}">{{ cat }}</option>
+      {% endfor %}
+    </select>
     <label style="font-size:.85rem;display:flex;align-items:center;gap:.3rem;white-space:nowrap;">
       <input type="checkbox" id="zoek-andere" onchange="winkelZoek(document.getElementById('winkel-zoek').value)">
       Zoek ook in voorraad van <strong id="andere-naam">...</strong>
@@ -134,7 +180,7 @@
   <table id="winkel-tabel">
     <thead>
       <tr>
-        <th colspan="9" style="font-size:1rem;text-transform:none;letter-spacing:0;">
+        <th colspan="11" style="font-size:1rem;text-transform:none;letter-spacing:0;">
           &#128722; Mijn winkelvoorraad
         </th>
       </tr>
@@ -143,6 +189,8 @@
         <th style="width:48px;"></th>
         <th>Product</th>
         <th>Merk</th>
+        <th>Categorie</th>
+        <th>Niveau</th>
         <th>THT</th>
         <th style="text-align:right;">Stuks</th>
         <th style="text-align:right;">Min. voorraad</th>
@@ -157,7 +205,7 @@
         {% for item in items %}
         {% set dag_info = (item.houdbaar_tot - today).days if item.houdbaar_tot else None %}
         {% set vdata = verbruik_map.get(item.id, {}) %}
-        <tr id="rij-{{ item.id }}"
+        <tr id="rij-{{ item.id }}" data-categorie="{{ item.categorie or '' }}"
           {% if dag_info is not none and dag_info <= 0 %}style="background:#fde8e8;"
           {% elif dag_info is not none and dag_info <= 30 %}style="background:#fff3cd;"
           {% endif %}>
@@ -168,8 +216,30 @@
             <span style="display:inline-block;width:36px;height:36px;background:#e9ecef;border-radius:4px;"></span>
             {% endif %}
           </td>
-          <td><strong>{{ item.name }}</strong></td>
+          <td>
+            <strong>{{ item.name }}</strong>
+          </td>
           <td style="color:#6c757d;">{{ item.brand or '—' }}</td>
+          <td>
+            {% if item.categorie %}
+            <span style="background:#e9ecef;border-radius:10px;padding:.15rem .5rem;font-size:.78rem;white-space:nowrap;">{{ item.categorie }}</span>
+            {% else %}
+            <span style="color:#adb5bd;">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.is_deelbaar %}
+            <span class="niveau-blokjes" data-id="{{ item.id }}" data-niveau="{{ item.niveau_stap or 'vol' }}" data-unit="{{ item.unit }}"
+                  style="cursor:pointer;white-space:nowrap;" title="Klik om niveau aan te passen">
+              {{ niveau_blokjes(item.niveau_stap or 'vol') }}
+            </span>
+            {% if item.niveau_hoeveelheid %}
+            <span style="font-size:.78rem;color:#6c757d;margin-left:.25rem;">ca. {{ item.niveau_hoeveelheid }}{{ item.unit }}</span>
+            {% endif %}
+            {% else %}
+            <span style="color:#adb5bd;font-size:.8rem;">—</span>
+            {% endif %}
+          </td>
           <td>
             {% if item.houdbaar_tot %}
               {% if dag_info <= 7 %}
@@ -236,13 +306,33 @@
         {% endfor %}
       {% else %}
         <tr>
-          <td colspan="9" style="text-align:center;padding:2rem;color:#6c757d;">
+          <td colspan="11" style="text-align:center;padding:2rem;color:#6c757d;">
             Nog geen winkelproducten toegevoegd.
           </td>
         </tr>
       {% endif %}
     </tbody>
   </table>
+</div>
+
+<!-- Niveau popover -->
+<div id="niveau-popover" style="display:none;position:fixed;z-index:2000;background:#fff;border:1px solid #dee2e6;border-radius:8px;padding:1rem;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:220px;">
+  <div style="font-weight:600;font-size:.9rem;margin-bottom:.75rem;" id="np-naam">Niveau aanpassen</div>
+  <div style="display:flex;gap:.4rem;margin-bottom:.75rem;" id="np-stappen"></div>
+  <div style="margin-bottom:.75rem;">
+    <label style="font-size:.8rem;color:#6c757d;">Nog ca. (optioneel)</label>
+    <div style="display:flex;gap:.3rem;align-items:center;">
+      <input type="number" id="np-hoeveelheid" min="0" step="any" placeholder="bijv. 150"
+             style="width:80px;padding:.3rem .4rem;border:1px solid #ced4da;border-radius:4px;font-size:.9rem;">
+      <span id="np-eenheid" style="font-size:.85rem;color:#6c757d;"></span>
+    </div>
+  </div>
+  <div style="display:flex;gap:.5rem;">
+    <button type="button" id="np-opslaan" onclick="npOpslaan()"
+            style="background:#27ae60;color:#fff;border:none;padding:.35rem .75rem;border-radius:4px;cursor:pointer;font-size:.85rem;">Opslaan</button>
+    <button type="button" onclick="npSluiten()"
+            style="background:#f8f9fa;border:1px solid #dee2e6;padding:.35rem .75rem;border-radius:4px;cursor:pointer;font-size:.85rem;">Annuleren</button>
+  </div>
 </div>
 
 <!-- Bewerk modal -->
@@ -354,8 +444,17 @@
     document.getElementById('f-barcode').value = '';
   };
 
+  window.toggleFDeelbaar = function(checked) {
+    document.getElementById('f-sectie-container').style.display = checked ? '' : 'none';
+    if (!checked) document.getElementById('f-opslag-container').checked = false;
+  };
+
   window.submitToevoegen = function (e) {
     e.preventDefault();
+    var categorie = (document.getElementById('f-categorie').value || '').trim();
+    var isDeelbaar = document.getElementById('f-is-deelbaar').checked;
+    var opslagInContainer = document.getElementById('f-opslag-container').checked;
+    if (opslagInContainer && !categorie) categorie = 'Droge opslag';
     var body = {
       barcode: document.getElementById('f-barcode').value || null,
       name: document.getElementById('f-name').value.trim(),
@@ -365,6 +464,9 @@
       stock: parseInt(document.getElementById('f-stock').value) || 1,
       houdbaar_tot: document.getElementById('f-tht').value || null,
       image_url: document.getElementById('product-foto').src || null,
+      categorie: categorie || null,
+      is_deelbaar: isDeelbaar,
+      opslag_in_container: opslagInContainer,
     };
     if (!body.image_url || body.image_url === window.location.href) body.image_url = null;
 
@@ -532,6 +634,21 @@
     }, 300);
   };
 
+  // ── Categorie filter ──────────────────────────────────────────
+  window.filterCategorie = function() {
+    var cat = document.getElementById('filter-categorie').value;
+    var rijen = document.querySelectorAll('#winkel-tabel tbody tr[id^="rij-"]');
+    rijen.forEach(function(tr) {
+      if (!cat) {
+        tr.style.display = '';
+        return;
+      }
+      // data-categorie attribuut vergelijken
+      var rowCat = tr.dataset.categorie || '';
+      tr.style.display = (rowCat === cat) ? '' : 'none';
+    });
+  };
+
   // ── Bewerken modal ────────────────────────────────────────────
   window.openBewerken = function (id, name, brand, stock, tht) {
     document.getElementById('b-id').value = id;
@@ -645,6 +762,89 @@
   // Automatisch scanner openen vanuit /invoer
   window.addEventListener('load', function () { openScannerToevoegen(); });
   {% endif %}
+
+  // ── Niveau popover ────────────────────────────────────────────
+  var _npItemId = null;
+  var _npGekozenStap = null;
+  var _npLabels = { vol: 'Vol', bijna_vol: 'Bijna vol', half: 'Half', bijna_leeg: 'Bijna leeg', leeg: 'Leeg' };
+  var _npKleuren = { vol: '#27ae60', bijna_vol: '#27ae60', half: '#27ae60', bijna_leeg: '#e67e22', leeg: '#e74c3c' };
+
+  document.querySelectorAll('.niveau-blokjes').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var id = parseInt(el.dataset.id);
+      var stap = el.dataset.niveau || 'vol';
+      var eenheid = el.dataset.unit || '';
+      npOpenen(id, stap, eenheid, el);
+    });
+  });
+
+  function npOpenen(id, huidigStap, eenheid, triggerEl) {
+    _npItemId = id;
+    _npGekozenStap = huidigStap;
+    document.getElementById('np-naam').textContent = 'Niveau aanpassen';
+    document.getElementById('np-eenheid').textContent = eenheid;
+    document.getElementById('np-hoeveelheid').value = '';
+
+    var stappen = ['vol', 'bijna_vol', 'half', 'bijna_leeg', 'leeg'];
+    var container = document.getElementById('np-stappen');
+    container.innerHTML = '';
+    stappen.forEach(function(s) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = _npLabels[s];
+      btn.style.cssText = 'border:2px solid ' + (s === huidigStap ? _npKleuren[s] : '#dee2e6') + ';background:' + (s === huidigStap ? _npKleuren[s] : '#f8f9fa') + ';color:' + (s === huidigStap ? '#fff' : '#6c757d') + ';border-radius:4px;padding:.25rem .4rem;cursor:pointer;font-size:.75rem;';
+      btn.textContent = _npLabels[s];
+      btn.dataset.stap = s;
+      btn.addEventListener('click', function() {
+        _npGekozenStap = s;
+        container.querySelectorAll('button').forEach(function(b) {
+          var sel = b.dataset.stap === s;
+          b.style.borderColor = sel ? _npKleuren[s] : '#dee2e6';
+          b.style.background = sel ? _npKleuren[s] : '#f8f9fa';
+          b.style.color = sel ? '#fff' : '#6c757d';
+        });
+      });
+      container.appendChild(btn);
+    });
+
+    var popover = document.getElementById('niveau-popover');
+    var rect = triggerEl.getBoundingClientRect();
+    popover.style.display = 'block';
+    var top = rect.bottom + window.scrollY + 4;
+    var left = rect.left + window.scrollX;
+    popover.style.top = top + 'px';
+    popover.style.left = left + 'px';
+  }
+
+  window.npSluiten = function() {
+    document.getElementById('niveau-popover').style.display = 'none';
+    _npItemId = null;
+  };
+
+  window.npOpslaan = function() {
+    if (!_npItemId || !_npGekozenStap) return;
+    var hoeveelheid = document.getElementById('np-hoeveelheid').value;
+    fetch('/api/shop/items/' + _npItemId + '/niveau', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ niveau_stap: _npGekozenStap, niveau_hoeveelheid: hoeveelheid ? parseFloat(hoeveelheid) : null }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.succes) window.location.reload();
+        else alert(d.error || 'Fout bij opslaan');
+      })
+      .catch(function() { alert('Netwerkfout'); });
+  };
+
+  document.addEventListener('click', function(e) {
+    var popover = document.getElementById('niveau-popover');
+    if (popover && popover.style.display !== 'none' && !popover.contains(e.target)) {
+      npSluiten();
+    }
+  });
+
 })();
 </script>
 {% endblock %}

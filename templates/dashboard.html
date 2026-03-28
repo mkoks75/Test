@@ -34,6 +34,33 @@
     <a href="/boodschappen" style="display:inline-block;background:#2980b9;color:#fff;padding:.5rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;">&#128722; Boodschappenlijst</a>
   </div>
 
+  <!-- Geopende producten sectie -->
+  {% if geopend_kritiek or geopend_zonder_container %}
+  <div style="margin-bottom:1rem;">
+    <div style="font-weight:600;font-size:1rem;margin-bottom:.5rem;color:#6c757d;">&#128194; <a href="/geopend" style="color:inherit;text-decoration:none;">Geopende producten</a></div>
+    {% for item in geopend_kritiek %}
+    <a href="/geopend" style="display:block;text-decoration:none;color:inherit;border-radius:6px;padding:.5rem .75rem;margin-bottom:.35rem;
+      {% if item.niveau_stap == 'leeg' %}background:#fde8e8;border:1px solid #f5c6cb;
+      {% else %}background:#fff3cd;border:1px solid #ffc107;{% endif %}">
+      <span style="font-weight:600;">{{ item.name }}</span>
+      {% if item.brand %}<span style="color:#6c757d;font-size:.85rem;"> — {{ item.brand }}</span>{% endif %}
+      <span style="margin-left:.5rem;font-size:.8rem;
+        {% if item.niveau_stap == 'leeg' %}color:#e74c3c;font-weight:600;
+        {% else %}color:#e67e22;{% endif %}">
+        {% if item.niveau_stap == 'leeg' %}Leeg{% else %}Bijna leeg{% endif %}
+      </span>
+    </a>
+    {% endfor %}
+    {% for item in geopend_zonder_container %}
+    <a href="/geopend" style="display:block;text-decoration:none;color:inherit;border-radius:6px;padding:.5rem .75rem;margin-bottom:.35rem;background:#fff3cd;border:1px solid #ffc107;">
+      <span style="font-weight:600;">{{ item.name }}</span>
+      <span style="margin-left:.5rem;font-size:.8rem;color:#856404;">&#9888; Geen container gekoppeld</span>
+    </a>
+    {% endfor %}
+    <a href="/geopend" style="font-size:.85rem;color:#6c757d;">Alle geopende producten bekijken &rarr;</a>
+  </div>
+  {% endif %}
+
   <!-- Bijna op sectie -->
   {% if shop_bijna_op %}
   <div style="margin-bottom:1rem;">
