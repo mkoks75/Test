@@ -87,7 +87,8 @@
         <tr>
           <td style="font-weight:600;">{{ c.naam }}</td>
           <td>
-            <code style="background:#f8f9fa;padding:.15rem .4rem;border-radius:3px;font-size:.85rem;">{{ c.qr_code }}</code>
+            <div id="qr-{{ c.qr_code }}" style="display:inline-block;" data-url="https://mountainsense.nl/container/{{ c.qr_code }}"></div>
+            <div style="font-size:.75rem;color:#6c757d;margin-top:.15rem;">{{ c.qr_code }}</div>
           </td>
           <td>
             {{ c.shop_item.name }}
@@ -130,21 +131,39 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+// Genereer QR codes in de tabel
+document.querySelectorAll('[id^="qr-"]').forEach(function(el) {
+  new QRCode(el, {
+    text: el.getAttribute('data-url'),
+    width: 80,
+    height: 80,
+    correctLevel: QRCode.CorrectLevel.M
+  });
+});
+
 window.printEtiket = function(qrCode, naam, product) {
-  var url = 'mountainsense.nl/container/' + qrCode;
-  var win = window.open('', '_blank', 'width=400,height=400');
-  win.document.write('<html><head><title>Etiket ' + naam + '</title>');
-  win.document.write('<style>body{font-family:sans-serif;padding:20px;text-align:center;}');
-  win.document.write('.naam{font-size:28px;font-weight:bold;margin-bottom:4px;}');
-  win.document.write('.product{font-size:18px;margin-bottom:12px;color:#555;}');
-  win.document.write('.qr{font-size:11px;color:#888;margin-top:8px;}');
-  win.document.write('</style></head><body>');
+  var url = 'https://mountainsense.nl/container/' + qrCode;
+  var win = window.open('', '_blank', 'width=420,height=520');
+  win.document.write('<!DOCTYPE html><html><head><title>Etiket ' + naam + '</title>');
+  win.document.write('<style>');
+  win.document.write('body{font-family:sans-serif;padding:20px;text-align:center;margin:0;}');
+  win.document.write('.naam{font-size:24px;font-weight:bold;margin-bottom:4px;}');
+  win.document.write('.product{font-size:16px;margin-bottom:12px;color:#555;}');
+  win.document.write('#qr-popup{display:inline-block;margin:8px auto;}');
+  win.document.write('.qr-tekst{font-size:11px;color:#888;margin-top:6px;}');
+  win.document.write('.knoppen{margin-top:16px;}');
+  win.document.write('@media print{.knoppen{display:none;}}');
+  win.document.write('</style>');
+  win.document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>');
+  win.document.write('</head><body>');
   win.document.write('<div class="naam">' + naam + '</div>');
   win.document.write('<div class="product">' + product + '</div>');
-  win.document.write('<p style="font-size:60px;margin:0;">&#9638;</p>');
-  win.document.write('<div class="qr">' + qrCode + '<br>' + url + '</div>');
-  win.document.write('<br><button onclick="window.print()">&#128438; Afdrukken</button>');
+  win.document.write('<div id="qr-popup"></div>');
+  win.document.write('<div class="qr-tekst">' + qrCode + '</div>');
+  win.document.write('<div class="knoppen"><button onclick="window.print()">&#128438; Afdrukken</button></div>');
+  win.document.write('<script>new QRCode(document.getElementById("qr-popup"),{text:"' + url + '",width:200,height:200,correctLevel:QRCode.CorrectLevel.M});<\/script>');
   win.document.write('</body></html>');
   win.document.close();
 };
