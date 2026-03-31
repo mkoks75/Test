@@ -149,7 +149,7 @@ window.printEtiket = function(qrCode, naam, product) {
   win.document.write('<!DOCTYPE html><html><head><title>Etiket ' + naam + '</title>');
   win.document.write('<style>');
   win.document.write('@page{size:60mm 30mm landscape;margin:1mm;}');
-  win.document.write('@media screen{#print-container{display:none!important;}}');
+  win.document.write('@media screen{' + '#print-container{display:none!important;}}');
   win.document.write('@media print{');
   win.document.write('.knoppen,.brother-instructie,.preview-wrapper{display:none!important;}');
   win.document.write('body,html{margin:0!important;padding:0!important;background:white!important;}');
