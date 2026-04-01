@@ -109,7 +109,7 @@
               &#128269; Scan
             </a>
             <button type="button"
-                    onclick="printEtiket('{{ c.qr_code }}', '{{ c.naam|replace("'", "\\'") }}', '{{ c.shop_item.name|replace("'", "\\'") }}')"
+                    onclick="printEtiket('{{ c.qr_code }}', '{{ c.naam|replace("'", "\\'") }}')"
                     style="font-size:.8rem;padding:.2rem .5rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;">
               &#128438; Etiket
             </button>
@@ -143,9 +143,9 @@ document.querySelectorAll('[id^="qr-"]').forEach(function(el) {
   });
 });
 
-window.printEtiket = function(qrCode, naam, product) {
+window.printEtiket = function(qrCode, naam) {
   var url = 'https://mountainsense.nl/container/' + qrCode;
-  var win = window.open('', '_blank', 'width=640,height=460');
+  var win = window.open('', '_blank', 'width=460,height=420');
   win.document.write('<!DOCTYPE html><html><head><title>Etiket ' + naam + '</title>');
   win.document.write('<style>');
   win.document.write('@page{size:60mm 30mm landscape;margin:1mm;}');
@@ -154,21 +154,19 @@ window.printEtiket = function(qrCode, naam, product) {
   win.document.write('.knoppen,.brother-instructie,.preview-wrapper{display:none!important;}');
   win.document.write('body,html{margin:0!important;padding:0!important;background:white!important;}');
   win.document.write('#print-container{display:block!important;}');
-  win.document.write('.print-label{width:58mm;height:28mm;display:flex;flex-direction:row;box-sizing:border-box;overflow:hidden;}');
+  win.document.write('.print-label{width:58mm;height:28mm;display:flex;flex-direction:row;align-items:center;box-sizing:border-box;overflow:hidden;}');
   win.document.write('.print-links{flex:1;display:flex;flex-direction:column;justify-content:center;padding:1mm 1mm 1mm 1.5mm;overflow:hidden;}');
   win.document.write('.print-rechts{flex:0 0 26mm;display:flex;align-items:center;justify-content:center;}');
   win.document.write('.print-rechts canvas,.print-rechts img{width:24mm!important;height:24mm!important;}');
-  win.document.write('.print-naam{font-size:9pt;font-weight:bold;color:#000;margin:0 0 0.8mm 0;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}');
-  win.document.write('.print-product{font-size:7pt;color:#000;margin:0;line-height:1.15;}');
+  win.document.write('.print-naam{font-size:10pt;font-weight:bold;color:#000;margin:0;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}');
   win.document.write('}');
   win.document.write('body{font-family:sans-serif;padding:20px;margin:0;}');
   win.document.write('.brother-instructie{font-size:0.85rem;color:#555;margin-bottom:14px;padding:8px 12px;background:#f0f4ff;border-left:3px solid #4a7cdc;border-radius:4px;}');
   win.document.write('.preview-wrapper{overflow-x:auto;margin-bottom:12px;}');
-  win.document.write('.preview-label{display:flex;flex-direction:row;width:540px;height:270px;border:2px solid #bbb;border-radius:6px;background:white;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12);}');
+  win.document.write('.preview-label{display:flex;flex-direction:row;width:400px;height:200px;border:2px solid #bbb;border-radius:6px;background:white;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12);}');
   win.document.write('.plabel-links{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px 10px 16px 24px;}');
-  win.document.write('.plabel-rechts{flex:0 0 260px;display:flex;align-items:center;justify-content:center;background:#fafafa;border-left:1px solid #eee;}');
-  win.document.write('.plabel-naam{font-size:1.5rem;font-weight:700;margin:0 0 8px 0;line-height:1.2;}');
-  win.document.write('.plabel-product{font-size:1rem;margin:0;color:#000;}');
+  win.document.write('.plabel-rechts{flex:0 0 200px;display:flex;align-items:center;justify-content:center;background:#fafafa;border-left:1px solid #eee;}');
+  win.document.write('.plabel-naam{font-size:1.5rem;font-weight:700;margin:0;line-height:1.2;}');
   win.document.write('.knoppen{margin-top:16px;display:flex;gap:8px;}');
   win.document.write('</style>');
   win.document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>');
@@ -178,7 +176,6 @@ window.printEtiket = function(qrCode, naam, product) {
   win.document.write('<div class="preview-label">');
   win.document.write('<div class="plabel-links">');
   win.document.write('<p class="plabel-naam">' + naam + '</p>');
-  win.document.write('<p class="plabel-product">' + product + '</p>');
   win.document.write('</div>');
   win.document.write('<div class="plabel-rechts"><div id="qr-preview"></div></div>');
   win.document.write('</div></div>');
@@ -187,12 +184,11 @@ window.printEtiket = function(qrCode, naam, product) {
   win.document.write('<div class="print-label">');
   win.document.write('<div class="print-links">');
   win.document.write('<p class="print-naam">' + naam + '</p>');
-  win.document.write('<p class="print-product">' + product + '</p>');
   win.document.write('</div>');
   win.document.write('<div class="print-rechts"><div id="qr-print"></div></div>');
   win.document.write('</div></div>');
   win.document.write('<script>');
-  win.document.write('new QRCode(document.getElementById("qr-preview"),{text:"' + url + '",width:220,height:220,correctLevel:QRCode.CorrectLevel.M});');
+  win.document.write('new QRCode(document.getElementById("qr-preview"),{text:"' + url + '",width:170,height:170,correctLevel:QRCode.CorrectLevel.M});');
   win.document.write('new QRCode(document.getElementById("qr-print"),{text:"' + url + '",width:300,height:300,correctLevel:QRCode.CorrectLevel.M});');
   win.document.write('<\/script>');
   win.document.write('</body></html>');
