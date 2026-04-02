@@ -301,6 +301,13 @@
               style="font-size:.8rem;padding:.2rem .5rem;background:#f39c12;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.25rem;text-decoration:none;display:inline-block;">
               &#9999;
             </a>
+            {% if item.status == 'voorraad' or not item.status %}
+            <a href="/beheer/containers?koppel_item_id={{ item.id }}"
+              style="font-size:.8rem;padding:.2rem .5rem;background:#2980b9;color:#fff;border:none;border-radius:3px;cursor:pointer;text-decoration:none;display:inline-block;"
+              title="Openmaken: koppel aan container">
+              &#128230;
+            </a>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

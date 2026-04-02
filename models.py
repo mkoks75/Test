@@ -157,9 +157,10 @@ class ShopItem(Base):
     opslag_in_container = Column(Boolean, default=False, nullable=False)
     niveau_stap = Column(String, default="vol", nullable=True)
     niveau_hoeveelheid = Column(Float, nullable=True)
+    container_id = Column(Integer, nullable=True)  # FK naar containers.id (geen FK-constraint vanwege circulaire ref)
+    status = Column(String, default="voorraad", nullable=True)  # 'voorraad' / 'open' / 'leeg'
 
     niveau_logs = relationship("NiveauLog", back_populates="shop_item")
-    containers = relationship("Container", back_populates="shop_item")
 
 
 class NiveauLog(Base):
@@ -179,12 +180,16 @@ class Container(Base):
     __tablename__ = "containers"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    naam = Column(String, nullable=False)
     qr_code = Column(String, nullable=False, unique=True, index=True)
-    shop_item_id = Column(Integer, ForeignKey("shop_items.id"), nullable=False)
-    notitie = Column(String, nullable=True)
+    label = Column(String, nullable=False)
+    product_name = Column(String, nullable=False)
+    current_expiry_date = Column(Date, nullable=True)
+    source_item_id = Column(Integer, ForeignKey("shop_items.id"), nullable=True)
+    fill_level = Column(Integer, nullable=True)
+    notes = Column(String, nullable=True)
+    owner = Column(String, nullable=False)
 
-    shop_item = relationship("ShopItem", back_populates="containers")
+    source_item = relationship("ShopItem", foreign_keys=[source_item_id])
 
 
 class ShopUitgifte(Base):

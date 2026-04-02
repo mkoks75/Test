@@ -142,17 +142,76 @@ async def startup():
         except Exception:
             pass
 
-        # Maak containers tabel aan
+        # Migreer/maak containers tabel aan (nieuw schema)
         try:
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS containers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    naam TEXT NOT NULL,
-                    qr_code TEXT NOT NULL UNIQUE,
-                    shop_item_id INTEGER NOT NULL REFERENCES shop_items(id),
-                    notitie TEXT
-                )
-            """))
+            pragma_cont = conn.execute(text("PRAGMA table_info(containers)")).fetchall()
+            cont_col_names = [row[1] for row in pragma_cont]
+
+            if not pragma_cont:
+                # Tabel bestaat niet: nieuw aanmaken
+                conn.execute(text("""
+                    CREATE TABLE containers (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        qr_code TEXT NOT NULL UNIQUE,
+                        label TEXT NOT NULL,
+                        product_name TEXT NOT NULL,
+                        current_expiry_date DATE,
+                        source_item_id INTEGER REFERENCES shop_items(id),
+                        fill_level INTEGER,
+                        notes TEXT,
+                        owner TEXT NOT NULL DEFAULT ''
+                    )
+                """))
+            elif 'shop_item_id' in cont_col_names and 'label' not in cont_col_names:
+                # Oud schema aanwezig: migreer naar nieuw schema
+                conn.execute(text("""
+                    CREATE TABLE containers_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        qr_code TEXT NOT NULL UNIQUE,
+                        label TEXT NOT NULL,
+                        product_name TEXT NOT NULL,
+                        current_expiry_date DATE,
+                        source_item_id INTEGER REFERENCES shop_items(id),
+                        fill_level INTEGER,
+                        notes TEXT,
+                        owner TEXT NOT NULL DEFAULT ''
+                    )
+                """))
+                conn.execute(text("""
+                    INSERT INTO containers_new (id, qr_code, label, product_name,
+                        current_expiry_date, source_item_id, fill_level, notes, owner)
+                    SELECT c.id, c.qr_code, c.naam,
+                        COALESCE(s.name, 'Onbekend'),
+                        NULL, NULL, NULL, c.notitie,
+                        COALESCE(s.owner, '')
+                    FROM containers c
+                    LEFT JOIN shop_items s ON s.id = c.shop_item_id
+                """))
+                conn.execute(text("DROP TABLE containers"))
+                conn.execute(text("ALTER TABLE containers_new RENAME TO containers"))
+            else:
+                # Schema is al nieuw; voeg eventueel ontbrekende kolommen toe
+                for col, defn in [
+                    ("current_expiry_date", "DATE"),
+                    ("source_item_id", "INTEGER"),
+                    ("fill_level", "INTEGER"),
+                    ("notes", "TEXT"),
+                    ("owner", "TEXT NOT NULL DEFAULT ''"),
+                ]:
+                    if col not in cont_col_names:
+                        conn.execute(text(f"ALTER TABLE containers ADD COLUMN {col} {defn}"))
+            conn.commit()
+        except Exception:
+            pass
+
+        # Voeg container_id en status toe aan shop_items indien ontbreekt
+        try:
+            pragma_shop2 = conn.execute(text("PRAGMA table_info(shop_items)")).fetchall()
+            shop_col_names2 = [row[1] for row in pragma_shop2]
+            if 'container_id' not in shop_col_names2:
+                conn.execute(text("ALTER TABLE shop_items ADD COLUMN container_id INTEGER"))
+            if 'status' not in shop_col_names2:
+                conn.execute(text("ALTER TABLE shop_items ADD COLUMN status TEXT DEFAULT 'voorraad'"))
             conn.commit()
         except Exception:
             pass
@@ -606,24 +665,15 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
-    # Container-producten zonder gekoppelde container
-    container_producten_zonder = (
-        db.query(models.ShopItem)
+    # Containers zonder gekoppeld item
+    geopend_zonder_container = (
+        db.query(models.Container)
         .filter(
-            models.ShopItem.owner == user,
-            models.ShopItem.opslag_in_container == True,
+            models.Container.owner == user,
+            models.Container.source_item_id == None,
         )
         .all()
     )
-    container_ids_gebruikt = {
-        c.shop_item_id for c in db.query(models.Container).join(models.ShopItem).filter(
-            models.ShopItem.owner == user
-        ).all()
-    }
-    geopend_zonder_container = [
-        p for p in container_producten_zonder
-        if p.id not in container_ids_gebruikt
-    ]
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -3807,12 +3857,13 @@ async def winkel(request: Request, db: Session = Depends(get_db), success: str =
     ]
     alle_categorieen = vaste_categorieen + eigen_categorieen
 
-    # Containers gekoppeld aan deelbare producten van deze gebruiker
+    # Containers met gekoppeld item van deze gebruiker (source_item_id → Container)
     containers_map = {}
-    for c in db.query(models.Container).join(models.ShopItem).filter(
-        models.ShopItem.owner == user
+    for c in db.query(models.Container).filter(
+        models.Container.owner == user,
+        models.Container.source_item_id != None,
     ).all():
-        containers_map[c.shop_item_id] = c
+        containers_map[c.source_item_id] = c
 
     return templates.TemplateResponse(
         "winkel.html",
@@ -3907,12 +3958,18 @@ async def openfoodfacts_proxy(barcode: str, request: Request, db: Session = Depe
 # ── API: Shop items ─────────────────────────────────────────────────────────────
 
 @app.get("/api/shop/items")
-async def api_shop_items(request: Request, db: Session = Depends(get_db)):
+async def api_shop_items(request: Request, db: Session = Depends(get_db),
+                          status: str = None, product_name: str = None):
     user = get_current_user(request)
     if not user:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    items = db.query(models.ShopItem).filter(models.ShopItem.owner == user).all()
+    query = db.query(models.ShopItem).filter(models.ShopItem.owner == user)
+    if status:
+        query = query.filter(models.ShopItem.status == status)
+    if product_name:
+        query = query.filter(models.ShopItem.name.ilike(f"%{product_name}%"))
+    items = query.order_by(models.ShopItem.name.asc()).all()
     return JSONResponse([{
         "id": i.id,
         "barcode": i.barcode,
@@ -3925,6 +3982,8 @@ async def api_shop_items(request: Request, db: Session = Depends(get_db)):
         "houdbaar_tot": i.houdbaar_tot.isoformat() if i.houdbaar_tot else None,
         "date_added": i.date_added.isoformat() if i.date_added else None,
         "entered_by": i.entered_by,
+        "status": i.status or "voorraad",
+        "container_id": i.container_id,
     } for i in items])
 
 
@@ -5022,12 +5081,13 @@ async def geopend(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
-    # Containers map: shop_item_id -> Container
+    # Containers map: source_item_id -> Container
     containers_map = {}
-    for c in db.query(models.Container).join(models.ShopItem).filter(
-        models.ShopItem.owner == user
+    for c in db.query(models.Container).filter(
+        models.Container.owner == user,
+        models.Container.source_item_id != None,
     ).all():
-        containers_map[c.shop_item_id] = c
+        containers_map[c.source_item_id] = c
 
     # Groepeer op categorie
     from collections import defaultdict
@@ -5048,31 +5108,18 @@ async def geopend(request: Request, db: Session = Depends(get_db)):
     )
 
 
-# ── Containers beheer ───────────────────────────────────────────────────────────
+# ── Containers beheer (pagina) ──────────────────────────────────────────────────
 
 @app.get("/beheer/containers")
-async def beheer_containers(request: Request, db: Session = Depends(get_db),
-                             success: str = None, error: str = None):
+async def beheer_containers(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
 
     containers = (
         db.query(models.Container)
-        .join(models.ShopItem)
-        .filter(models.ShopItem.owner == user)
-        .order_by(models.Container.naam.asc())
-        .all()
-    )
-
-    # Producten met opslag_in_container voor nieuwe container dropdown
-    container_producten = (
-        db.query(models.ShopItem)
-        .filter(
-            models.ShopItem.owner == user,
-            models.ShopItem.opslag_in_container == True,
-        )
-        .order_by(models.ShopItem.name.asc())
+        .filter(models.Container.owner == user)
+        .order_by(models.Container.label.asc())
         .all()
     )
 
@@ -5082,135 +5129,255 @@ async def beheer_containers(request: Request, db: Session = Depends(get_db),
             "request": request,
             "user": user,
             "containers": containers,
-            "container_producten": container_producten,
-            "success": success,
-            "error": error,
+            "today": datetime.date.today(),
         },
     )
 
 
-@app.post("/beheer/containers/nieuw")
-async def beheer_container_nieuw(
-    request: Request,
-    db: Session = Depends(get_db),
-    naam: str = Form(...),
-    shop_item_id: int = Form(...),
-    notitie: str = Form(default=""),
-):
+# ── Containers API ───────────────────────────────────────────────────────────────
+
+@app.get("/api/containers")
+async def api_containers_lijst(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request)
     if not user:
-        return RedirectResponse("/login", status_code=302)
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    # Controleer dat het product van deze gebruiker is
-    item = db.query(models.ShopItem).filter(
-        models.ShopItem.id == shop_item_id,
-        models.ShopItem.owner == user,
-    ).first()
-    if not item:
-        return RedirectResponse("/beheer/containers?error=product_niet_gevonden", status_code=302)
+    containers = (
+        db.query(models.Container)
+        .filter(models.Container.owner == user)
+        .order_by(models.Container.label.asc())
+        .all()
+    )
+
+    today = datetime.date.today()
+    result = []
+    for c in containers:
+        item = c.source_item
+        dagen = None
+        if c.current_expiry_date:
+            dagen = (c.current_expiry_date - today).days
+        result.append({
+            "id": c.id,
+            "qr_code": c.qr_code,
+            "label": c.label,
+            "product_name": c.product_name,
+            "current_expiry_date": c.current_expiry_date.isoformat() if c.current_expiry_date else None,
+            "source_item_id": c.source_item_id,
+            "source_item_name": item.name if item else None,
+            "source_item_tht": item.houdbaar_tot.isoformat() if item and item.houdbaar_tot else None,
+            "fill_level": c.fill_level,
+            "notes": c.notes,
+            "dagen_tot_tht": dagen,
+        })
+    return JSONResponse(result)
+
+
+@app.post("/api/containers")
+async def api_container_nieuw(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    try:
+        body = await request.json()
+        label = str(body.get("label", "")).strip()
+        product_name = str(body.get("product_name", "")).strip()
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    if not label or not product_name:
+        return JSONResponse({"error": "Label en productnaam zijn verplicht"}, status_code=400)
+
+    notes = str(body.get("notes", "")).strip() or None
 
     # Genereer QR code: CONT-0001 oplopend
     last = db.query(models.Container).order_by(models.Container.id.desc()).first()
     next_num = (last.id + 1) if last else 1
     qr_code = f"CONT-{next_num:04d}"
-    # Zorg voor uniciteit
     while db.query(models.Container).filter(models.Container.qr_code == qr_code).first():
         next_num += 1
         qr_code = f"CONT-{next_num:04d}"
 
     container = models.Container(
-        naam=naam.strip(),
         qr_code=qr_code,
-        shop_item_id=shop_item_id,
-        notitie=notitie.strip() or None,
+        label=label,
+        product_name=product_name,
+        notes=notes,
+        owner=user,
     )
     db.add(container)
     db.commit()
     db.refresh(container)
 
-    return RedirectResponse(
-        f"/beheer/containers?success=Container+{qr_code}+aangemaakt",
-        status_code=302,
-    )
+    return JSONResponse({
+        "id": container.id,
+        "qr_code": container.qr_code,
+        "label": container.label,
+        "product_name": container.product_name,
+        "notes": container.notes,
+    }, status_code=201)
 
 
-# ── Container scan pagina (publiek) ─────────────────────────────────────────────
+@app.put("/api/containers/{container_id}")
+async def api_container_bewerken(container_id: int, request: Request,
+                                  db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    container = db.query(models.Container).filter(
+        models.Container.id == container_id,
+        models.Container.owner == user,
+    ).first()
+    if not container:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    if "label" in body and str(body["label"]).strip():
+        container.label = str(body["label"]).strip()
+    if "fill_level" in body:
+        container.fill_level = int(body["fill_level"]) if body["fill_level"] is not None else None
+    if "notes" in body:
+        container.notes = str(body["notes"]).strip() or None
+
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@app.delete("/api/containers/{container_id}")
+async def api_container_verwijderen(container_id: int, request: Request,
+                                     db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    container = db.query(models.Container).filter(
+        models.Container.id == container_id,
+        models.Container.owner == user,
+    ).first()
+    if not container:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+
+    # Ontkoppel huidig item indien aanwezig
+    if container.source_item_id:
+        item = db.query(models.ShopItem).filter(
+            models.ShopItem.id == container.source_item_id
+        ).first()
+        if item:
+            item.status = "voorraad"
+            item.container_id = None
+
+    db.delete(container)
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/containers/{container_id}/koppel")
+async def api_container_koppel(container_id: int, request: Request,
+                                db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    container = db.query(models.Container).filter(
+        models.Container.id == container_id,
+        models.Container.owner == user,
+    ).first()
+    if not container:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+
+    try:
+        body = await request.json()
+        item_id = int(body["item_id"])
+        fill_level = int(body.get("fill_level", 3))
+    except Exception:
+        return JSONResponse({"error": "Ongeldige invoer"}, status_code=400)
+
+    item = db.query(models.ShopItem).filter(
+        models.ShopItem.id == item_id,
+        models.ShopItem.owner == user,
+    ).first()
+    if not item:
+        return JSONResponse({"error": "Item niet gevonden"}, status_code=404)
+
+    # Ontkoppel vorig item indien aanwezig
+    if container.source_item_id and container.source_item_id != item_id:
+        prev = db.query(models.ShopItem).filter(
+            models.ShopItem.id == container.source_item_id
+        ).first()
+        if prev:
+            prev.status = "voorraad"
+            prev.container_id = None
+
+    # Koppel nieuw item
+    container.source_item_id = item.id
+    container.current_expiry_date = item.houdbaar_tot
+    container.fill_level = fill_level
+    item.status = "open"
+    item.container_id = container.id
+
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@app.delete("/api/containers/{container_id}/koppel")
+async def api_container_ontkoppel(container_id: int, request: Request,
+                                   db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    container = db.query(models.Container).filter(
+        models.Container.id == container_id,
+        models.Container.owner == user,
+    ).first()
+    if not container:
+        return JSONResponse({"error": "Niet gevonden"}, status_code=404)
+
+    if container.source_item_id:
+        item = db.query(models.ShopItem).filter(
+            models.ShopItem.id == container.source_item_id
+        ).first()
+        if item:
+            item.status = "voorraad"
+            item.container_id = None
+
+    container.source_item_id = None
+    container.current_expiry_date = None
+    container.fill_level = None
+
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── Container scan pagina (publiek via QR) ──────────────────────────────────────
 
 @app.get("/container/{qr_code}")
-async def container_scan(qr_code: str, request: Request, db: Session = Depends(get_db),
-                         success: str = None):
+async def container_scan(qr_code: str, request: Request, db: Session = Depends(get_db)):
     container = db.query(models.Container).filter(
         models.Container.qr_code == qr_code
     ).first()
 
     user = get_current_user(request)
+    today = datetime.date.today()
+    dagen = None
+    if container and container.current_expiry_date:
+        dagen = (container.current_expiry_date - today).days
 
-    if not container:
-        return templates.TemplateResponse(
-            "container_scan.html",
-            {"request": request, "user": user, "container": None, "qr_code": qr_code,
-             "niveau_volgorde": NIVEAU_VOLGORDE, "success": success},
-        )
-
-    item = container.shop_item
     return templates.TemplateResponse(
         "container_scan.html",
         {
             "request": request,
             "user": user,
             "container": container,
-            "item": item,
-            "qr_code": qr_code,
-            "niveau_volgorde": NIVEAU_VOLGORDE,
-            "is_eigenaar": user == item.owner if user else False,
-            "success": success,
+            "today": today,
+            "dagen_tot_tht": dagen,
+            "is_eigenaar": (user == container.owner) if (container and user) else False,
         },
-    )
-
-
-@app.post("/container/{qr_code}/bijvullen")
-async def container_bijvullen(
-    qr_code: str,
-    request: Request,
-    db: Session = Depends(get_db),
-    houdbaar_tot: str = Form(default=""),
-):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse(f"/login?next=/container/{qr_code}", status_code=302)
-
-    container = db.query(models.Container).filter(
-        models.Container.qr_code == qr_code
-    ).first()
-    if not container:
-        return RedirectResponse("/", status_code=302)
-
-    item = container.shop_item
-    if item.owner != user:
-        return RedirectResponse(f"/container/{qr_code}", status_code=302)
-
-    if houdbaar_tot.strip():
-        try:
-            item.houdbaar_tot = datetime.date.fromisoformat(houdbaar_tot.strip())
-        except ValueError:
-            pass
-
-    item.niveau_stap = "vol"
-    item.niveau_hoeveelheid = None
-
-    log = models.NiveauLog(
-        shop_item_id=item.id,
-        timestamp=datetime.datetime.utcnow(),
-        niveau_stap="vol",
-        niveau_hoeveelheid=None,
-        gewijzigd_door=user,
-    )
-    db.add(log)
-    db.commit()
-
-    return RedirectResponse(
-        f"/container/{qr_code}?success=bijgevuld",
-        status_code=302,
     )
 
 

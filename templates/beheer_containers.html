@@ -11,120 +11,76 @@
 
 <main>
 
-{% if success %}
-<div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;color:#155724;">
-  &#10003; {{ success }}
-</div>
-{% endif %}
-{% if error %}
-<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;color:#721c24;">
-  &#9888; {{ error }}
-</div>
-{% endif %}
+<div id="melding-ok" style="display:none;background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;color:#155724;"></div>
+<div id="melding-fout" style="display:none;background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;color:#721c24;"></div>
 
-<!-- Nieuwe container toevoegen -->
+<!-- Formulier: toevoegen / bewerken -->
 <div class="kaart" style="margin-bottom:1.5rem;">
-  <h2 style="font-size:1rem;margin-bottom:1rem;">&#43; Nieuwe container</h2>
-
-  {% if not container_producten %}
-  <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.75rem 1rem;color:#856404;font-size:.9rem;">
-    &#9888; Geen producten met "opslag in container" gevonden. Ga naar
-    <a href="/winkel">Winkelvoorraad</a> en bewerk een product om "Bewaar ik in een container" aan te zetten.
-  </div>
-  {% else %}
-  <form method="post" action="/beheer/containers/nieuw">
+  <h2 style="font-size:1rem;margin-bottom:1rem;" id="form-titel">&#43; Nieuwe container</h2>
+  <form id="container-form" onsubmit="submitContainer(event)">
+    <input type="hidden" id="f-id" value="">
     <div style="display:grid;gap:.75rem;">
       <div>
-        <label style="font-size:.85rem;font-weight:500;">Naam / label *</label>
-        <input type="text" name="naam" required placeholder="bijv. Bak 01"
+        <label style="font-size:.85rem;font-weight:500;">Label / naam *</label>
+        <input type="text" id="f-label" required placeholder="bijv. Bloem bak A"
                style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
       </div>
-      <div>
-        <label style="font-size:.85rem;font-weight:500;">Gekoppeld product *</label>
-        <select name="shop_item_id" required
-                style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
-          <option value="">— kies product —</option>
-          {% for p in container_producten %}
-          <option value="{{ p.id }}">{{ p.name }}{% if p.brand %} — {{ p.brand }}{% endif %}</option>
-          {% endfor %}
-        </select>
+      <div id="product-name-wrap">
+        <label style="font-size:.85rem;font-weight:500;">Producttype *
+          <span style="font-weight:normal;color:#6c757d;">(niet meer te wijzigen na aanmaken)</span>
+        </label>
+        <input type="text" id="f-product-name" required placeholder="bijv. Bloem"
+               style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
       </div>
       <div>
         <label style="font-size:.85rem;font-weight:500;">Notitie (optioneel)</label>
-        <input type="text" name="notitie" placeholder="optionele opmerking"
+        <input type="text" id="f-notes" placeholder="optionele opmerking"
                style="width:100%;padding:.5rem;border:1px solid #ced4da;border-radius:4px;font-size:.95rem;">
       </div>
-      <div>
-        <button type="submit" class="btn btn-primary">Aanmaken</button>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+        <button type="submit" class="btn btn-primary" id="btn-opslaan">Aanmaken</button>
+        <button type="button" id="btn-annuleer" onclick="resetForm()" style="display:none;background:#fff;border:1px solid #ced4da;padding:.45rem 1rem;border-radius:6px;cursor:pointer;">Annuleren</button>
       </div>
     </div>
   </form>
-  {% endif %}
 </div>
 
-<!-- Overzicht -->
+<!-- Lijst van containers -->
 <div class="kaart" style="padding:0;overflow:hidden;">
-  <table style="width:100%;border-collapse:collapse;">
-    <thead>
-      <tr>
-        <th colspan="5" style="font-size:1rem;text-transform:none;letter-spacing:0;padding:.75rem 1rem;">
-          &#127991; Containers overzicht
-        </th>
-      </tr>
-      {% if containers %}
-      <tr>
-        <th>Naam</th>
-        <th>QR code</th>
-        <th>Product</th>
-        <th>Niveau</th>
-        <th>Acties</th>
-      </tr>
-      {% endif %}
-    </thead>
-    <tbody>
-      {% if containers %}
-        {% for c in containers %}
-        <tr>
-          <td style="font-weight:600;">{{ c.naam }}</td>
-          <td>
-            <div id="qr-{{ c.qr_code }}" style="display:inline-block;" data-url="https://mountainsense.nl/container/{{ c.qr_code }}"></div>
-            <div style="font-size:.75rem;color:#6c757d;margin-top:.15rem;">{{ c.qr_code }}</div>
-          </td>
-          <td>
-            {{ c.shop_item.name }}
-            {% if c.shop_item.brand %}<span style="color:#6c757d;font-size:.85rem;"> — {{ c.shop_item.brand }}</span>{% endif %}
-          </td>
-          <td>
-            {% set stap = c.shop_item.niveau_stap or 'vol' %}
-            {% if stap == 'vol' %}<span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;&#9632;</span>
-            {% elif stap == 'bijna_vol' %}<span style="color:#27ae60;">&#9632;&#9632;&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;</span>
-            {% elif stap == 'half' %}<span style="color:#27ae60;">&#9632;&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;</span>
-            {% elif stap == 'bijna_leeg' %}<span style="color:#e67e22;">&#9632;&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;&#9632;</span>
-            {% elif stap == 'leeg' %}<span style="color:#e74c3c;">&#9632;</span><span style="color:#dee2e6;">&#9632;&#9632;&#9632;&#9632;</span>
-            {% endif %}
-          </td>
-          <td style="white-space:nowrap;">
-            <a href="/container/{{ c.qr_code }}"
-               style="font-size:.8rem;padding:.2rem .5rem;background:#27ae60;color:#fff;border-radius:3px;text-decoration:none;display:inline-block;margin-right:.25rem;">
-              &#128269; Scan
-            </a>
-            <button type="button"
-                    onclick="printEtiket('{{ c.qr_code }}', '{{ c.naam|replace("'", "\\'") }}')"
-                    style="font-size:.8rem;padding:.2rem .5rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;">
-              &#128438; Etiket
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-      {% else %}
-        <tr>
-          <td colspan="5" style="text-align:center;padding:2rem;color:#6c757d;">
-            Nog geen containers aangemaakt.
-          </td>
-        </tr>
-      {% endif %}
-    </tbody>
-  </table>
+  <div style="padding:.75rem 1rem;font-size:1rem;font-weight:600;border-bottom:1px solid #dee2e6;">
+    &#127991; Containers overzicht
+  </div>
+  <div id="containers-lijst">
+    <div style="text-align:center;padding:2rem;color:#6c757d;">Laden...</div>
+  </div>
+</div>
+
+<!-- Koppel-sectie (buiten de tabel, toggled per container) -->
+<div id="koppel-sectie" style="display:none;margin-top:1rem;" class="kaart">
+  <h4 style="margin:0 0 .75rem;font-size:.9rem;color:#2980b9;">&#128279; Item koppelen aan <span id="koppel-label"></span></h4>
+  <input type="hidden" id="koppel-container-id">
+  <div style="display:grid;gap:.75rem;max-width:500px;">
+    <div>
+      <label style="font-size:.85rem;font-weight:500;">Item selecteren</label>
+      <select id="koppel-select" style="width:100%;padding:.45rem;border:1px solid #ced4da;border-radius:4px;font-size:.9rem;margin-top:.25rem;">
+        <option value="">— kies item —</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:.85rem;font-weight:500;">Vulgraad</label>
+      <div id="koppel-fill" style="display:flex;gap:.4rem;margin-top:.25rem;">
+        <button type="button" class="fill-btn" data-level="1" onclick="kiesFill(this)" style="width:36px;height:36px;border:2px solid #dee2e6;border-radius:4px;background:#f8f9fa;cursor:pointer;">1</button>
+        <button type="button" class="fill-btn" data-level="2" onclick="kiesFill(this)" style="width:36px;height:36px;border:2px solid #dee2e6;border-radius:4px;background:#f8f9fa;cursor:pointer;">2</button>
+        <button type="button" class="fill-btn" data-level="3" onclick="kiesFill(this)" style="width:36px;height:36px;border:2px solid #dee2e6;border-radius:4px;background:#f8f9fa;cursor:pointer;">3</button>
+        <button type="button" class="fill-btn" data-level="4" onclick="kiesFill(this)" style="width:36px;height:36px;border:2px solid #dee2e6;border-radius:4px;background:#f8f9fa;cursor:pointer;">4</button>
+        <button type="button" class="fill-btn" data-level="5" onclick="kiesFill(this)" style="width:36px;height:36px;border:2px solid #dee2e6;border-radius:4px;background:#f8f9fa;cursor:pointer;">5</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;">
+      <button type="button" onclick="submitKoppel()" style="background:#27ae60;color:#fff;border:none;padding:.45rem 1rem;border-radius:6px;cursor:pointer;font-size:.9rem;">Koppelen</button>
+      <button type="button" onclick="sluitKoppel()" style="background:#fff;border:1px solid #ced4da;padding:.45rem .75rem;border-radius:6px;cursor:pointer;font-size:.9rem;">Annuleren</button>
+    </div>
+  </div>
 </div>
 
 </main>
@@ -133,66 +89,334 @@
 {% block extra_scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-// Genereer QR codes in de tabel
-document.querySelectorAll('[id^="qr-"]').forEach(function(el) {
-  new QRCode(el, {
-    text: el.getAttribute('data-url'),
-    width: 80,
-    height: 80,
-    correctLevel: QRCode.CorrectLevel.M
+var _bewerken = false;
+var _containers = [];
+
+// Detecteer koppel_item_id URL parameter (Openmaken-flow vanuit winkelvoorraad)
+var _urlParams = new URLSearchParams(window.location.search);
+var _koppelItemId = _urlParams.get('koppel_item_id') ? parseInt(_urlParams.get('koppel_item_id')) : null;
+
+function showMelding(type, tekst) {
+  var ok = document.getElementById('melding-ok');
+  var fout = document.getElementById('melding-fout');
+  ok.style.display = 'none';
+  fout.style.display = 'none';
+  if (type === 'ok') { ok.textContent = '\u2713 ' + tekst; ok.style.display = 'block'; }
+  else { fout.textContent = '\u26a0 ' + tekst; fout.style.display = 'block'; }
+  window.scrollTo(0, 0);
+}
+
+function resetForm() {
+  _bewerken = false;
+  document.getElementById('f-id').value = '';
+  document.getElementById('f-label').value = '';
+  document.getElementById('f-product-name').value = '';
+  document.getElementById('f-product-name').disabled = false;
+  document.getElementById('product-name-wrap').style.opacity = '1';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('form-titel').textContent = '+ Nieuwe container';
+  document.getElementById('btn-opslaan').textContent = 'Aanmaken';
+  document.getElementById('btn-annuleer').style.display = 'none';
+}
+
+function bewerkenById(id) {
+  var c = _containers.find(function(x) { return x.id === id; });
+  if (!c) return;
+  _bewerken = true;
+  document.getElementById('f-id').value = c.id;
+  document.getElementById('f-label').value = c.label;
+  document.getElementById('f-product-name').value = c.product_name;
+  document.getElementById('f-product-name').disabled = true;
+  document.getElementById('product-name-wrap').style.opacity = '.6';
+  document.getElementById('f-notes').value = c.notes || '';
+  document.getElementById('form-titel').textContent = '\u270f\ufe0f Container bewerken';
+  document.getElementById('btn-opslaan').textContent = 'Opslaan';
+  document.getElementById('btn-annuleer').style.display = 'inline-block';
+  window.scrollTo(0, 0);
+}
+
+function submitContainer(e) {
+  e.preventDefault();
+  var id = document.getElementById('f-id').value;
+  var label = document.getElementById('f-label').value.trim();
+  var productName = document.getElementById('f-product-name').value.trim();
+  var notes = document.getElementById('f-notes').value.trim();
+
+  if (_bewerken && id) {
+    fetch('/api/containers/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label, notes: notes || null }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { showMelding('ok', 'Container opgeslagen.'); resetForm(); laadContainers(); }
+      else showMelding('fout', d.error || 'Fout bij opslaan');
+    }).catch(function() { showMelding('fout', 'Netwerkfout'); });
+  } else {
+    fetch('/api/containers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label, product_name: productName, notes: notes || null }),
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.id) { showMelding('ok', 'Container ' + d.qr_code + ' aangemaakt.'); resetForm(); laadContainers(); }
+      else showMelding('fout', d.error || 'Fout bij aanmaken');
+    }).catch(function() { showMelding('fout', 'Netwerkfout'); });
+  }
+}
+
+function verwijderContainer(id) {
+  var c = _containers.find(function(x) { return x.id === id; });
+  var label = c ? c.label : 'deze container';
+  if (!confirm('Container "' + label + '" verwijderen?')) return;
+  fetch('/api/containers/' + id, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { showMelding('ok', 'Container verwijderd.'); laadContainers(); }
+      else showMelding('fout', d.error || 'Fout bij verwijderen');
+    }).catch(function() { showMelding('fout', 'Netwerkfout'); });
+}
+
+function ontkoppel(id) {
+  if (!confirm('Item ontkoppelen van deze container?')) return;
+  fetch('/api/containers/' + id + '/koppel', { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { showMelding('ok', 'Item ontkoppeld.'); sluitKoppel(); laadContainers(); }
+      else showMelding('fout', d.error || 'Fout bij ontkoppelen');
+    }).catch(function() { showMelding('fout', 'Netwerkfout'); });
+}
+
+function vulgraadBlokjes(level) {
+  if (!level) return '<span style="color:#dee2e6;">&#9632;&#9632;&#9632;&#9632;&#9632;</span>';
+  var kleuren = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#27ae60'];
+  var kleur = kleuren[Math.min(level - 1, 4)];
+  var html = '';
+  for (var i = 1; i <= 5; i++) {
+    html += '<span style="color:' + (i <= level ? kleur : '#dee2e6') + ';">&#9632;</span>';
+  }
+  return html;
+}
+
+function thtStijl(dagen) {
+  if (dagen === null || dagen === undefined) return '';
+  if (dagen <= 7) return 'color:#CC0000;font-weight:600;';
+  if (dagen <= 30) return 'color:#e67e22;';
+  return 'color:#27ae60;';
+}
+
+function escHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Koppel-sectie ──────────────────────────────────────────────────────────────
+
+function openKoppelSectie(containerId, productName) {
+  document.getElementById('koppel-container-id').value = containerId;
+  document.getElementById('koppel-label').textContent = '';
+  var c = _containers.find(function(x) { return x.id === containerId; });
+  if (c) document.getElementById('koppel-label').textContent = c.label;
+
+  // Reset fill-knoppen
+  document.querySelectorAll('#koppel-fill .fill-btn').forEach(function(b) {
+    b.style.background = '#f8f9fa';
+    b.style.borderColor = '#dee2e6';
+    b.style.color = '#333';
+    b.classList.remove('actief');
   });
-});
+  // Standaard vulgraad 3 selecteren
+  var btn3 = document.querySelector('#koppel-fill [data-level="3"]');
+  if (btn3) kiesFill(btn3);
+
+  // Toon sectie
+  var sectie = document.getElementById('koppel-sectie');
+  sectie.style.display = 'block';
+  sectie.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Laad beschikbare items
+  var url = '/api/shop/items?status=voorraad';
+  if (productName) url += '&product_name=' + encodeURIComponent(productName);
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(items) {
+      var select = document.getElementById('koppel-select');
+      select.innerHTML = '<option value="">— kies item —</option>';
+      // Sorteer: items die product_name matchen eerst
+      items.sort(function(a, b) {
+        var aNaam = (a.name || '').toLowerCase();
+        var bNaam = (b.name || '').toLowerCase();
+        var pNaam = (productName || '').toLowerCase();
+        var aMatch = aNaam.includes(pNaam) ? 0 : 1;
+        var bMatch = bNaam.includes(pNaam) ? 0 : 1;
+        return aMatch - bMatch || aNaam.localeCompare(bNaam);
+      });
+      items.forEach(function(it) {
+        var tht = it.houdbaar_tot ? ' · THT: ' + it.houdbaar_tot : '';
+        var opt = document.createElement('option');
+        opt.value = it.id;
+        opt.textContent = it.name + (it.brand ? ' — ' + it.brand : '') + tht;
+        select.appendChild(opt);
+      });
+      // Preselecteer bij koppel_item_id vanuit URL
+      if (_koppelItemId) {
+        for (var i = 0; i < select.options.length; i++) {
+          if (parseInt(select.options[i].value) === _koppelItemId) {
+            select.selectedIndex = i;
+            break;
+          }
+        }
+      }
+    }).catch(function() { showMelding('fout', 'Kon items niet laden'); });
+}
+
+function sluitKoppel() {
+  document.getElementById('koppel-sectie').style.display = 'none';
+  document.getElementById('koppel-container-id').value = '';
+  _koppelItemId = null;
+}
+
+function kiesFill(btn) {
+  document.querySelectorAll('#koppel-fill .fill-btn').forEach(function(b) {
+    b.classList.remove('actief');
+    b.style.background = '#f8f9fa';
+    b.style.borderColor = '#dee2e6';
+    b.style.color = '#333';
+  });
+  btn.classList.add('actief');
+  btn.style.background = '#27ae60';
+  btn.style.borderColor = '#27ae60';
+  btn.style.color = '#fff';
+}
+
+function submitKoppel() {
+  var containerId = parseInt(document.getElementById('koppel-container-id').value);
+  var itemId = parseInt(document.getElementById('koppel-select').value);
+  if (!itemId) { alert('Selecteer een item'); return; }
+
+  var fillBtn = document.querySelector('#koppel-fill .fill-btn.actief');
+  var fillLevel = fillBtn ? parseInt(fillBtn.dataset.level) : 3;
+
+  fetch('/api/containers/' + containerId + '/koppel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item_id: itemId, fill_level: fillLevel }),
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) {
+      showMelding('ok', 'Item gekoppeld.');
+      sluitKoppel();
+      laadContainers();
+    } else showMelding('fout', d.error || 'Fout bij koppelen');
+  }).catch(function() { showMelding('fout', 'Netwerkfout'); });
+}
+
+// ── Containers laden & renderen ────────────────────────────────────────────────
+
+function laadContainers() {
+  fetch('/api/containers')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      _containers = data;
+      renderContainers(data);
+    }).catch(function() {
+      document.getElementById('containers-lijst').innerHTML =
+        '<div style="padding:1rem;color:#721c24;">Fout bij laden van containers.</div>';
+    });
+}
+
+function renderContainers(data) {
+  var el = document.getElementById('containers-lijst');
+  if (!data.length) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:#6c757d;">Nog geen containers aangemaakt.</div>';
+    return;
+  }
+
+  var html = '<table style="width:100%;border-collapse:collapse;">';
+  html += '<thead><tr style="background:#f8f9fa;">';
+  html += '<th style="padding:.6rem .75rem;text-align:left;font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;border-bottom:1px solid #dee2e6;">Label</th>';
+  html += '<th style="padding:.6rem .75rem;text-align:left;font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;border-bottom:1px solid #dee2e6;">Product</th>';
+  html += '<th style="padding:.6rem .75rem;text-align:left;font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;border-bottom:1px solid #dee2e6;">THT</th>';
+  html += '<th style="padding:.6rem .75rem;text-align:left;font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;border-bottom:1px solid #dee2e6;">Vulgraad</th>';
+  html += '<th style="padding:.6rem .75rem;text-align:left;font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;border-bottom:1px solid #dee2e6;">Gekoppeld item</th>';
+  html += '<th style="padding:.6rem .75rem;border-bottom:1px solid #dee2e6;"></th>';
+  html += '</tr></thead><tbody>';
+
+  data.forEach(function(c, idx) {
+    var thtTekst = c.current_expiry_date ? c.current_expiry_date : '—';
+    var extraStijl = '';
+    if (c.current_expiry_date && c.dagen_tot_tht !== null) {
+      extraStijl = thtStijl(c.dagen_tot_tht);
+      if (c.dagen_tot_tht <= 0) thtTekst += ' (VERLOPEN)';
+      else thtTekst += ' (' + c.dagen_tot_tht + ' d)';
+    }
+    var itemTekst = c.source_item_name
+      ? escHtml(c.source_item_name) + (c.source_item_tht ? ' <span style="color:#6c757d;font-size:.82rem;">· ' + c.source_item_tht + '</span>' : '')
+      : '<span style="color:#adb5bd;">— niet gekoppeld —</span>';
+
+    var bg = idx % 2 === 0 ? '#fff' : '#f8f9fa';
+
+    html += '<tr style="background:' + bg + ';border-top:1px solid #dee2e6;">';
+    html += '<td style="padding:.6rem .75rem;font-weight:600;">';
+    html += '<a href="/container/' + c.qr_code + '" style="color:inherit;text-decoration:none;">' + escHtml(c.label) + '</a>';
+    html += '<div style="font-size:.72rem;color:#adb5bd;">' + c.qr_code + '</div>';
+    html += '</td>';
+    html += '<td style="padding:.6rem .75rem;">' + escHtml(c.product_name) + '</td>';
+    html += '<td style="padding:.6rem .75rem;"><span style="' + extraStijl + '">' + escHtml(thtTekst) + '</span></td>';
+    html += '<td style="padding:.6rem .75rem;">' + vulgraadBlokjes(c.fill_level) + '</td>';
+    html += '<td style="padding:.6rem .75rem;font-size:.88rem;">' + itemTekst + '</td>';
+    html += '<td style="padding:.6rem .75rem;white-space:nowrap;">';
+    html += '<button type="button" onclick="bewerkenById(' + c.id + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#f39c12;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Bewerken">&#9999;</button>';
+    html += '<button type="button" onclick="openKoppelSectie(' + c.id + ', ' + JSON.stringify(c.product_name) + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#2980b9;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Koppelen">&#128279;</button>';
+    if (c.source_item_id) {
+      html += '<button type="button" onclick="ontkoppel(' + c.id + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Ontkoppelen">&#10007;</button>';
+    }
+    html += '<button type="button" onclick="printEtiket(' + JSON.stringify(c.qr_code) + ', ' + JSON.stringify(c.label) + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Etiket afdrukken">&#128438;</button>';
+    html += '<button type="button" onclick="verwijderContainer(' + c.id + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="Verwijderen">&#128465;</button>';
+    html += '</td></tr>';
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+
+  // Open automatisch koppel-sectie indien koppel_item_id in URL
+  if (_koppelItemId) {
+    fetch('/api/shop/items')
+      .then(function(r) { return r.json(); })
+      .then(function(items) {
+        var item = items.find(function(it) { return it.id === _koppelItemId; });
+        if (item) {
+          var productNaam = item.name || '';
+          var cont = _containers.find(function(c) {
+            return c.product_name.toLowerCase() === productNaam.toLowerCase();
+          }) || (_containers.length ? _containers[0] : null);
+          if (cont) openKoppelSectie(cont.id, cont.product_name);
+        }
+      });
+  }
+}
+
+// ── Print etiket ────────────────────────────────────────────────────────────────
 
 window.printEtiket = function(qrCode, naam) {
   var url = 'https://mountainsense.nl/container/' + qrCode;
   var win = window.open('', '_blank', 'width=460,height=420');
-  win.document.write('<!DOCTYPE html><html><head><title>Etiket ' + naam + '</title>');
+  win.document.write('<!DOCTYPE html><html><head><title>Etiket</title>');
   win.document.write('<style>');
   win.document.write('@page{size:60mm 30mm landscape;margin:1mm;}');
-  win.document.write('@media screen{' + '#print-container{display:none!important;}}');
-  win.document.write('@media print{');
-  win.document.write('.knoppen,.brother-instructie,.preview-wrapper{display:none!important;}');
-  win.document.write('body,html{margin:0!important;padding:0!important;background:white!important;}');
-  win.document.write('#print-container{display:block!important;}');
-  win.document.write('.print-label{width:58mm;height:28mm;display:flex;flex-direction:row;align-items:center;box-sizing:border-box;overflow:hidden;}');
-  win.document.write('.print-links{flex:1;display:flex;flex-direction:column;justify-content:center;padding:1mm 1mm 1mm 1.5mm;overflow:hidden;}');
-  win.document.write('.print-rechts{flex:0 0 26mm;display:flex;align-items:center;justify-content:center;}');
-  win.document.write('.print-rechts canvas,.print-rechts img{width:24mm!important;height:24mm!important;}');
-  win.document.write('.print-naam{font-size:10pt;font-weight:bold;color:#000;margin:0;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}');
-  win.document.write('}');
-  win.document.write('body{font-family:sans-serif;padding:20px;margin:0;}');
-  win.document.write('.brother-instructie{font-size:0.85rem;color:#555;margin-bottom:14px;padding:8px 12px;background:#f0f4ff;border-left:3px solid #4a7cdc;border-radius:4px;}');
-  win.document.write('.preview-wrapper{overflow-x:auto;margin-bottom:12px;}');
-  win.document.write('.preview-label{display:flex;flex-direction:row;width:400px;height:200px;border:2px solid #bbb;border-radius:6px;background:white;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12);}');
-  win.document.write('.plabel-links{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px 10px 16px 24px;}');
-  win.document.write('.plabel-rechts{flex:0 0 200px;display:flex;align-items:center;justify-content:center;background:#fafafa;border-left:1px solid #eee;}');
-  win.document.write('.plabel-naam{font-size:1.5rem;font-weight:700;margin:0;line-height:1.2;}');
-  win.document.write('.knoppen{margin-top:16px;display:flex;gap:8px;}');
+  win.document.write('@media print{.knoppen,.brother-instructie,.preview-wrapper{display:none!important;}body,html{margin:0!important;padding:0!important;background:white!important;}#print-container{display:block!important;}.print-label{width:58mm;height:28mm;display:flex;flex-direction:row;align-items:center;box-sizing:border-box;overflow:hidden;}.print-links{flex:1;display:flex;flex-direction:column;justify-content:center;padding:1mm 1mm 1mm 1.5mm;overflow:hidden;}.print-rechts{flex:0 0 26mm;display:flex;align-items:center;justify-content:center;}.print-rechts canvas,.print-rechts img{width:24mm!important;height:24mm!important;}.print-naam{font-size:10pt;font-weight:bold;color:#000;margin:0;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}}');
+  win.document.write('@media screen{#print-container{display:none!important;}}');
+  win.document.write('body{font-family:sans-serif;padding:20px;margin:0;}.brother-instructie{font-size:0.85rem;color:#555;margin-bottom:14px;padding:8px 12px;background:#f0f4ff;border-left:3px solid #4a7cdc;border-radius:4px;}.preview-wrapper{overflow-x:auto;margin-bottom:12px;}.preview-label{display:flex;flex-direction:row;width:400px;height:200px;border:2px solid #bbb;border-radius:6px;background:white;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.12);}.plabel-links{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px 10px 16px 24px;}.plabel-rechts{flex:0 0 200px;display:flex;align-items:center;justify-content:center;background:#fafafa;border-left:1px solid #eee;}.plabel-naam{font-size:1.5rem;font-weight:700;margin:0;line-height:1.2;}.knoppen{margin-top:16px;display:flex;gap:8px;}');
   win.document.write('</style>');
   win.document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>');
   win.document.write('</head><body>');
   win.document.write('<p class="brother-instructie">Zorg dat de <strong>Brother QL-820NWBc</strong> is ingesteld als standaardprinter met <strong>DK-22251</strong> labels (60 &times; 30 mm).</p>');
-  win.document.write('<div class="preview-wrapper">');
-  win.document.write('<div class="preview-label">');
-  win.document.write('<div class="plabel-links">');
-  win.document.write('<p class="plabel-naam">' + naam + '</p>');
-  win.document.write('</div>');
-  win.document.write('<div class="plabel-rechts"><div id="qr-preview"></div></div>');
-  win.document.write('</div></div>');
+  win.document.write('<div class="preview-wrapper"><div class="preview-label"><div class="plabel-links"><p class="plabel-naam">' + naam + '</p></div><div class="plabel-rechts"><div id="qr-preview"></div></div></div></div>');
   win.document.write('<div class="knoppen"><button onclick="window.print()">&#128438; Afdrukken</button></div>');
-  win.document.write('<div id="print-container">');
-  win.document.write('<div class="print-label">');
-  win.document.write('<div class="print-links">');
-  win.document.write('<p class="print-naam">' + naam + '</p>');
-  win.document.write('</div>');
-  win.document.write('<div class="print-rechts"><div id="qr-print"></div></div>');
-  win.document.write('</div></div>');
-  win.document.write('<script>');
-  win.document.write('new QRCode(document.getElementById("qr-preview"),{text:"' + url + '",width:170,height:170,correctLevel:QRCode.CorrectLevel.M});');
-  win.document.write('new QRCode(document.getElementById("qr-print"),{text:"' + url + '",width:300,height:300,correctLevel:QRCode.CorrectLevel.M});');
-  win.document.write('<\/script>');
+  win.document.write('<div id="print-container"><div class="print-label"><div class="print-links"><p class="print-naam">' + naam + '</p></div><div class="print-rechts"><div id="qr-print"></div></div></div></div>');
+  win.document.write('<script>new QRCode(document.getElementById("qr-preview"),{text:"' + url + '",width:170,height:170,correctLevel:QRCode.CorrectLevel.M});new QRCode(document.getElementById("qr-print"),{text:"' + url + '",width:300,height:300,correctLevel:QRCode.CorrectLevel.M});<\/script>');
   win.document.write('</body></html>');
   win.document.close();
 };
+
+// Initialiseer
+laadContainers();
 </script>
 {% endblock %}

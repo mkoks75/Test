@@ -51,10 +51,11 @@
       </span>
     </a>
     {% endfor %}
-    {% for item in geopend_zonder_container %}
-    <a href="/geopend" style="display:block;text-decoration:none;color:inherit;border-radius:6px;padding:.5rem .75rem;margin-bottom:.35rem;background:#fff3cd;border:1px solid #ffc107;">
-      <span style="font-weight:600;">{{ item.name }}</span>
-      <span style="margin-left:.5rem;font-size:.8rem;color:#856404;">&#9888; Geen container gekoppeld</span>
+    {% for cont in geopend_zonder_container %}
+    <a href="/beheer/containers" style="display:block;text-decoration:none;color:inherit;border-radius:6px;padding:.5rem .75rem;margin-bottom:.35rem;background:#fff3cd;border:1px solid #ffc107;">
+      <span style="font-weight:600;">{{ cont.label }}</span>
+      <span style="color:#6c757d;font-size:.85rem;"> — {{ cont.product_name }}</span>
+      <span style="margin-left:.5rem;font-size:.8rem;color:#856404;">&#9888; Geen item gekoppeld</span>
     </a>
     {% endfor %}
     <a href="/geopend" style="font-size:.85rem;color:#6c757d;">Alle geopende producten bekijken &rarr;</a>
