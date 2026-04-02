@@ -143,13 +143,24 @@ function submitContainer(e) {
   var notes = document.getElementById('f-notes').value.trim();
 
   if (_bewerken && id) {
+    var contVoorPrint = _containers.find(function(x) { return x.id === parseInt(id); });
     fetch('/api/containers/' + id, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label: label, notes: notes || null }),
     }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) { showMelding('ok', 'Container opgeslagen.'); resetForm(); laadContainers(); }
-      else showMelding('fout', d.error || 'Fout bij opslaan');
+      if (d.ok) {
+        resetForm();
+        laadContainers();
+        var okDiv = document.getElementById('melding-ok');
+        var printLink = contVoorPrint
+          ? ' <a href="#" onclick="printEtiket(' + escJS(contVoorPrint.qr_code) + ', ' + escJS(label) + '); return false;" style="color:#155724;font-weight:600;">&#128438; Etiket afdrukken</a>'
+          : '';
+        okDiv.innerHTML = '\u2713 Container opgeslagen.' + printLink;
+        okDiv.style.display = 'block';
+        document.getElementById('melding-fout').style.display = 'none';
+        window.scrollTo(0, 0);
+      } else showMelding('fout', d.error || 'Fout bij opslaan');
     }).catch(function() { showMelding('fout', 'Netwerkfout'); });
   } else {
     fetch('/api/containers', {
@@ -157,8 +168,15 @@ function submitContainer(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label: label, product_name: productName, notes: notes || null }),
     }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.id) { showMelding('ok', 'Container ' + d.qr_code + ' aangemaakt.'); resetForm(); laadContainers(); }
-      else showMelding('fout', d.error || 'Fout bij aanmaken');
+      if (d.id) {
+        resetForm();
+        laadContainers();
+        var okDiv = document.getElementById('melding-ok');
+        okDiv.innerHTML = '\u2713 Container ' + escHtml(d.qr_code) + ' aangemaakt. <a href="#" onclick="printEtiket(' + escJS(d.qr_code) + ', ' + escJS(label) + '); return false;" style="color:#155724;font-weight:600;">&#128438; Etiket afdrukken</a>';
+        okDiv.style.display = 'block';
+        document.getElementById('melding-fout').style.display = 'none';
+        window.scrollTo(0, 0);
+      } else showMelding('fout', d.error || 'Fout bij aanmaken');
     }).catch(function() { showMelding('fout', 'Netwerkfout'); });
   }
 }
@@ -206,6 +224,10 @@ function thtStijl(dagen) {
 function escHtml(s) {
   if (s === null || s === undefined) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escJS(s) {
+  return "'" + String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
 }
 
 // ── Koppel-sectie ──────────────────────────────────────────────────────────────
@@ -364,11 +386,11 @@ function renderContainers(data) {
     html += '<td style="padding:.6rem .75rem;font-size:.88rem;">' + itemTekst + '</td>';
     html += '<td style="padding:.6rem .75rem;white-space:nowrap;">';
     html += '<button type="button" onclick="bewerkenById(' + c.id + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#f39c12;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Bewerken">&#9999;</button>';
-    html += '<button type="button" onclick="openKoppelSectie(' + c.id + ', ' + JSON.stringify(c.product_name) + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#2980b9;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Koppelen">&#128279;</button>';
+    html += '<button type="button" onclick="openKoppelSectie(' + c.id + ', ' + escJS(c.product_name) + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#2980b9;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Koppelen">&#128279;</button>';
     if (c.source_item_id) {
       html += '<button type="button" onclick="ontkoppel(' + c.id + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Ontkoppelen">&#10007;</button>';
     }
-    html += '<button type="button" onclick="printEtiket(' + JSON.stringify(c.qr_code) + ', ' + JSON.stringify(c.label) + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Etiket afdrukken">&#128438;</button>';
+    html += '<button type="button" onclick="printEtiket(' + escJS(c.qr_code) + ', ' + escJS(c.label) + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#6c757d;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-right:.2rem;" title="Etiket afdrukken">&#128438;</button>';
     html += '<button type="button" onclick="verwijderContainer(' + c.id + ')" style="font-size:.78rem;padding:.2rem .45rem;background:#e74c3c;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="Verwijderen">&#128465;</button>';
     html += '</td></tr>';
   });
