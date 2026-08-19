@@ -1,0 +1,14 @@
+node_modules
+.git
+.github
+.lovable
+.tanstack
+.output
+.nitro
+dist
+backups
+data
+*.db
+.env
+.env.*
+!.env.example
