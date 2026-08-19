@@ -19,8 +19,10 @@ import { Route as AuthenticatedBoodschappenRouteImport } from './routes/_authent
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedGeopendRouteImport } from './routes/_authenticated/geopend'
 import { Route as AuthenticatedInvoerRouteImport } from './routes/_authenticated/invoer'
+import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedUitgifteRouteImport } from './routes/_authenticated/uitgifte'
 import { Route as AuthenticatedVoorraadRouteImport } from './routes/_authenticated/voorraad'
+import { Route as AuthenticatedEtiketIdRouteImport } from './routes/_authenticated/etiket.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -73,6 +75,11 @@ const AuthenticatedInvoerRoute = AuthenticatedInvoerRouteImport.update({
   path: '/invoer',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedScanRoute = AuthenticatedScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedUitgifteRoute = AuthenticatedUitgifteRouteImport.update({
   id: '/uitgifte',
   path: '/uitgifte',
@@ -81,6 +88,11 @@ const AuthenticatedUitgifteRoute = AuthenticatedUitgifteRouteImport.update({
 const AuthenticatedVoorraadRoute = AuthenticatedVoorraadRouteImport.update({
   id: '/voorraad',
   path: '/voorraad',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEtiketIdRoute = AuthenticatedEtiketIdRouteImport.update({
+  id: '/etiket/$id',
+  path: '/etiket/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
@@ -94,8 +106,10 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/geopend': typeof AuthenticatedGeopendRoute
   '/invoer': typeof AuthenticatedInvoerRoute
+  '/scan': typeof AuthenticatedScanRoute
   '/uitgifte': typeof AuthenticatedUitgifteRoute
   '/voorraad': typeof AuthenticatedVoorraadRoute
+  '/etiket/$id': typeof AuthenticatedEtiketIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -107,8 +121,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/geopend': typeof AuthenticatedGeopendRoute
   '/invoer': typeof AuthenticatedInvoerRoute
+  '/scan': typeof AuthenticatedScanRoute
   '/uitgifte': typeof AuthenticatedUitgifteRoute
   '/voorraad': typeof AuthenticatedVoorraadRoute
+  '/etiket/$id': typeof AuthenticatedEtiketIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,8 +138,10 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/geopend': typeof AuthenticatedGeopendRoute
   '/_authenticated/invoer': typeof AuthenticatedInvoerRoute
+  '/_authenticated/scan': typeof AuthenticatedScanRoute
   '/_authenticated/uitgifte': typeof AuthenticatedUitgifteRoute
   '/_authenticated/voorraad': typeof AuthenticatedVoorraadRoute
+  '/_authenticated/etiket/$id': typeof AuthenticatedEtiketIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,8 +155,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/geopend'
     | '/invoer'
+    | '/scan'
     | '/uitgifte'
     | '/voorraad'
+    | '/etiket/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -150,8 +170,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/geopend'
     | '/invoer'
+    | '/scan'
     | '/uitgifte'
     | '/voorraad'
+    | '/etiket/$id'
   id:
     | '__root__'
     | '/'
@@ -164,8 +186,10 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/geopend'
     | '/_authenticated/invoer'
+    | '/_authenticated/scan'
     | '/_authenticated/uitgifte'
     | '/_authenticated/voorraad'
+    | '/_authenticated/etiket/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -247,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInvoerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/scan': {
+      id: '/_authenticated/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof AuthenticatedScanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/uitgifte': {
       id: '/_authenticated/uitgifte'
       path: '/uitgifte'
@@ -261,6 +292,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVoorraadRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/etiket/$id': {
+      id: '/_authenticated/etiket/$id'
+      path: '/etiket/$id'
+      fullPath: '/etiket/$id'
+      preLoaderRoute: typeof AuthenticatedEtiketIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -271,8 +309,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedGeopendRoute: typeof AuthenticatedGeopendRoute
   AuthenticatedInvoerRoute: typeof AuthenticatedInvoerRoute
+  AuthenticatedScanRoute: typeof AuthenticatedScanRoute
   AuthenticatedUitgifteRoute: typeof AuthenticatedUitgifteRoute
   AuthenticatedVoorraadRoute: typeof AuthenticatedVoorraadRoute
+  AuthenticatedEtiketIdRoute: typeof AuthenticatedEtiketIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -282,8 +322,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedGeopendRoute: AuthenticatedGeopendRoute,
   AuthenticatedInvoerRoute: AuthenticatedInvoerRoute,
+  AuthenticatedScanRoute: AuthenticatedScanRoute,
   AuthenticatedUitgifteRoute: AuthenticatedUitgifteRoute,
   AuthenticatedVoorraadRoute: AuthenticatedVoorraadRoute,
+  AuthenticatedEtiketIdRoute: AuthenticatedEtiketIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
