@@ -13,16 +13,15 @@ import { uitloggen } from "@/lib/auth.functions";
 const actieveLinks = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/invoer", label: "Invoer" },
+  { to: "/uitgifte", label: "Uitgifte" },
+  { to: "/voorraad", label: "Voorraad" },
+  { to: "/bijna-verlopen", label: "Bijna verlopen" },
+  { to: "/boodschappen", label: "Boodschappen" },
+  { to: "/geopend", label: "Geopend" },
+  { to: "/beheer", label: "Beheer" },
 ] as const;
 
-const komendeLinks = [
-  "Uitgifte",
-  "Voorraad",
-  "Bijna verlopen",
-  "Boodschappen",
-  "Geopend",
-  "Beheer",
-];
+const komendeLinks: string[] = [];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);

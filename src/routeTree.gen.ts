@@ -13,8 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as WachtwoordHerstellenRouteImport } from './routes/wachtwoord-herstellen'
 import { Route as WachtwoordVergetenRouteImport } from './routes/wachtwoord-vergeten'
+import { Route as AuthenticatedBeheerRouteImport } from './routes/_authenticated/beheer'
+import { Route as AuthenticatedBijnaVerlopenRouteImport } from './routes/_authenticated/bijna-verlopen'
+import { Route as AuthenticatedBoodschappenRouteImport } from './routes/_authenticated/boodschappen'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedGeopendRouteImport } from './routes/_authenticated/geopend'
 import { Route as AuthenticatedInvoerRouteImport } from './routes/_authenticated/invoer'
+import { Route as AuthenticatedUitgifteRouteImport } from './routes/_authenticated/uitgifte'
+import { Route as AuthenticatedVoorraadRouteImport } from './routes/_authenticated/voorraad'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,9 +41,31 @@ const WachtwoordVergetenRoute = WachtwoordVergetenRouteImport.update({
   path: '/wachtwoord-vergeten',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedBeheerRoute = AuthenticatedBeheerRouteImport.update({
+  id: '/beheer',
+  path: '/beheer',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBijnaVerlopenRoute =
+  AuthenticatedBijnaVerlopenRouteImport.update({
+    id: '/bijna-verlopen',
+    path: '/bijna-verlopen',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBoodschappenRoute =
+  AuthenticatedBoodschappenRouteImport.update({
+    id: '/boodschappen',
+    path: '/boodschappen',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGeopendRoute = AuthenticatedGeopendRouteImport.update({
+  id: '/geopend',
+  path: '/geopend',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedInvoerRoute = AuthenticatedInvoerRouteImport.update({
@@ -45,20 +73,42 @@ const AuthenticatedInvoerRoute = AuthenticatedInvoerRouteImport.update({
   path: '/invoer',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedUitgifteRoute = AuthenticatedUitgifteRouteImport.update({
+  id: '/uitgifte',
+  path: '/uitgifte',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedVoorraadRoute = AuthenticatedVoorraadRouteImport.update({
+  id: '/voorraad',
+  path: '/voorraad',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/wachtwoord-herstellen': typeof WachtwoordHerstellenRoute
   '/wachtwoord-vergeten': typeof WachtwoordVergetenRoute
+  '/beheer': typeof AuthenticatedBeheerRoute
+  '/bijna-verlopen': typeof AuthenticatedBijnaVerlopenRoute
+  '/boodschappen': typeof AuthenticatedBoodschappenRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/geopend': typeof AuthenticatedGeopendRoute
   '/invoer': typeof AuthenticatedInvoerRoute
+  '/uitgifte': typeof AuthenticatedUitgifteRoute
+  '/voorraad': typeof AuthenticatedVoorraadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/wachtwoord-herstellen': typeof WachtwoordHerstellenRoute
   '/wachtwoord-vergeten': typeof WachtwoordVergetenRoute
+  '/beheer': typeof AuthenticatedBeheerRoute
+  '/bijna-verlopen': typeof AuthenticatedBijnaVerlopenRoute
+  '/boodschappen': typeof AuthenticatedBoodschappenRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/geopend': typeof AuthenticatedGeopendRoute
   '/invoer': typeof AuthenticatedInvoerRoute
+  '/uitgifte': typeof AuthenticatedUitgifteRoute
+  '/voorraad': typeof AuthenticatedVoorraadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -66,8 +116,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/wachtwoord-herstellen': typeof WachtwoordHerstellenRoute
   '/wachtwoord-vergeten': typeof WachtwoordVergetenRoute
+  '/_authenticated/beheer': typeof AuthenticatedBeheerRoute
+  '/_authenticated/bijna-verlopen': typeof AuthenticatedBijnaVerlopenRoute
+  '/_authenticated/boodschappen': typeof AuthenticatedBoodschappenRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/geopend': typeof AuthenticatedGeopendRoute
   '/_authenticated/invoer': typeof AuthenticatedInvoerRoute
+  '/_authenticated/uitgifte': typeof AuthenticatedUitgifteRoute
+  '/_authenticated/voorraad': typeof AuthenticatedVoorraadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -75,23 +131,41 @@ export interface FileRouteTypes {
     | '/'
     | '/wachtwoord-herstellen'
     | '/wachtwoord-vergeten'
+    | '/beheer'
+    | '/bijna-verlopen'
+    | '/boodschappen'
     | '/dashboard'
+    | '/geopend'
     | '/invoer'
+    | '/uitgifte'
+    | '/voorraad'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/wachtwoord-herstellen'
     | '/wachtwoord-vergeten'
+    | '/beheer'
+    | '/bijna-verlopen'
+    | '/boodschappen'
     | '/dashboard'
+    | '/geopend'
     | '/invoer'
+    | '/uitgifte'
+    | '/voorraad'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/wachtwoord-herstellen'
     | '/wachtwoord-vergeten'
+    | '/_authenticated/beheer'
+    | '/_authenticated/bijna-verlopen'
+    | '/_authenticated/boodschappen'
     | '/_authenticated/dashboard'
+    | '/_authenticated/geopend'
     | '/_authenticated/invoer'
+    | '/_authenticated/uitgifte'
+    | '/_authenticated/voorraad'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -131,11 +205,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WachtwoordVergetenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/beheer': {
+      id: '/_authenticated/beheer'
+      path: '/beheer'
+      fullPath: '/beheer'
+      preLoaderRoute: typeof AuthenticatedBeheerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/bijna-verlopen': {
+      id: '/_authenticated/bijna-verlopen'
+      path: '/bijna-verlopen'
+      fullPath: '/bijna-verlopen'
+      preLoaderRoute: typeof AuthenticatedBijnaVerlopenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/boodschappen': {
+      id: '/_authenticated/boodschappen'
+      path: '/boodschappen'
+      fullPath: '/boodschappen'
+      preLoaderRoute: typeof AuthenticatedBoodschappenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/geopend': {
+      id: '/_authenticated/geopend'
+      path: '/geopend'
+      fullPath: '/geopend'
+      preLoaderRoute: typeof AuthenticatedGeopendRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/invoer': {
@@ -145,17 +247,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInvoerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/uitgifte': {
+      id: '/_authenticated/uitgifte'
+      path: '/uitgifte'
+      fullPath: '/uitgifte'
+      preLoaderRoute: typeof AuthenticatedUitgifteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/voorraad': {
+      id: '/_authenticated/voorraad'
+      path: '/voorraad'
+      fullPath: '/voorraad'
+      preLoaderRoute: typeof AuthenticatedVoorraadRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBeheerRoute: typeof AuthenticatedBeheerRoute
+  AuthenticatedBijnaVerlopenRoute: typeof AuthenticatedBijnaVerlopenRoute
+  AuthenticatedBoodschappenRoute: typeof AuthenticatedBoodschappenRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedGeopendRoute: typeof AuthenticatedGeopendRoute
   AuthenticatedInvoerRoute: typeof AuthenticatedInvoerRoute
+  AuthenticatedUitgifteRoute: typeof AuthenticatedUitgifteRoute
+  AuthenticatedVoorraadRoute: typeof AuthenticatedVoorraadRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBeheerRoute: AuthenticatedBeheerRoute,
+  AuthenticatedBijnaVerlopenRoute: AuthenticatedBijnaVerlopenRoute,
+  AuthenticatedBoodschappenRoute: AuthenticatedBoodschappenRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedGeopendRoute: AuthenticatedGeopendRoute,
   AuthenticatedInvoerRoute: AuthenticatedInvoerRoute,
+  AuthenticatedUitgifteRoute: AuthenticatedUitgifteRoute,
+  AuthenticatedVoorraadRoute: AuthenticatedVoorraadRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
