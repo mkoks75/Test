@@ -25,7 +25,7 @@ COPY --from=build /app/.output ./.output
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 COPY db ./db
-COPY scripts/migrate.mjs ./scripts/migrate.mjs
+COPY scripts ./scripts
 
 EXPOSE 8000
 
