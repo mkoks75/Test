@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Boxes, MapPin, Package, Search } from "lucide-react";
 
@@ -170,7 +170,9 @@ function VoorraadPagina() {
                       <th className="py-2 pr-3 font-medium">Locatie</th>
                       <th className="py-2 pr-3 text-right font-medium">Hoeveelheid</th>
                       <th className="py-2 pr-3 font-medium">Geoogst</th>
-                      <th className="py-2 font-medium">Houdbaar tot</th>
+                      <th className="py-2 pr-3 font-medium">Houdbaar tot</th>
+                      <th className="py-2 text-right font-medium">Etiket</th>
+
                     </tr>
                   </thead>
                   <tbody>
@@ -193,7 +195,7 @@ function VoorraadPagina() {
                           <td className="py-2.5 pr-3 text-muted-foreground">
                             {formatteerDatum(p.datum)}
                           </td>
-                          <td className="py-2.5">
+                          <td className="py-2.5 pr-3">
                             {p.houdbaarTot && urgentie ? (
                               <Badge
                                 variant="outline"
@@ -205,7 +207,17 @@ function VoorraadPagina() {
                               <span className="text-muted-foreground">—</span>
                             )}
                           </td>
+                          <td className="py-2.5 text-right">
+                            <Link
+                              to="/etiket/$id"
+                              params={{ id: String(p.id) }}
+                              className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+                            >
+                              Etiket
+                            </Link>
+                          </td>
                         </tr>
+
                       );
                     })}
                   </tbody>
