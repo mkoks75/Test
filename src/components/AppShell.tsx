@@ -18,7 +18,9 @@ const actieveLinks = [
   { to: "/bijna-verlopen", label: "Bijna verlopen" },
   { to: "/boodschappen", label: "Boodschappen" },
   { to: "/geopend", label: "Geopend" },
+  { to: "/scan", label: "Scan" },
   { to: "/beheer", label: "Beheer" },
+
 ] as const;
 
 const komendeLinks: string[] = [];
