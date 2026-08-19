@@ -77,3 +77,14 @@ export const registreerUitgifte = createServerFn({ method: "POST" })
     const gebruiker = await vereisGebruiker();
     return bewaarUitgifte(data, gebruiker.username);
   });
+
+export const haalPartij = createServerFn({ method: "GET" })
+  .inputValidator((invoer: unknown) =>
+    z.object({ id: z.number().int().positive() }).parse(invoer),
+  )
+  .handler(async ({ data }) => {
+    const { vereisGebruiker } = await import("./auth.server");
+    const { haalPartijDetail } = await import("./voorraad.server");
+    await vereisGebruiker();
+    return haalPartijDetail(data.id);
+  });
