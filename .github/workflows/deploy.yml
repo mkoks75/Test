@@ -36,6 +36,6 @@ jobs:
             set -e
             cd ~/project-maarten
             git pull origin main
-            docker compose build app
-            docker compose up -d
+            docker-compose build app
+            docker-compose up -d
             docker image prune -f
