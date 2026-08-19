@@ -6,6 +6,8 @@
  * link in de serverlog te staan zodat een beheerder hem kan doorgeven.
  */
 
+import { getRequest } from "@tanstack/react-start/server";
+
 import { db } from "./db.server";
 import { hashWachtwoord } from "./auth.server";
 
@@ -32,9 +34,20 @@ export async function maakHerstelToken(userId: number): Promise<string> {
   return token;
 }
 
+/** Basis-URL: APP_URL als die staat, anders het adres van het huidige verzoek. */
+function basisUrl(): string {
+  const uitEnv = (process.env["APP_URL"] ?? "").trim().replace(/\/$/, "");
+  if (uitEnv) return uitEnv;
+
+  try {
+    return new URL(getRequest().url).origin;
+  } catch {
+    return "";
+  }
+}
+
 export function herstelUrl(token: string): string {
-  const basis = (process.env["APP_URL"] ?? "").replace(/\/$/, "");
-  return `${basis}/wachtwoord-herstellen?token=${token}`;
+  return `${basisUrl()}/wachtwoord-herstellen?token=${token}`;
 }
 
 function tekstMail(url: string): string {
