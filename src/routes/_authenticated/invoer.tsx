@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
@@ -74,6 +74,8 @@ function VeldGroep({
 function InvoerPagina() {
   const stamdata = Route.useLoaderData();
   const opslaan = useServerFn(registreerOogst);
+  const navigate = useNavigate();
+
 
   const [productId, setProductId] = useState(stamdata.producten[0]?.id ?? 0);
   const [conserveringId, setConserveringId] = useState<number | null>(
@@ -124,7 +126,7 @@ function InvoerPagina() {
     setFout(null);
     setBevestiging(null);
     try {
-      await opslaan({
+      const resultaat = await opslaan({
         data: {
           productId,
           locatieId,
@@ -136,6 +138,18 @@ function InvoerPagina() {
         },
       });
 
+      setHoeveelheid("");
+      setNotitie("");
+      setHandmatigHoudbaar("");
+
+      if (resultaat?.id) {
+        await navigate({
+          to: "/etiket/$id",
+          params: { id: String(resultaat.id) },
+        });
+        return;
+      }
+
       setBevestiging(
         `${product?.naam ?? "Product"} — ${hoeveelheid} ${product?.eenheid ?? ""} op ${
           locatie?.naam ?? "—"
@@ -145,9 +159,7 @@ function InvoerPagina() {
             : ""
         }.`,
       );
-      setHoeveelheid("");
-      setNotitie("");
-      setHandmatigHoudbaar("");
+
     } catch {
       setFout("Opslaan is niet gelukt. Probeer het opnieuw.");
     } finally {
