@@ -37,18 +37,75 @@ export function herstelUrl(token: string): string {
   return `${basis}/wachtwoord-herstellen?token=${token}`;
 }
 
+function tekstMail(url: string): string {
+  return [
+    "Hallo,",
+    "",
+    "Er is een nieuw wachtwoord aangevraagd voor het voorraadsysteem van MountainSense Farm.",
+    `Stel je wachtwoord in via deze link (geldig ${GELDIG_MINUTEN} minuten):`,
+    "",
+    url,
+    "",
+    "Heb je dit niet aangevraagd? Dan hoef je niets te doen.",
+  ].join("\n");
+}
+
+function htmlMail(url: string): string {
+  return `<!doctype html><html lang="nl"><body style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#1f2a24">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px">
+    <h1 style="font-size:22px;margin:0 0 12px">Nieuw wachtwoord instellen</h1>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 20px">Er is een nieuw wachtwoord aangevraagd voor het voorraadsysteem van MountainSense Farm. De link hieronder is ${GELDIG_MINUTEN} minuten geldig en kan één keer gebruikt worden.</p>
+    <p style="margin:0 0 24px"><a href="${url}" style="display:inline-block;background:#2f5d43;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-size:15px">Wachtwoord instellen</a></p>
+    <p style="font-size:13px;line-height:1.6;color:#5a6b62;margin:0 0 8px">Werkt de knop niet? Kopieer deze link:<br><span style="word-break:break-all">${url}</span></p>
+    <p style="font-size:13px;color:#5a6b62;margin:16px 0 0">Heb je dit niet aangevraagd? Dan hoef je niets te doen.</p>
+  </div></body></html>`;
+}
+
 export async function verstuurHerstelMail(
   email: string,
   token: string,
 ): Promise<void> {
   const url = herstelUrl(token);
 
-  // SMTP-verzending wordt aangezet zodra de app op de eigen server draait.
-  // Tot die tijd is de log de bezorgmethode; het adres loggen we niet mee.
-  console.info(
-    `[wachtwoord-herstel] link aangemaakt, geldig ${GELDIG_MINUTEN} minuten: ${url}`,
-  );
-  void email;
+  const host = process.env["SMTP_HOST"];
+  const user = process.env["SMTP_USER"];
+  const pass = process.env["SMTP_PASSWORD"] ?? process.env["SMTP_PASS"];
+  const from =
+    process.env["SMTP_FROM"] ?? (user ? `Voorraad <${user}>` : undefined);
+
+  if (!host || !from) {
+    // Geen SMTP ingericht: de log is de bezorgmethode. Het adres loggen we niet.
+    console.info(
+      `[wachtwoord-herstel] geen SMTP geconfigureerd; link geldig ${GELDIG_MINUTEN} minuten: ${url}`,
+    );
+    return;
+  }
+
+  const poort = Number(process.env["SMTP_PORT"] ?? 587);
+
+  try {
+    const nodemailer = (await import("nodemailer")).default;
+    const transport = nodemailer.createTransport({
+      host,
+      port: poort,
+      secure: poort === 465,
+      ...(user && pass ? { auth: { user, pass } } : {}),
+    });
+
+    await transport.sendMail({
+      from,
+      to: email,
+      subject: "Nieuw wachtwoord instellen — MountainSense Farm voorraad",
+      text: tekstMail(url),
+      html: htmlMail(url),
+    });
+    console.info("[wachtwoord-herstel] mail verstuurd.");
+  } catch (fout) {
+    console.error("[wachtwoord-herstel] versturen mislukt:", fout);
+    console.info(
+      `[wachtwoord-herstel] terugvalpad, link geldig ${GELDIG_MINUTEN} minuten: ${url}`,
+    );
+  }
 }
 
 export async function gebruikHerstelToken(
