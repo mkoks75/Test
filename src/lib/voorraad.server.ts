@@ -230,19 +230,86 @@ export type NieuweOogst = {
 export async function bewaarOogst(
   invoer: NieuweOogst,
   gebruikersnaam: string,
-): Promise<{ id: number }> {
-  const rijen = await db()<Array<{ id: number }>>`
+): Promise<{ id: number; volgnummer: number | null }> {
+  const rijen = await db()<Array<{ id: number; volgnummer: number | null }>>`
     INSERT INTO harvest_entries
       (product_id, location_id, conserveringsmethode_id, quantity, date,
-       entered_by, note, houdbaar_tot)
+       entered_by, note, houdbaar_tot, volgnummer)
     VALUES
       (${invoer.productId}, ${invoer.locatieId}, ${invoer.conserveringId},
        ${invoer.hoeveelheid}, ${invoer.datum}, ${gebruikersnaam},
-       ${invoer.notitie}, ${invoer.houdbaarTot})
-    RETURNING id
+       ${invoer.notitie}, ${invoer.houdbaarTot},
+       (SELECT COALESCE(MAX(volgnummer), 0) + 1
+          FROM harvest_entries WHERE product_id = ${invoer.productId}))
+    RETURNING id, volgnummer
   `;
-  return { id: rijen[0]?.id ?? 0 };
+  return { id: rijen[0]?.id ?? 0, volgnummer: rijen[0]?.volgnummer ?? null };
 }
+
+// ── Partijdetail (etiket / scan) ───────────────────────────────────────────
+
+export type PartijDetail = {
+  id: number;
+  volgnummer: number | null;
+  product: string;
+  locatie: string;
+  conservering: string;
+  hoeveelheid: number;
+  eenheid: string;
+  datum: string;
+  houdbaarTot: string | null;
+  notitie: string | null;
+  ingevoerdDoor: string;
+  uitgegeven: boolean;
+};
+
+export async function haalPartijDetail(id: number): Promise<PartijDetail | null> {
+  const rijen = await db()<
+    Array<{
+      id: number;
+      volgnummer: number | null;
+      product: string;
+      locatie: string;
+      conservering: string | null;
+      quantity: number;
+      eenheid: string | null;
+      date: string;
+      houdbaar_tot: string | null;
+      note: string | null;
+      entered_by: string;
+      uitgegeven: boolean;
+    }>
+  >`
+    SELECT h.id, h.volgnummer, p.name AS product, l.name AS locatie,
+           c.naam AS conservering, h.quantity,
+           COALESCE(e.naam, p.unit) AS eenheid,
+           h.date, h.houdbaar_tot, h.note, h.entered_by, h.uitgegeven
+    FROM harvest_entries h
+    JOIN products  p ON p.id = h.product_id
+    JOIN locations l ON l.id = h.location_id
+    LEFT JOIN conserveringsmethoden c ON c.id = h.conserveringsmethode_id
+    LEFT JOIN eenheden e ON e.id = p.eenheid_id
+    WHERE h.id = ${id}
+    LIMIT 1
+  `;
+  const r = rijen[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    volgnummer: r.volgnummer,
+    product: r.product,
+    locatie: r.locatie,
+    conservering: r.conservering ?? "Vers",
+    hoeveelheid: Number(r.quantity),
+    eenheid: r.eenheid ?? "",
+    datum: String(r.date).slice(0, 10),
+    houdbaarTot: r.houdbaar_tot ? String(r.houdbaar_tot).slice(0, 10) : null,
+    notitie: r.note,
+    ingevoerdDoor: r.entered_by,
+    uitgegeven: r.uitgegeven,
+  };
+}
+
 
 // ── Voorraadoverzicht ──────────────────────────────────────────────────────
 
