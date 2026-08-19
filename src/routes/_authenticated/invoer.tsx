@@ -1,8 +1,36 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  Leaf,
+  MapPin,
+  Package,
+  Scale,
+  Sparkles,
+} from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { formatteerDatum, plusMaanden, vandaag } from "@/lib/datum";
 import {
   haalStamdataVoorInvoer,
@@ -33,11 +61,15 @@ export const Route = createFileRoute("/_authenticated/invoer")({
   component: InvoerPagina,
 });
 
-const veldClasses =
-  "w-full rounded-md border border-input bg-card px-3 py-2.5 text-sm text-foreground shadow-xs outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25";
-
-const labelClasses =
-  "mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground";
+function VeldGroep({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-5 sm:grid-cols-2">{children}</div>
+  );
+}
 
 function InvoerPagina() {
   const stamdata = Route.useLoaderData();
@@ -57,6 +89,7 @@ function InvoerPagina() {
   const [bezig, setBezig] = useState(false);
 
   const product = stamdata.producten.find((p) => p.id === productId);
+  const locatie = stamdata.locaties.find((l) => l.id === locatieId);
 
   const termijn = useMemo(() => {
     const exact = stamdata.bewaartermijnen.find(
@@ -74,9 +107,16 @@ function InvoerPagina() {
     [termijn, datum],
   );
   const effectiefHoudbaar = handmatigHoudbaar || berekendHoudbaar;
+  const isHandmatigOverschreven =
+    handmatigHoudbaar !== "" &&
+    berekendHoudbaar !== null &&
+    handmatigHoudbaar !== berekendHoudbaar;
 
   const geenStamdata =
     stamdata.producten.length === 0 || stamdata.locaties.length === 0;
+
+  const kanVersturen =
+    !bezig && !geenStamdata && hoeveelheid !== "" && Number(hoeveelheid.replace(",", ".")) > 0;
 
   async function verstuur(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,7 +136,6 @@ function InvoerPagina() {
         },
       });
 
-      const locatie = stamdata.locaties.find((l) => l.id === locatieId);
       setBevestiging(
         `${product?.naam ?? "Product"} — ${hoeveelheid} ${product?.eenheid ?? ""} op ${
           locatie?.naam ?? "—"
@@ -140,10 +179,13 @@ function InvoerPagina() {
         {bevestiging ? (
           <div
             role="status"
-            className="mt-6 rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm text-foreground"
+            className="mt-6 flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm text-foreground"
           >
-            <span className="font-semibold text-success">Opgeslagen — </span>
-            {bevestiging}
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+            <span>
+              <span className="font-semibold text-success">Opgeslagen — </span>
+              {bevestiging}
+            </span>
           </div>
         ) : null}
 
@@ -156,151 +198,238 @@ function InvoerPagina() {
           </p>
         ) : null}
 
-        <form
-          onSubmit={verstuur}
-          className="mt-8 rounded-xl border border-border bg-card p-5 shadow-xs sm:p-7"
-        >
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label htmlFor="product" className={labelClasses}>
-                Product
-              </label>
-              <select
-                id="product"
-                className={veldClasses}
-                value={productId}
-                onChange={(e) => setProductId(Number(e.target.value))}
-              >
-                {stamdata.producten.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.naam}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <form onSubmit={verstuur} className="mt-8 space-y-6">
+          {/* ── Sectie 1: Product & conservering ────────────────────── */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-surface/60 pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Leaf className="h-4 w-4 text-primary" />
+                Wat
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Kies het product en de conserveringsmethode.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <VeldGroep>
+                <div className="sm:col-span-2 space-y-2">
+                  <Label htmlFor="product">Product</Label>
+                  <Select
+                    value={String(productId)}
+                    onValueChange={(v) => setProductId(Number(v))}
+                  >
+                    <SelectTrigger id="product" className="h-11">
+                      <SelectValue placeholder="Kies een product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stamdata.producten.map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.naam}
+                          {p.eenheid ? ` · ${p.eenheid}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <label htmlFor="conservering" className={labelClasses}>
-                Conservering
-              </label>
-              <select
-                id="conservering"
-                className={veldClasses}
-                value={conserveringId ?? ""}
-                onChange={(e) =>
-                  setConserveringId(
-                    e.target.value === "" ? null : Number(e.target.value),
-                  )
-                }
-              >
-                <option value="">Vers</option>
-                {stamdata.conserveringsmethoden.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.naam}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                {termijn === null
-                  ? "Geen bewaartermijn bekend voor deze combinatie."
-                  : `Bewaartermijn: ${termijn} maand${termijn === 1 ? "" : "en"}.`}
-              </p>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="conservering">Conservering</Label>
+                  <Select
+                    value={conserveringId === null ? "vers" : String(conserveringId)}
+                    onValueChange={(v) =>
+                      setConserveringId(v === "vers" ? null : Number(v))
+                    }
+                  >
+                    <SelectTrigger id="conservering" className="h-11">
+                      <SelectValue placeholder="Vers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vers">Vers</SelectItem>
+                      {stamdata.conserveringsmethoden.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.naam}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {termijn === null ? (
+                      "Geen bewaartermijn bekend voor deze combinatie."
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-warning" />
+                        Bewaartermijn:{" "}
+                        <Badge variant="secondary" className="font-medium">
+                          {termijn} maand{termijn === 1 ? "" : "en"}
+                        </Badge>
+                      </span>
+                    )}
+                  </p>
+                </div>
 
-            <div>
-              <label htmlFor="locatie" className={labelClasses}>
-                Locatie
-              </label>
-              <select
-                id="locatie"
-                className={veldClasses}
-                value={locatieId}
-                onChange={(e) => setLocatieId(Number(e.target.value))}
-              >
-                {stamdata.locaties.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.naam}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hoeveelheid">
+                    Hoeveelheid
+                    {product?.eenheid ? (
+                      <span className="ml-1 text-muted-foreground">
+                        ({product.eenheid})
+                      </span>
+                    ) : null}
+                  </Label>
+                  <div className="relative">
+                    <Scale className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="hoeveelheid"
+                      className="h-11 pl-9 tnum"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      inputMode="decimal"
+                      placeholder="0,0"
+                      value={hoeveelheid}
+                      onChange={(e) => setHoeveelheid(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </VeldGroep>
+            </CardContent>
+          </Card>
 
-            <div>
-              <label htmlFor="hoeveelheid" className={labelClasses}>
-                Hoeveelheid ({product?.eenheid || "—"})
-              </label>
-              <input
-                id="hoeveelheid"
-                className={`${veldClasses} tnum`}
-                type="number"
-                min="0"
-                step="0.1"
-                inputMode="decimal"
-                placeholder="0,0"
-                value={hoeveelheid}
-                onChange={(e) => setHoeveelheid(e.target.value)}
-                required
-              />
-            </div>
+          {/* ── Sectie 2: Locatie ────────────────────────────────────── */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-surface/60 pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MapPin className="h-4 w-4 text-primary" />
+                Waar
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Waar wordt deze partij opgeslagen?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="locatie">Locatie</Label>
+                <Select
+                  value={String(locatieId)}
+                  onValueChange={(v) => setLocatieId(Number(v))}
+                >
+                  <SelectTrigger id="locatie" className="h-11">
+                    <SelectValue placeholder="Kies een locatie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stamdata.locaties.map((l) => (
+                      <SelectItem key={l.id} value={String(l.id)}>
+                        {l.naam}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div>
-              <label htmlFor="datum" className={labelClasses}>
-                Oogstdatum
-              </label>
-              <input
-                id="datum"
-                className={`${veldClasses} tnum`}
-                type="date"
-                value={datum}
-                onChange={(e) => setDatum(e.target.value)}
-                required
-              />
-            </div>
+          {/* ── Sectie 3: Datums ──────────────────────────────────────── */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-surface/60 pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CalendarClock className="h-4 w-4 text-primary" />
+                Wanneer
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Oogstdatum en automatisch berekende houdbaarheidsdatum.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <VeldGroep>
+                <div className="space-y-2">
+                  <Label htmlFor="datum">Oogstdatum</Label>
+                  <Input
+                    id="datum"
+                    className="h-11 tnum"
+                    type="date"
+                    value={datum}
+                    onChange={(e) => setDatum(e.target.value)}
+                    required
+                  />
+                </div>
 
-            <div className="sm:col-span-2">
-              <label htmlFor="houdbaar" className={labelClasses}>
-                Houdbaar tot
-              </label>
-              <input
-                id="houdbaar"
-                className={`${veldClasses} tnum`}
-                type="date"
-                value={handmatigHoudbaar || berekendHoudbaar || ""}
-                onChange={(e) => setHandmatigHoudbaar(e.target.value)}
-              />
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                {berekendHoudbaar
-                  ? `Automatisch berekend op ${formatteerDatum(berekendHoudbaar)}.`
-                  : "Vul zelf een datum in, of laat leeg."}
-              </p>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="houdbaar" className="flex items-center gap-2">
+                    Houdbaar tot
+                    {isHandmatigOverschreven ? (
+                      <Badge variant="outline" className="text-[0.65rem] font-medium uppercase tracking-wide text-warning">
+                        Handmatig
+                      </Badge>
+                    ) : null}
+                  </Label>
+                  <Input
+                    id="houdbaar"
+                    className="h-11 tnum"
+                    type="date"
+                    value={handmatigHoudbaar || berekendHoudbaar || ""}
+                    onChange={(e) => setHandmatigHoudbaar(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {berekendHoudbaar
+                      ? `Automatisch berekend op ${formatteerDatum(berekendHoudbaar)}. Overschrijf om aan te passen.`
+                      : "Vul zelf een datum in, of laat leeg."}
+                  </p>
+                </div>
+              </VeldGroep>
+            </CardContent>
+          </Card>
 
-            <div className="sm:col-span-2">
-              <label htmlFor="notitie" className={labelClasses}>
+          {/* ── Sectie 4: Notitie ────────────────────────────────────── */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-surface/60 pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Package className="h-4 w-4 text-primary" />
                 Notitie
-              </label>
-              <textarea
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Optionele bijzonderheden over deze partij.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <Textarea
                 id="notitie"
                 rows={3}
-                className={veldClasses}
                 placeholder="Bijvoorbeeld: laatste snee van het perceel."
                 value={notitie}
                 onChange={(e) => setNotitie(e.target.value)}
               />
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-border pt-6">
-            <button
+          {/* ── Samenvatting & actie ──────────────────────────────────── */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-muted-foreground">
+              {product ? (
+                <span>
+                  <span className="font-medium text-foreground">
+                    {product.naam}
+                  </span>
+                  {hoeveelheid ? (
+                    <> · {hoeveelheid} {product.eenheid}</>
+                  ) : null}
+                  {locatie ? <> · {locatie.naam}</> : null}
+                  {effectiefHoudbaar ? (
+                    <> · houdbaar tot {formatteerDatum(effectiefHoudbaar)}</>
+                  ) : null}
+                </span>
+              ) : (
+                <span>Oogstdatum {formatteerDatum(datum)}</span>
+              )}
+            </div>
+            <Button
               type="submit"
-              disabled={bezig || geenStamdata}
-              className="rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              size="lg"
+              disabled={!kanVersturen}
+              className="sm:min-w-[200px]"
             >
               {bezig ? "Bezig…" : "Partij registreren"}
-            </button>
-            <span className="text-sm text-muted-foreground">
-              Oogstdatum {formatteerDatum(datum)}
-            </span>
+            </Button>
           </div>
         </form>
       </div>
