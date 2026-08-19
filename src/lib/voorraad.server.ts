@@ -243,3 +243,226 @@ export async function bewaarOogst(
   `;
   return { id: rijen[0]?.id ?? 0 };
 }
+
+// ── Voorraadoverzicht ──────────────────────────────────────────────────────
+
+export type Partij = {
+  id: number;
+  productId: number;
+  product: string;
+  locatieId: number;
+  locatie: string;
+  conservering: string;
+  hoeveelheid: number;
+  eenheid: string;
+  datum: string;
+  houdbaarTot: string | null;
+  notitie: string | null;
+};
+
+export type VoorraadData = {
+  peildatum: string;
+  partijen: Partij[];
+  producten: Array<{ id: number; naam: string }>;
+  locaties: Array<{ id: number; naam: string }>;
+};
+
+async function haalOpenPartijen(): Promise<Partij[]> {
+  const rijen = await db()<
+    Array<{
+      id: number;
+      product_id: number;
+      product: string;
+      location_id: number;
+      locatie: string;
+      conservering: string | null;
+      quantity: number;
+      eenheid: string | null;
+      date: string;
+      houdbaar_tot: string | null;
+      note: string | null;
+    }>
+  >`
+    SELECT h.id, h.product_id, p.name AS product,
+           h.location_id, l.name AS locatie,
+           c.naam AS conservering,
+           h.quantity, COALESCE(e.naam, p.unit) AS eenheid,
+           h.date, h.houdbaar_tot, h.note
+    FROM harvest_entries h
+    JOIN products  p ON p.id = h.product_id
+    JOIN locations l ON l.id = h.location_id
+    LEFT JOIN conserveringsmethoden c ON c.id = h.conserveringsmethode_id
+    LEFT JOIN eenheden e ON e.id = p.eenheid_id
+    WHERE NOT h.uitgegeven AND h.quantity > 0
+    ORDER BY h.houdbaar_tot NULLS LAST, p.name
+  `;
+
+  return rijen.map((r) => ({
+    id: r.id,
+    productId: r.product_id,
+    product: r.product,
+    locatieId: r.location_id,
+    locatie: r.locatie,
+    conservering: r.conservering ?? "Vers",
+    hoeveelheid: Number(r.quantity),
+    eenheid: r.eenheid ?? "",
+    datum: String(r.date).slice(0, 10),
+    houdbaarTot: r.houdbaar_tot ? String(r.houdbaar_tot).slice(0, 10) : null,
+    notitie: r.note,
+  }));
+}
+
+export async function haalVoorraad(): Promise<VoorraadData> {
+  const sql = db();
+  const [partijen, producten, locaties] = await Promise.all([
+    haalOpenPartijen(),
+    sql<Array<{ id: number; name: string }>>`
+      SELECT id, name FROM products WHERE active ORDER BY name
+    `,
+    sql<Array<{ id: number; name: string }>>`
+      SELECT id, name FROM locations WHERE active ORDER BY name
+    `,
+  ]);
+
+  return {
+    peildatum: vandaag(),
+    partijen,
+    producten: producten.map((p) => ({ id: p.id, naam: p.name })),
+    locaties: locaties.map((l) => ({ id: l.id, naam: l.name })),
+  };
+}
+
+// ── Uitgifte ───────────────────────────────────────────────────────────────
+
+export type UitgifteRegel = {
+  id: number;
+  product: string;
+  locatie: string;
+  hoeveelheid: number;
+  eenheid: string;
+  ontvanger: string;
+  datum: string;
+  door: string;
+  notitie: string | null;
+};
+
+export type UitgifteData = {
+  peildatum: string;
+  partijen: Partij[];
+  ontvangers: Array<{ id: number; naam: string }>;
+  historie: UitgifteRegel[];
+};
+
+export async function haalUitgifteData(): Promise<UitgifteData> {
+  const sql = db();
+  const [partijen, ontvangers, historie] = await Promise.all([
+    haalOpenPartijen(),
+    sql<Array<{ id: number; naam: string }>>`
+      SELECT id, naam FROM ontvangers WHERE actief ORDER BY naam
+    `,
+    sql<
+      Array<{
+        id: number;
+        product: string;
+        locatie: string;
+        quantity: number;
+        eenheid: string | null;
+        ontvanger: string;
+        date: string;
+        entered_by: string;
+        note: string | null;
+      }>
+    >`
+      SELECT u.id, p.name AS product, l.name AS locatie, u.quantity,
+             COALESCE(e.naam, p.unit) AS eenheid,
+             u.ontvanger, u.date, u.entered_by, u.note
+      FROM uitgiftes u
+      JOIN products  p ON p.id = u.product_id
+      JOIN locations l ON l.id = u.location_id
+      LEFT JOIN eenheden e ON e.id = p.eenheid_id
+      ORDER BY u.date DESC, u.id DESC
+      LIMIT 50
+    `,
+  ]);
+
+  return {
+    peildatum: vandaag(),
+    partijen,
+    ontvangers,
+    historie: historie.map((r) => ({
+      id: r.id,
+      product: r.product,
+      locatie: r.locatie,
+      hoeveelheid: Number(r.quantity),
+      eenheid: r.eenheid ?? "",
+      ontvanger: r.ontvanger,
+      datum: String(r.date).slice(0, 10),
+      door: r.entered_by,
+      notitie: r.note,
+    })),
+  };
+}
+
+export type NieuweUitgifte = {
+  partijId: number;
+  hoeveelheid: number;
+  ontvanger: string;
+  datum: string;
+  notitie: string | null;
+};
+
+export async function bewaarUitgifte(
+  invoer: NieuweUitgifte,
+  gebruikersnaam: string,
+): Promise<{ id: number; restant: number }> {
+  const sql = db();
+
+  const partijen = await sql<
+    Array<{
+      id: number;
+      product_id: number;
+      location_id: number;
+      quantity: number;
+      uitgegeven: boolean;
+    }>
+  >`
+    SELECT id, product_id, location_id, quantity, uitgegeven
+    FROM harvest_entries WHERE id = ${invoer.partijId}
+  `;
+  const partij = partijen[0];
+  if (!partij || partij.uitgegeven) {
+    throw new Error("Deze partij is niet meer beschikbaar.");
+  }
+
+  const beschikbaar = Number(partij.quantity);
+  if (invoer.hoeveelheid > beschikbaar + 1e-9) {
+    throw new Error(`Er is nog maar ${beschikbaar} beschikbaar in deze partij.`);
+  }
+
+  const restant = Math.max(0, Number((beschikbaar - invoer.hoeveelheid).toFixed(6)));
+
+  const rijen = await sql<Array<{ id: number }>>`
+    INSERT INTO uitgiftes
+      (harvest_entry_id, product_id, location_id, quantity, ontvanger, date, entered_by, note)
+    VALUES
+      (${partij.id}, ${partij.product_id}, ${partij.location_id},
+       ${invoer.hoeveelheid}, ${invoer.ontvanger}, ${invoer.datum},
+       ${gebruikersnaam}, ${invoer.notitie})
+    RETURNING id
+  `;
+
+  if (restant <= 0) {
+    await sql`
+      UPDATE harvest_entries
+      SET quantity = 0, uitgegeven = TRUE, uitgegeven_op = now(),
+          uitgegeven_aan = ${invoer.ontvanger}
+      WHERE id = ${partij.id}
+    `;
+  } else {
+    await sql`
+      UPDATE harvest_entries SET quantity = ${restant} WHERE id = ${partij.id}
+    `;
+  }
+
+  return { id: rijen[0]?.id ?? 0, restant };
+}
