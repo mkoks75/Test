@@ -15,7 +15,7 @@ COPY . .
 ENV NITRO_PRESET=node-server
 RUN bun run build
 
-FROM oven/bun:1-slim AS runtime
+FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8000
@@ -30,4 +30,4 @@ COPY scripts ./scripts
 EXPOSE 8000
 
 # Eerst migreren, dan pas de webserver starten.
-CMD ["sh", "-c", "bun scripts/migrate.mjs && bun .output/server/index.mjs"]
+CMD ["sh", "-c", "node scripts/migrate.mjs && node .output/server/index.mjs"]
