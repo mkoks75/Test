@@ -51,7 +51,49 @@ export const Route = createFileRoute("/_authenticated/beheer")({
     ],
   }),
   component: BeheerPagina,
+  errorComponent: BeheerFout,
+  notFoundComponent: () => (
+    <AppShell>
+      <div className="mx-auto w-full max-w-2xl px-4 py-16 text-center">
+        <h1 className="font-display text-2xl text-foreground">Beheer niet gevonden</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Deze pagina bestaat niet (meer).
+        </p>
+      </div>
+    </AppShell>
+  ),
 });
+
+function BeheerFout({ error, reset }: { error: Error; reset: () => void }) {
+  const router = useRouter();
+  const geenRechten = /beheerrecht|ingelogd/i.test(error.message);
+  return (
+    <AppShell>
+      <div className="mx-auto w-full max-w-2xl px-4 py-16 text-center">
+        <h1 className="font-display text-2xl text-foreground">
+          {geenRechten ? "Geen toegang tot Beheer" : "Beheer kon niet laden"}
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {geenRechten
+            ? "Je account heeft geen beheerrechten. Vraag een beheerder om deze rechten toe te kennen."
+            : error.message}
+        </p>
+        {geenRechten ? null : (
+          <button
+            type="button"
+            className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            onClick={() => {
+              void router.invalidate();
+              reset();
+            }}
+          >
+            Opnieuw proberen
+          </button>
+        )}
+      </div>
+    </AppShell>
+  );
+}
 
 type Soort = "product" | "locatie" | "eenheid" | "conservering" | "ontvanger";
 type Item = { id: number; naam: string; actief: boolean };
