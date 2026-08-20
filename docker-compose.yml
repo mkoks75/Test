@@ -55,13 +55,16 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./backups:/backups
-    entrypoint: >
-      sh -c 'while true; do
-        pg_dump -h db -U "$$POSTGRES_USER" "$$POSTGRES_DB"
-          | gzip > "/backups/voorraad-$$(date +%Y%m%d-%H%M).sql.gz";
-        find /backups -name "voorraad-*.sql.gz" -mtime +14 -delete;
-        sleep 86400;
-      done'
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          pg_dump -h db -U "$$POSTGRES_USER" "$$POSTGRES_DB" \
+            | gzip > "/backups/voorraad-$$(date +%Y%m%d-%H%M).sql.gz"
+          find /backups -name "voorraad-*.sql.gz" -mtime +14 -delete
+          sleep 86400
+        done
     env_file:
       - .env
 
