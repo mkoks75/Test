@@ -35,7 +35,8 @@ jobs:
           script: |
             set -e
             cd ~/project-maarten
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             docker-compose build app
             docker-compose up -d
             docker image prune -f
